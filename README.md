@@ -1,1 +1,2 @@
-# Espinoza_Laqui_PETI
+# StrategicTI
+Plataforma de planificación estratégica de TI
