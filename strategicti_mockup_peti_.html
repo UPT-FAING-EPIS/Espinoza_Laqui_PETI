@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>StrategicTI — Mockup PETI</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/tabler-icons/2.44.0/iconfont/tabler-icons.min.css">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --blue-50: #E6F1FB; --blue-100: #B5D4F4; --blue-400: #378ADD; --blue-600: #185FA5; --blue-800: #0C447C;
+    --green-50: #EAF3DE; --green-600: #3B6D11; --green-800: #27500A;
+    --amber-50: #FAEEDA; --amber-600: #854F0B; --amber-800: #633806;
+    --red-50: #FCEBEB; --red-600: #A32D2D;
+    --gray-50: #F1EFE8; --gray-100: #D3D1C7; --gray-200: #B4B2A9; --gray-600: #5F5E5A;
+    --text-primary: #1a1a18; --text-secondary: #5a5955; --text-tertiary: #9a9890;
+    --bg-primary: #ffffff; --bg-secondary: #f5f4f0; --bg-tertiary: #eeede9;
+    --border: rgba(0,0,0,0.1); --border-md: rgba(0,0,0,0.18);
+    --radius-md: 8px; --radius-lg: 12px;
+    --font: 'DM Sans', sans-serif;
+  }
+  html, body { height: 100%; font-family: var(--font); background: var(--bg-tertiary); color: var(--text-primary); font-size: 15px; }
+
+  .screen { display: none; height: 100vh; flex-direction: column; }
+  .screen.active { display: flex; }
+
+  /* TOPBAR */
+  .topbar { background: var(--bg-primary); border-bottom: 0.5px solid var(--border); padding: 0 24px; height: 52px; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
+  .logo { font-size: 16px; font-weight: 600; color: var(--text-primary); display: flex; align-items: center; gap: 8px; letter-spacing: -0.3px; }
+  .logo i { color: var(--blue-600); font-size: 20px; }
+  .topbar-right { display: flex; align-items: center; gap: 12px; font-size: 13px; color: var(--text-secondary); }
+  .avatar { width: 32px; height: 32px; border-radius: 50%; background: var(--blue-100); display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; color: var(--blue-800); }
+
+  /* LAYOUT */
+  .layout { display: flex; flex: 1; overflow: hidden; }
+
+  /* SIDEBAR */
+  .sidebar { width: 210px; background: var(--bg-secondary); border-right: 0.5px solid var(--border); padding: 16px 0; flex-shrink: 0; overflow-y: auto; }
+  .sidebar-section { font-size: 10px; font-weight: 600; letter-spacing: 0.08em; color: var(--text-tertiary); padding: 10px 18px 4px; text-transform: uppercase; }
+  .sidebar-item { display: flex; align-items: center; gap: 9px; padding: 8px 18px; font-size: 13px; color: var(--text-secondary); cursor: pointer; border-left: 2px solid transparent; transition: all 0.12s; }
+  .sidebar-item:hover { background: var(--bg-primary); color: var(--text-primary); }
+  .sidebar-item.active { background: var(--bg-primary); color: var(--blue-600); border-left: 2px solid var(--blue-600); font-weight: 500; }
+  .sidebar-item .num { font-size: 11px; color: var(--text-tertiary); min-width: 16px; }
+  .sidebar-item .check-icon { margin-left: auto; color: #1D9E75; font-size: 13px; }
+
+  /* CONTENT */
+  .content { flex: 1; padding: 28px 32px; overflow-y: auto; background: var(--bg-tertiary); }
+  .page-title { font-size: 20px; font-weight: 600; letter-spacing: -0.4px; margin-bottom: 4px; }
+  .page-sub { font-size: 13px; color: var(--text-secondary); margin-bottom: 22px; }
+
+  /* PROGRESS */
+  .progress-wrap { margin-bottom: 22px; }
+  .progress-bar { background: var(--bg-secondary); border-radius: 100px; height: 4px; }
+  .progress-fill { border-radius: 100px; height: 4px; background: var(--blue-600); transition: width 0.4s; }
+  .progress-label { font-size: 11px; color: var(--text-tertiary); margin-top: 5px; }
+
+  /* CARDS */
+  .card { background: var(--bg-primary); border: 0.5px solid var(--border); border-radius: var(--radius-lg); padding: 18px 22px; margin-bottom: 14px; }
+  .field-label { font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-tertiary); margin-bottom: 6px; }
+  .field-val { font-size: 14px; color: var(--text-primary); background: var(--bg-secondary); border: 0.5px solid var(--border); border-radius: var(--radius-md); padding: 9px 13px; line-height: 1.6; }
+  .field-val.multi { min-height: 72px; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+
+  /* BUTTONS */
+  .btn-row { display: flex; gap: 10px; margin-top: 18px; }
+  .btn { display: inline-flex; align-items: center; gap: 7px; padding: 9px 18px; border-radius: var(--radius-md); font-size: 13px; font-family: var(--font); font-weight: 500; cursor: pointer; border: 0.5px solid var(--border-md); background: var(--bg-primary); color: var(--text-primary); transition: background 0.12s; }
+  .btn:hover { background: var(--bg-secondary); }
+  .btn-primary { background: var(--blue-600); color: #fff; border-color: var(--blue-600); }
+  .btn-primary:hover { background: var(--blue-800); border-color: var(--blue-800); }
+
+  /* TAGS */
+  .tag { display: inline-block; font-size: 12px; padding: 4px 10px; border-radius: var(--radius-md); margin: 3px; font-weight: 500; }
+  .tag-blue { background: var(--blue-50); color: var(--blue-800); }
+  .tag-green { background: var(--green-50); color: var(--green-800); }
+  .tag-done { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; background: var(--green-50); color: var(--green-600); padding: 3px 9px; border-radius: var(--radius-md); font-weight: 500; }
+
+  /* OBJETIVOS */
+  .obj-row { display: flex; gap: 12px; padding: 12px 0; border-bottom: 0.5px solid var(--border); }
+  .obj-row:last-child { border-bottom: none; }
+  .obj-num { width: 26px; height: 26px; border-radius: 50%; background: var(--blue-50); color: var(--blue-800); font-size: 12px; font-weight: 600; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 1px; }
+  .obj-main { font-size: 14px; font-weight: 500; color: var(--text-primary); line-height: 1.5; }
+  .obj-esp { font-size: 12px; color: var(--text-secondary); margin-top: 4px; line-height: 1.5; }
+
+  /* FODA */
+  .foda-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .foda-card { background: var(--bg-primary); border: 0.5px solid var(--border); border-radius: var(--radius-lg); padding: 14px 16px; }
+  .foda-head { font-size: 13px; font-weight: 600; margin-bottom: 10px; display: flex; align-items: center; gap: 6px; }
+  .foda-item { font-size: 12px; color: var(--text-secondary); padding: 5px 0; border-bottom: 0.5px solid var(--border); display: flex; gap: 7px; align-items: flex-start; line-height: 1.45; }
+  .foda-item:last-child { border-bottom: none; }
+  .dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; margin-top: 4px; }
+
+  /* UEN */
+  .uen-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; }
+  .uen-card { background: var(--bg-secondary); border-radius: var(--radius-md); padding: 14px; text-align: center; }
+  .uen-icon { font-size: 24px; color: var(--blue-600); margin-bottom: 7px; }
+  .uen-name { font-size: 13px; font-weight: 600; color: var(--text-primary); }
+  .uen-desc { font-size: 11px; color: var(--text-secondary); margin-top: 3px; }
+
+  /* EXPORT */
+  .export-row { background: var(--bg-primary); border: 0.5px solid var(--border); border-radius: var(--radius-lg); padding: 16px 20px; display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+  .export-info { display: flex; align-items: center; gap: 14px; }
+  .export-ico { font-size: 26px; color: var(--blue-600); }
+  .export-name { font-size: 14px; font-weight: 500; }
+  .export-desc { font-size: 12px; color: var(--text-secondary); margin-top: 2px; }
+
+  /* STAT GRID */
+  .stat-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 10px; margin-bottom: 16px; }
+  .stat-card { background: var(--bg-secondary); border-radius: var(--radius-md); padding: 14px; text-align: center; }
+  .stat-num { font-size: 24px; font-weight: 600; color: var(--blue-600); }
+  .stat-lbl { font-size: 11px; color: var(--text-secondary); margin-top: 2px; }
+
+  /* LOGIN */
+  .login-wrap { display: flex; align-items: center; justify-content: center; min-height: 100vh; background: var(--bg-tertiary); }
+  .login-card { background: var(--bg-primary); border: 0.5px solid var(--border); border-radius: 16px; padding: 36px 32px; width: 360px; }
+  .login-logo { display: flex; align-items: center; gap: 9px; font-size: 20px; font-weight: 600; margin-bottom: 28px; letter-spacing: -0.4px; }
+  .login-logo i { color: var(--blue-600); font-size: 26px; }
+  .input-group { margin-bottom: 14px; }
+  .input-group label { display: block; font-size: 12px; font-weight: 600; color: var(--text-secondary); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.05em; }
+  .input-mock { width: 100%; background: var(--bg-secondary); border: 0.5px solid var(--border-md); border-radius: var(--radius-md); padding: 10px 13px; font-size: 14px; font-family: var(--font); color: var(--text-primary); }
+  .input-mock.placeholder-style { color: var(--text-tertiary); }
+
+  /* DASHBOARD */
+  .dash-content { padding: 28px 32px; background: var(--bg-tertiary); min-height: calc(100vh - 52px); }
+  .proj-card { background: var(--bg-primary); border: 0.5px solid var(--border); border-radius: var(--radius-lg); padding: 18px 22px; margin-bottom: 12px; cursor: pointer; transition: border-color 0.15s; }
+  .proj-card:hover { border-color: var(--blue-400); }
+  .proj-title { font-size: 15px; font-weight: 600; }
+  .proj-sub { font-size: 12px; color: var(--text-secondary); margin-top: 2px; }
+  .proj-tags { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 12px; }
+  .proj-add { border-style: dashed; text-align: center; padding: 22px; color: var(--text-tertiary); cursor: pointer; }
+  .proj-add:hover { border-color: var(--blue-400); color: var(--blue-600); }
+</style>
+</head>
+<body>
+
+<!-- ===== LOGIN ===== -->
+<div id="s-login" class="screen active" style="display:flex;">
+  <div class="login-wrap">
+    <div class="login-card">
+      <div class="login-logo"><i class="ti ti-chart-network"></i> StrategicTI</div>
+      <div class="input-group"><label>Correo electrónico</label><div class="input-mock">usuario@empresa.com</div></div>
+      <div class="input-group"><label>Contraseña</label><div class="input-mock placeholder-style">••••••••</div></div>
+      <button class="btn btn-primary" style="width:100%;justify-content:center;margin-top:6px;" onclick="go('s-dashboard')"><i class="ti ti-login"></i> Ingresar</button>
+      <p style="font-size:12px;color:var(--text-tertiary);text-align:center;margin-top:16px;">Acceso seguro · Guardado automático del progreso</p>
+    </div>
+  </div>
+</div>
+
+<!-- ===== DASHBOARD ===== -->
+<div id="s-dashboard" class="screen">
+  <div class="topbar">
+    <div class="logo"><i class="ti ti-chart-network"></i> StrategicTI</div>
+    <div class="topbar-right"><div class="avatar">ST</div></div>
+  </div>
+  <div class="dash-content">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+      <div class="page-title">Mis proyectos PETI</div>
+      <button class="btn btn-primary" onclick="go('s-info')"><i class="ti ti-plus"></i> Nuevo plan</button>
+    </div>
+    <p class="page-sub">Gestiona y retoma tus planes estratégicos de TI</p>
+    <div class="proj-card" onclick="go('s-info')">
+      <div style="display:flex;align-items:center;justify-content:space-between;">
+        <div><div class="proj-title">StrategicTI</div><div class="proj-sub">Plataforma de planificación estratégica de TI</div></div>
+        <span class="tag-done"><i class="ti ti-clock" style="font-size:12px;"></i> En progreso — 35%</span>
+      </div>
+      <div class="progress-wrap" style="margin-top:14px;margin-bottom:6px;">
+        <div class="progress-bar"><div class="progress-fill" style="width:35%"></div></div>
+      </div>
+      <div class="proj-tags">
+        <span class="tag tag-green">Misión ✓</span>
+        <span class="tag tag-green">Visión ✓</span>
+        <span class="tag tag-green">Valores ✓</span>
+        <span class="tag tag-green">Objetivos ✓</span>
+        <span class="tag tag-blue">FODA pendiente</span>
+        <span class="tag" style="background:var(--amber-50);color:var(--amber-800);">Porter pendiente</span>
+      </div>
+    </div>
+    <div class="proj-card proj-add" onclick="go('s-info')">
+      <i class="ti ti-plus" style="font-size:22px;display:block;margin-bottom:6px;"></i>
+      <div style="font-size:13px;">Crear nuevo plan estratégico</div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== INFORMACIÓN ===== -->
+<div id="s-info" class="screen">
+  <div class="topbar">
+    <div class="logo"><i class="ti ti-chart-network"></i> StrategicTI</div>
+    <div class="topbar-right"><span style="font-size:12px;"><i class="ti ti-device-floppy"></i> Guardado automático</span><div class="avatar">ST</div></div>
+  </div>
+  <div class="layout">
+    <div class="sidebar">
+      <div class="sidebar-section">Plan estratégico</div>
+      <div class="sidebar-item active"><span class="num">1</span><i class="ti ti-building"></i> Información</div>
+      <div class="sidebar-item" onclick="go('s-mision')"><span class="num">2</span><i class="ti ti-target"></i> Misión <i class="ti ti-check check-icon"></i></div>
+      <div class="sidebar-item" onclick="go('s-mision')"><span class="num">3</span><i class="ti ti-eye"></i> Visión <i class="ti ti-check check-icon"></i></div>
+      <div class="sidebar-item" onclick="go('s-mision')"><span class="num">4</span><i class="ti ti-heart"></i> Valores <i class="ti ti-check check-icon"></i></div>
+      <div class="sidebar-item" onclick="go('s-objetivos')"><span class="num">5</span><i class="ti ti-list-check"></i> Objetivos</div>
+      <div class="sidebar-item" onclick="go('s-foda')"><span class="num">6</span><i class="ti ti-layout-grid"></i> FODA</div>
+      <div class="sidebar-item"><span class="num">7</span><i class="ti ti-chart-dots"></i> Cadena de valor</div>
+      <div class="sidebar-item"><span class="num">8</span><i class="ti ti-circle-dot"></i> Matriz BCG</div>
+      <div class="sidebar-item"><span class="num">9</span><i class="ti ti-military-rank"></i> Porter</div>
+      <div class="sidebar-item"><span class="num">10</span><i class="ti ti-world"></i> PEST</div>
+      <div class="sidebar-item"><span class="num">11</span><i class="ti ti-chess"></i> Estrategia</div>
+      <div class="sidebar-item"><span class="num">12</span><i class="ti ti-grid-dots"></i> Matriz CAME</div>
+      <div class="sidebar-item" onclick="go('s-resumen')"><span class="num">13</span><i class="ti ti-file-description"></i> Resumen</div>
+      <div class="sidebar-item" onclick="go('s-export')"><span class="num">14</span><i class="ti ti-download"></i> Exportar</div>
+    </div>
+    <div class="content">
+      <div class="progress-wrap"><div class="progress-bar"><div class="progress-fill" style="width:10%"></div></div><div class="progress-label">Paso 1 de 14 — Información general</div></div>
+      <div class="page-title">Información de la empresa</div>
+      <p class="page-sub">Datos generales del plan estratégico</p>
+      <div class="card">
+        <div class="grid2" style="margin-bottom:16px;">
+          <div><div class="field-label">Nombre de la empresa</div><div class="field-val">StrategicTI</div></div>
+          <div><div class="field-label">Rubro</div><div class="field-val">Software / SaaS</div></div>
+        </div>
+        <div><div class="field-label">Descripción breve</div><div class="field-val multi">Plataforma web de planificación estratégica de Tecnologías de Información que guía a organizaciones en la elaboración de su PETI de forma estructurada, interactiva y colaborativa.</div></div>
+      </div>
+      <div class="btn-row">
+        <button class="btn" onclick="go('s-dashboard')"><i class="ti ti-arrow-left"></i> Proyectos</button>
+        <button class="btn btn-primary" onclick="go('s-mision')">Siguiente: Misión <i class="ti ti-arrow-right"></i></button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== MISIÓN / VISIÓN / VALORES ===== -->
+<div id="s-mision" class="screen">
+  <div class="topbar">
+    <div class="logo"><i class="ti ti-chart-network"></i> StrategicTI</div>
+    <div class="topbar-right"><span style="font-size:12px;"><i class="ti ti-device-floppy"></i> Guardado automático</span><div class="avatar">ST</div></div>
+  </div>
+  <div class="layout">
+    <div class="sidebar">
+      <div class="sidebar-section">Plan estratégico</div>
+      <div class="sidebar-item" onclick="go('s-info')"><span class="num">1</span><i class="ti ti-building"></i> Información <i class="ti ti-check check-icon"></i></div>
+      <div class="sidebar-item active"><span class="num">2</span><i class="ti ti-target"></i> Misión · Visión · Valores</div>
+      <div class="sidebar-item" onclick="go('s-objetivos')"><span class="num">5</span><i class="ti ti-list-check"></i> Objetivos</div>
+      <div class="sidebar-item" onclick="go('s-foda')"><span class="num">6</span><i class="ti ti-layout-grid"></i> FODA</div>
+      <div class="sidebar-item"><span class="num">7</span><i class="ti ti-chart-dots"></i> Cadena de valor</div>
+      <div class="sidebar-item"><span class="num">8</span><i class="ti ti-circle-dot"></i> Matriz BCG</div>
+      <div class="sidebar-item"><span class="num">9</span><i class="ti ti-military-rank"></i> Porter</div>
+      <div class="sidebar-item"><span class="num">10</span><i class="ti ti-world"></i> PEST</div>
+      <div class="sidebar-item"><span class="num">11</span><i class="ti ti-chess"></i> Estrategia</div>
+      <div class="sidebar-item"><span class="num">12</span><i class="ti ti-grid-dots"></i> Matriz CAME</div>
+      <div class="sidebar-item" onclick="go('s-resumen')"><span class="num">13</span><i class="ti ti-file-description"></i> Resumen</div>
+      <div class="sidebar-item" onclick="go('s-export')"><span class="num">14</span><i class="ti ti-download"></i> Exportar</div>
+    </div>
+    <div class="content">
+      <div class="progress-wrap"><div class="progress-bar"><div class="progress-fill" style="width:28%"></div></div><div class="progress-label">Pasos 2–4 de 14 — Identidad organizacional</div></div>
+      <div class="page-title">Misión · Visión · Valores</div>
+      <p class="page-sub">Define el propósito, aspiración y principios de tu organización</p>
+      <div class="card">
+        <div class="field-label">Misión</div>
+        <div class="field-val multi">Empoderar a organizaciones y profesionales de TI en la construcción de Planes Estratégicos de Tecnologías de Información, brindando una plataforma intuitiva, estructurada y colaborativa que facilite la alineación tecnológica con los objetivos del negocio, impulsando la transformación digital con claridad y eficiencia.</div>
+      </div>
+      <div class="card">
+        <div class="field-label">Visión</div>
+        <div class="field-val multi">Ser para el 2027 la plataforma de referencia en Latinoamérica para la elaboración de Planes Estratégicos de TI, reconocida por su facilidad de uso, rigor metodológico y capacidad de transformar la gestión tecnológica de organizaciones públicas y privadas.</div>
+      </div>
+      <div class="card">
+        <div class="field-label">Valores</div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:4px;">
+          <span class="tag tag-blue"><i class="ti ti-bulb" style="font-size:12px;margin-right:3px;"></i>Innovación</span>
+          <span class="tag tag-green"><i class="ti ti-heart" style="font-size:12px;margin-right:3px;"></i>Compromiso</span>
+          <span class="tag" style="background:#EEEDFE;color:#3C3489;font-weight:500;"><i class="ti ti-shield" style="font-size:12px;margin-right:3px;"></i>Integridad</span>
+          <span class="tag" style="background:#E1F5EE;color:#085041;font-weight:500;"><i class="ti ti-users" style="font-size:12px;margin-right:3px;"></i>Colaboración</span>
+          <span class="tag" style="background:var(--amber-50);color:var(--amber-800);font-weight:500;"><i class="ti ti-star" style="font-size:12px;margin-right:3px;"></i>Excelencia</span>
+        </div>
+      </div>
+      <div class="btn-row">
+        <button class="btn" onclick="go('s-info')"><i class="ti ti-arrow-left"></i> Anterior</button>
+        <button class="btn btn-primary" onclick="go('s-objetivos')">Siguiente: Objetivos <i class="ti ti-arrow-right"></i></button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== OBJETIVOS Y UEN ===== -->
+<div id="s-objetivos" class="screen">
+  <div class="topbar">
+    <div class="logo"><i class="ti ti-chart-network"></i> StrategicTI</div>
+    <div class="topbar-right"><span style="font-size:12px;"><i class="ti ti-device-floppy"></i> Guardado automático</span><div class="avatar">ST</div></div>
+  </div>
+  <div class="layout">
+    <div class="sidebar">
+      <div class="sidebar-section">Plan estratégico</div>
+      <div class="sidebar-item" onclick="go('s-info')"><span class="num">1</span><i class="ti ti-building"></i> Información <i class="ti ti-check check-icon"></i></div>
+      <div class="sidebar-item" onclick="go('s-mision')"><span class="num">2</span><i class="ti ti-target"></i> Misión / Visión <i class="ti ti-check check-icon"></i></div>
+      <div class="sidebar-item active"><span class="num">5</span><i class="ti ti-list-check"></i> Objetivos · UEN</div>
+      <div class="sidebar-item" onclick="go('s-foda')"><span class="num">6</span><i class="ti ti-layout-grid"></i> FODA</div>
+      <div class="sidebar-item"><span class="num">7</span><i class="ti ti-chart-dots"></i> Cadena de valor</div>
+      <div class="sidebar-item"><span class="num">8</span><i class="ti ti-circle-dot"></i> Matriz BCG</div>
+      <div class="sidebar-item"><span class="num">9</span><i class="ti ti-military-rank"></i> Porter</div>
+      <div class="sidebar-item"><span class="num">10</span><i class="ti ti-world"></i> PEST</div>
+      <div class="sidebar-item"><span class="num">11</span><i class="ti ti-chess"></i> Estrategia</div>
+      <div class="sidebar-item"><span class="num">12</span><i class="ti ti-grid-dots"></i> Matriz CAME</div>
+      <div class="sidebar-item" onclick="go('s-resumen')"><span class="num">13</span><i class="ti ti-file-description"></i> Resumen</div>
+      <div class="sidebar-item" onclick="go('s-export')"><span class="num">14</span><i class="ti ti-download"></i> Exportar</div>
+    </div>
+    <div class="content">
+      <div class="progress-wrap"><div class="progress-bar"><div class="progress-fill" style="width:42%"></div></div><div class="progress-label">Paso 5 de 14 — Objetivos estratégicos y UEN</div></div>
+      <div class="page-title">Objetivos estratégicos y UEN</div>
+      <p class="page-sub">Define los objetivos alineados a la misión y las unidades de negocio</p>
+      <div class="card">
+        <div class="field-label" style="margin-bottom:14px;">Objetivos estratégicos</div>
+        <div class="obj-row">
+          <div class="obj-num">1</div>
+          <div><div class="obj-main">Desarrollar una plataforma web funcional e intuitiva para la elaboración del PETI en un plazo de 12 meses.</div>
+          <div class="obj-esp">· Diseñar y validar el prototipo funcional en los primeros 3 meses.<br>· Implementar módulos principales (Misión, Visión, FODA, Porter, PEST) antes del mes 9.</div></div>
+        </div>
+        <div class="obj-row">
+          <div class="obj-num">2</div>
+          <div><div class="obj-main">Lograr la adopción de StrategicTI en al menos 10 organizaciones durante el primer año.</div>
+          <div class="obj-esp">· Establecer alianzas con 3 instituciones piloto durante el primer semestre.<br>· Lanzar campaña digital dirigida a profesionales de TI en Latinoamérica al mes 6.</div></div>
+        </div>
+        <div class="obj-row">
+          <div class="obj-num">3</div>
+          <div><div class="obj-main">Garantizar la seguridad, disponibilidad y escalabilidad con uptime mínimo del 95%.</div>
+          <div class="obj-esp">· Implementar protocolos de seguridad y backups automáticos antes del lanzamiento.<br>· Realizar pruebas de carga y estrés trimestralmente.</div></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="field-label" style="margin-bottom:12px;">Unidades estratégicas de negocio (UEN)</div>
+        <div class="uen-grid">
+          <div class="uen-card"><div class="uen-icon"><i class="ti ti-device-laptop"></i></div><div class="uen-name">Plataforma web</div><div class="uen-desc">Desarrollo y mantenimiento del sistema principal</div></div>
+          <div class="uen-card"><div class="uen-icon"><i class="ti ti-users"></i></div><div class="uen-name">Consultoría TI</div><div class="uen-desc">Asesoría en elaboración del PETI</div></div>
+          <div class="uen-card"><div class="uen-icon"><i class="ti ti-school"></i></div><div class="uen-name">Capacitación</div><div class="uen-desc">Formación y certificación en planificación TI</div></div>
+        </div>
+      </div>
+      <div class="btn-row">
+        <button class="btn" onclick="go('s-mision')"><i class="ti ti-arrow-left"></i> Anterior</button>
+        <button class="btn btn-primary" onclick="go('s-foda')">Siguiente: FODA <i class="ti ti-arrow-right"></i></button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== FODA ===== -->
+<div id="s-foda" class="screen">
+  <div class="topbar">
+    <div class="logo"><i class="ti ti-chart-network"></i> StrategicTI</div>
+    <div class="topbar-right"><span style="font-size:12px;"><i class="ti ti-device-floppy"></i> Guardado automático</span><div class="avatar">ST</div></div>
+  </div>
+  <div class="layout">
+    <div class="sidebar">
+      <div class="sidebar-section">Plan estratégico</div>
+      <div class="sidebar-item" onclick="go('s-info')"><span class="num">1</span><i class="ti ti-building"></i> Información <i class="ti ti-check check-icon"></i></div>
+      <div class="sidebar-item" onclick="go('s-mision')"><span class="num">2</span><i class="ti ti-target"></i> Misión / Visión <i class="ti ti-check check-icon"></i></div>
+      <div class="sidebar-item" onclick="go('s-objetivos')"><span class="num">5</span><i class="ti ti-list-check"></i> Objetivos <i class="ti ti-check check-icon"></i></div>
+      <div class="sidebar-item active"><span class="num">6</span><i class="ti ti-layout-grid"></i> FODA</div>
+      <div class="sidebar-item"><span class="num">7</span><i class="ti ti-chart-dots"></i> Cadena de valor</div>
+      <div class="sidebar-item"><span class="num">8</span><i class="ti ti-circle-dot"></i> Matriz BCG</div>
+      <div class="sidebar-item"><span class="num">9</span><i class="ti ti-military-rank"></i> Porter</div>
+      <div class="sidebar-item"><span class="num">10</span><i class="ti ti-world"></i> PEST</div>
+      <div class="sidebar-item"><span class="num">11</span><i class="ti ti-chess"></i> Estrategia</div>
+      <div class="sidebar-item"><span class="num">12</span><i class="ti ti-grid-dots"></i> Matriz CAME</div>
+      <div class="sidebar-item" onclick="go('s-resumen')"><span class="num">13</span><i class="ti ti-file-description"></i> Resumen</div>
+      <div class="sidebar-item" onclick="go('s-export')"><span class="num">14</span><i class="ti ti-download"></i> Exportar</div>
+    </div>
+    <div class="content">
+      <div class="progress-wrap"><div class="progress-bar"><div class="progress-fill" style="width:57%"></div></div><div class="progress-label">Paso 6 de 14 — Análisis FODA</div></div>
+      <div class="page-title">Análisis FODA</div>
+      <p class="page-sub">Factores internos y externos que afectan la organización</p>
+      <div class="foda-grid">
+        <div class="foda-card">
+          <div class="foda-head" style="color:#3B6D11;"><i class="ti ti-shield-check"></i> Fortalezas</div>
+          <div class="foda-item"><div class="dot" style="background:#639922;"></div>Plataforma basada en metodologías reconocidas (FODA, Porter, PEST, BCG)</div>
+          <div class="foda-item"><div class="dot" style="background:#639922;"></div>Interfaz intuitiva y curva de aprendizaje baja</div>
+          <div class="foda-item"><div class="dot" style="background:#639922;"></div>Arquitectura hexagonal escalable</div>
+          <div class="foda-item"><div class="dot" style="background:#639922;"></div>Equipo con conocimiento sólido en planificación TI</div>
+        </div>
+        <div class="foda-card">
+          <div class="foda-head" style="color:#185FA5;"><i class="ti ti-trending-up"></i> Oportunidades</div>
+          <div class="foda-item"><div class="dot" style="background:#378ADD;"></div>Creciente demanda de transformación digital en la región</div>
+          <div class="foda-item"><div class="dot" style="background:#378ADD;"></div>Escasa oferta de herramientas especializadas en PETI</div>
+          <div class="foda-item"><div class="dot" style="background:#378ADD;"></div>Expansión del mercado de software en Latinoamérica</div>
+          <div class="foda-item"><div class="dot" style="background:#378ADD;"></div>Interés creciente en certificaciones de TI</div>
+        </div>
+        <div class="foda-card">
+          <div class="foda-head" style="color:#854F0B;"><i class="ti ti-alert-triangle"></i> Debilidades</div>
+          <div class="foda-item"><div class="dot" style="background:#EF9F27;"></div>Proyecto en etapa inicial sin base de usuarios</div>
+          <div class="foda-item"><div class="dot" style="background:#EF9F27;"></div>Dependencia de conectividad a internet</div>
+          <div class="foda-item"><div class="dot" style="background:#EF9F27;"></div>Recursos financieros limitados para marketing</div>
+          <div class="foda-item"><div class="dot" style="background:#EF9F27;"></div>Falta de reconocimiento de marca en el mercado</div>
+        </div>
+        <div class="foda-card">
+          <div class="foda-head" style="color:#A32D2D;"><i class="ti ti-x"></i> Amenazas</div>
+          <div class="foda-item"><div class="dot" style="background:#E24B4A;"></div>Competencia de herramientas genéricas (Excel, Notion, Miro)</div>
+          <div class="foda-item"><div class="dot" style="background:#E24B4A;"></div>Cambios tecnológicos que pueden volver obsoletas funciones</div>
+          <div class="foda-item"><div class="dot" style="background:#E24B4A;"></div>Resistencia al cambio en organizaciones tradicionales</div>
+          <div class="foda-item"><div class="dot" style="background:#E24B4A;"></div>Inestabilidad económica en mercados objetivo</div>
+        </div>
+      </div>
+      <div class="btn-row">
+        <button class="btn" onclick="go('s-objetivos')"><i class="ti ti-arrow-left"></i> Anterior</button>
+        <button class="btn btn-primary" onclick="go('s-resumen')">Ver resumen ejecutivo <i class="ti ti-arrow-right"></i></button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== RESUMEN ===== -->
+<div id="s-resumen" class="screen">
+  <div class="topbar">
+    <div class="logo"><i class="ti ti-chart-network"></i> StrategicTI</div>
+    <div class="topbar-right"><span style="font-size:12px;"><i class="ti ti-device-floppy"></i> Guardado automático</span><div class="avatar">ST</div></div>
+  </div>
+  <div class="layout">
+    <div class="sidebar">
+      <div class="sidebar-section">Plan estratégico</div>
+      <div class="sidebar-item" onclick="go('s-info')"><span class="num">1</span><i class="ti ti-building"></i> Información <i class="ti ti-check check-icon"></i></div>
+      <div class="sidebar-item" onclick="go('s-mision')"><span class="num">2</span><i class="ti ti-target"></i> Misión / Visión <i class="ti ti-check check-icon"></i></div>
+      <div class="sidebar-item" onclick="go('s-objetivos')"><span class="num">5</span><i class="ti ti-list-check"></i> Objetivos <i class="ti ti-check check-icon"></i></div>
+      <div class="sidebar-item" onclick="go('s-foda')"><span class="num">6</span><i class="ti ti-layout-grid"></i> FODA <i class="ti ti-check check-icon"></i></div>
+      <div class="sidebar-item"><span class="num">7</span><i class="ti ti-chart-dots"></i> Cadena de valor</div>
+      <div class="sidebar-item"><span class="num">8</span><i class="ti ti-circle-dot"></i> Matriz BCG</div>
+      <div class="sidebar-item"><span class="num">9</span><i class="ti ti-military-rank"></i> Porter</div>
+      <div class="sidebar-item"><span class="num">10</span><i class="ti ti-world"></i> PEST</div>
+      <div class="sidebar-item"><span class="num">11</span><i class="ti ti-chess"></i> Estrategia</div>
+      <div class="sidebar-item"><span class="num">12</span><i class="ti ti-grid-dots"></i> Matriz CAME</div>
+      <div class="sidebar-item active"><span class="num">13</span><i class="ti ti-file-description"></i> Resumen ejecutivo</div>
+      <div class="sidebar-item" onclick="go('s-export')"><span class="num">14</span><i class="ti ti-download"></i> Exportar</div>
+    </div>
+    <div class="content">
+      <div class="progress-wrap"><div class="progress-bar"><div class="progress-fill" style="width:85%"></div></div><div class="progress-label">Paso 13 de 14 — Resumen ejecutivo</div></div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+        <div class="page-title">Resumen ejecutivo</div>
+        <span class="tag-done"><i class="ti ti-sparkles" style="font-size:12px;"></i> Generado automáticamente</span>
+      </div>
+      <p class="page-sub">Síntesis del plan estratégico de TI — StrategicTI</p>
+      <div class="stat-grid">
+        <div class="stat-card"><div class="stat-num">3</div><div class="stat-lbl">Obj. estratégicos</div></div>
+        <div class="stat-card"><div class="stat-num">3</div><div class="stat-lbl">UEN definidas</div></div>
+        <div class="stat-card"><div class="stat-num">16</div><div class="stat-lbl">Factores FODA</div></div>
+        <div class="stat-card"><div class="stat-num">85%</div><div class="stat-lbl">Plan completado</div></div>
+      </div>
+      <div class="card">
+        <div class="field-label" style="margin-bottom:10px;">Síntesis del plan</div>
+        <div style="font-size:14px;color:var(--text-primary);line-height:1.75;">
+          <strong>StrategicTI</strong> es una plataforma SaaS orientada a empoderar a organizaciones en la elaboración de sus Planes Estratégicos de TI. Su misión es facilitar la alineación tecnológica con los objetivos del negocio mediante una herramienta intuitiva y colaborativa.<br><br>
+          La empresa proyecta posicionarse como referente latinoamericano para 2027, operando a través de tres unidades estratégicas: Plataforma Web, Consultoría TI y Capacitación. Sus principales fortalezas residen en su base metodológica sólida y arquitectura escalable, mientras que la creciente demanda de transformación digital en la región representa su mayor oportunidad de crecimiento.
+        </div>
+      </div>
+      <div class="btn-row">
+        <button class="btn" onclick="go('s-foda')"><i class="ti ti-arrow-left"></i> Anterior</button>
+        <button class="btn btn-primary" onclick="go('s-export')">Exportar plan <i class="ti ti-download"></i></button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== EXPORTAR ===== -->
+<div id="s-export" class="screen">
+  <div class="topbar">
+    <div class="logo"><i class="ti ti-chart-network"></i> StrategicTI</div>
+    <div class="topbar-right"><div class="avatar">ST</div></div>
+  </div>
+  <div class="dash-content">
+    <div class="page-title">Exportar plan estratégico</div>
+    <p class="page-sub">Descarga el PETI completo en el formato que necesites</p>
+    <div class="export-row">
+      <div class="export-info"><i class="ti ti-file-type-pdf export-ico"></i><div><div class="export-name">Plan completo en PDF</div><div class="export-desc">Todas las secciones con formato profesional</div></div></div>
+      <button class="btn btn-primary"><i class="ti ti-download"></i> Descargar PDF</button>
+    </div>
+    <div class="export-row">
+      <div class="export-info"><i class="ti ti-file-type-xls export-ico"></i><div><div class="export-name">Exportar a Excel</div><div class="export-desc">Compatible con el formato PETI del curso</div></div></div>
+      <button class="btn"><i class="ti ti-download"></i> Descargar XLSX</button>
+    </div>
+    <div class="export-row">
+      <div class="export-info"><i class="ti ti-file-type-doc export-ico"></i><div><div class="export-name">Exportar a Word</div><div class="export-desc">Documento editable con toda la información</div></div></div>
+      <button class="btn"><i class="ti ti-download"></i> Descargar DOCX</button>
+    </div>
+    <div class="btn-row" style="margin-top:20px;">
+      <button class="btn" onclick="go('s-resumen')"><i class="ti ti-arrow-left"></i> Volver al resumen</button>
+      <button class="btn" onclick="go('s-dashboard')"><i class="ti ti-home"></i> Ir a proyectos</button>
+    </div>
+  </div>
+</div>
+
+<script>
+function go(id) {
+  document.querySelectorAll('.screen').forEach(s => { s.classList.remove('active'); s.style.display = 'none'; });
+  const el = document.getElementById(id);
+  el.style.display = 'flex';
+  el.classList.add('active');
+}
+</script>
+</body>
+</html>
