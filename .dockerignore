@@ -1,0 +1,12 @@
+.git
+.idea
+.vscode
+*.log
+*.txt
+
+target/
+src/main/ui/node_modules/
+src/main/ui/dist/
+src/main/ui/.vite/
+
+*.xlsx
