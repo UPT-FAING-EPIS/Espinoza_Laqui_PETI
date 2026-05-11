@@ -1,93 +1,40 @@
 /* ============================================
-   LAYOUT: sidebar fijo + main scrollable
+   PETI PAGE LAYOUT (stepper panel + main content)
    ============================================ */
-.layout {
-  display: flex;
-  min-height: 100vh;
+.peti-page {
+  display: grid;
+  gap: 24px;
+  grid-template-columns: 240px 1fr;
+  align-items: start;
 }
 
-/* ============================================
-   SIDEBAR
-   ============================================ */
-.sidebar {
-  background: var(--sidebar-bg);
-  border-right: 1px solid var(--border);
-  display: flex;
-  flex-direction: column;
-  height: 100vh;
-  overflow-y: auto;
-  padding: 24px 20px;
-  position: sticky;
-  top: 0;
-  width: 260px;
-  flex-shrink: 0;
-}
-
-/* Brand */
-.sidebar-brand {
-  margin-bottom: 28px;
-}
-
-.brand-card {
-  align-items: center;
-  background: linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(99, 102, 241, 0.08) 100%);
-  border: 1px solid rgba(59, 130, 246, 0.15);
+.peti-stepper-panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  display: flex;
-  gap: 14px;
-  padding: 16px;
+  padding: 20px 16px;
+  position: sticky;
+  top: 28px;
 }
 
-.brand-mark {
-  align-items: center;
-  background: linear-gradient(135deg, var(--blue), var(--indigo));
-  border-radius: var(--radius);
-  box-shadow:
-    0 4px 14px rgba(59, 130, 246, 0.3),
-    0 0 20px rgba(99, 102, 241, 0.15);
-  color: #fff;
+.peti-progress-section {
+  border-top: 1px solid var(--border);
   display: flex;
-  height: 44px;
   justify-content: center;
-  width: 44px;
-  flex-shrink: 0;
+  margin-top: 16px;
+  padding-top: 16px;
 }
 
-.brand-text {
-  display: flex;
-  flex-direction: column;
+.peti-main {
   min-width: 0;
 }
 
-.brand-name {
-  color: var(--ink);
-  font-family: 'Plus Jakarta Sans', sans-serif;
-  font-size: 17px;
-  font-weight: 800;
-  letter-spacing: -0.01em;
-  line-height: 1.2;
-}
-
-.brand-tagline {
-  color: var(--ink-3);
-  font-size: 11px;
-  font-weight: 500;
-  margin-top: 2px;
-}
-
-.brand-divider {
-  background: linear-gradient(90deg, var(--blue), var(--indigo), transparent);
-  border-radius: 2px;
-  height: 2px;
-  margin-top: 20px;
-  opacity: 0.4;
-}
-
-/* Stepper */
+/* ============================================
+   STEPPER
+   ============================================ */
 .stepper {
   display: flex;
   flex-direction: column;
-  flex: 1;
 }
 
 .step {
@@ -183,14 +130,6 @@
 }
 
 /* Progress ring */
-.sidebar-footer {
-  margin-top: auto;
-  padding-top: 24px;
-  border-top: 1px solid var(--border);
-  display: flex;
-  justify-content: center;
-}
-
 .progress-ring-wrapper {
   position: relative;
   width: 80px;
@@ -211,7 +150,6 @@
 
 .progress-ring-fill {
   fill: none;
-  stroke: url(#ring-gradient);
   stroke: var(--blue);
   stroke-width: 5;
   stroke-linecap: round;
@@ -244,15 +182,8 @@
 }
 
 /* ============================================
-   MAIN CONTENT
+   PAGE HEADER
    ============================================ */
-.main-content {
-  flex: 1;
-  min-width: 0;
-  padding: 28px 36px 48px;
-}
-
-/* Page header */
 .page-header {
   align-items: flex-start;
   display: flex;
@@ -659,35 +590,21 @@ textarea:focus {
 }
 
 @media (max-width: 860px) {
-  .layout {
-    flex-direction: column;
+  .peti-page {
+    grid-template-columns: 1fr;
   }
 
-  .sidebar {
-    border-bottom: 1px solid var(--border);
-    border-right: none;
-    flex-direction: row;
-    height: auto;
-    padding: 14px 20px;
-    position: sticky;
-    top: 0;
-    width: 100%;
-    z-index: 50;
-    gap: 20px;
+  .peti-stepper-panel {
+    display: flex;
+    gap: 16px;
     align-items: center;
-    overflow-x: auto;
+    position: static;
   }
-
-  .sidebar-brand { margin-bottom: 0; }
-  .brand-card { padding: 10px 12px; gap: 10px; }
-  .brand-mark { height: 34px; width: 34px; }
-  .brand-mark svg { width: 18px; height: 18px; }
-  .brand-tagline, .brand-divider { display: none; }
 
   .stepper {
     flex-direction: row;
-    gap: 0;
     flex: 1;
+    gap: 0;
   }
 
   .step { gap: 8px; }
@@ -696,26 +613,18 @@ textarea:focus {
   .step-content { padding: 0; white-space: nowrap; }
   .step-content span { display: none; }
 
-  .sidebar-footer {
-    margin-top: 0;
-    padding-top: 0;
+  .peti-progress-section {
     border-top: none;
     border-left: 1px solid var(--border);
+    margin-top: 0;
+    padding-top: 0;
     padding-left: 16px;
   }
 
-  .progress-ring-wrapper {
-    width: 48px;
-    height: 48px;
-  }
-
+  .progress-ring-wrapper { width: 48px; height: 48px; }
   .progress-ring { width: 48px; height: 48px; }
   .progress-ring-label strong { font-size: 12px; }
   .progress-ring-label span { display: none; }
-
-  .main-content {
-    padding: 20px 18px 32px;
-  }
 }
 
 @media (max-width: 640px) {

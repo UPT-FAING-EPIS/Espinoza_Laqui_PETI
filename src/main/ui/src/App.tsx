@@ -26,9 +26,9 @@ import type { CompanyProfile, PetiPhase, PhaseSnapshot, PlanSummary } from './ty
 const identitySchema = z.object({
   companyName: z.string().min(2, 'Ingrese el nombre de la empresa.').max(160),
   businessLine: z.string().min(2, 'Ingrese el rubro de la empresa.').max(160),
-  description: z.string().min(10, 'Ingrese una descripción breve.').max(2000),
-  mission: z.string().min(10, 'Ingrese la misión.').max(2000),
-  vision: z.string().min(10, 'Ingrese la visión.').max(2000),
+  description: z.string().min(10, 'Ingrese una descripcion breve.').max(2000),
+  mission: z.string().min(10, 'Ingrese la mision.').max(2000),
+  vision: z.string().min(10, 'Ingrese la vision.').max(2000),
   valuesText: z.string().min(3, 'Ingrese los valores.').max(2000),
 })
 
@@ -42,8 +42,8 @@ const phasesMeta: Record<PetiPhase, { icon: typeof Building2; step: number }> = 
 }
 
 const diagnosticModules = [
-  { icon: ShieldCheck, title: 'FODA', status: 'Base estratégica', color: '#3b82f6' },
-  { icon: Workflow, title: 'Cadena de valor', status: 'Diagnóstico interno', color: '#8b5cf6' },
+  { icon: ShieldCheck, title: 'FODA', status: 'Base estrategica', color: '#3b82f6' },
+  { icon: Workflow, title: 'Cadena de valor', status: 'Diagnostico interno', color: '#8b5cf6' },
   { icon: PieChart, title: 'BCG', status: 'Cartera de productos', color: '#f59e0b' },
   { icon: Database, title: 'Porter', status: 'Microentorno', color: '#14b8a6' },
   { icon: Globe2, title: 'PEST', status: 'Macroentorno', color: '#ef4444' },
@@ -129,22 +129,9 @@ function App() {
   const totalProgress = plan?.totalProgress ?? 0
 
   return (
-    <div className="layout">
-      {/* ---- SIDEBAR ---- */}
-      <aside className="sidebar">
-        <div className="sidebar-brand">
-          <div className="brand-card">
-            <div className="brand-mark">
-              <FileText size={24} strokeWidth={2} />
-            </div>
-            <div className="brand-text">
-              <strong className="brand-name">StrategicTI</strong>
-              <span className="brand-tagline">Plan Estratégico de TI</span>
-            </div>
-          </div>
-          <div className="brand-divider" />
-        </div>
-
+    <div className="peti-page">
+      {/* Phase stepper (now inline, not in sidebar) */}
+      <div className="peti-stepper-panel">
         <nav className="stepper" aria-label="Fases del PETI">
           {loading && <StepperSkeleton />}
           {plan?.phases.map((phase, index) => (
@@ -156,8 +143,7 @@ function App() {
             />
           ))}
         </nav>
-
-        <div className="sidebar-footer">
+        <div className="peti-progress-section">
           <div className="progress-ring-wrapper">
             <svg className="progress-ring" viewBox="0 0 80 80">
               <circle className="progress-ring-bg" cx="40" cy="40" r="34" />
@@ -176,20 +162,19 @@ function App() {
             </div>
           </div>
         </div>
-      </aside>
+      </div>
 
-      {/* ---- MAIN ---- */}
-      <main className="main-content">
-        {/* Page header */}
+      {/* Main content */}
+      <div className="peti-main">
         <header className="page-header">
           <div className="page-header-left">
             <div className="breadcrumb">
               <span>PETI</span>
               <ChevronRight size={14} />
-              <span>{activePhase?.title ?? 'Identidad estratégica'}</span>
+              <span>{activePhase?.title ?? 'Identidad estrategica'}</span>
             </div>
-            <h1>{activePhase?.title ?? 'Identidad estratégica'}</h1>
-            <p className="page-subtitle">{activePhase?.description ?? 'Empresa, misión, visión, valores, UEN y objetivos'}</p>
+            <h1>{activePhase?.title ?? 'Identidad estrategica'}</h1>
+            <p className="page-subtitle">{activePhase?.description ?? 'Empresa, mision, vision, valores, UEN y objetivos'}</p>
           </div>
           <div className="page-header-right">
             <button className="btn-icon" type="button" onClick={refreshPlan} title="Actualizar">
@@ -205,7 +190,6 @@ function App() {
           </div>
         )}
 
-        {/* Form cards */}
         <div className="content-grid">
           <form className="form-area" onSubmit={handleSubmit(onSubmit)}>
             <section className="card">
@@ -220,8 +204,8 @@ function App() {
                 <Field label="Rubro" error={errors.businessLine?.message}>
                   <input {...register('businessLine')} placeholder="Sector o actividad principal" />
                 </Field>
-                <Field label="Descripción" error={errors.description?.message} wide>
-                  <textarea {...register('description')} rows={3} placeholder="Descripción breve de la organización" />
+                <Field label="Descripcion" error={errors.description?.message} wide>
+                  <textarea {...register('description')} rows={3} placeholder="Descripcion breve de la organizacion" />
                 </Field>
               </div>
             </section>
@@ -229,17 +213,17 @@ function App() {
             <section className="card">
               <div className="card-header">
                 <FileText size={18} />
-                <h2>Identidad estratégica</h2>
+                <h2>Identidad estrategica</h2>
               </div>
               <div className="card-body two-col">
-                <Field label="Misión" error={errors.mission?.message}>
-                  <textarea {...register('mission')} rows={4} placeholder="Misión institucional" />
+                <Field label="Mision" error={errors.mission?.message}>
+                  <textarea {...register('mission')} rows={4} placeholder="Mision institucional" />
                 </Field>
-                <Field label="Visión" error={errors.vision?.message}>
-                  <textarea {...register('vision')} rows={4} placeholder="Visión institucional" />
+                <Field label="Vision" error={errors.vision?.message}>
+                  <textarea {...register('vision')} rows={4} placeholder="Vision institucional" />
                 </Field>
                 <Field label="Valores" error={errors.valuesText?.message} wide>
-                  <textarea {...register('valuesText')} rows={3} placeholder="Valores separados por líneas o comas" />
+                  <textarea {...register('valuesText')} rows={3} placeholder="Valores separados por lineas o comas" />
                 </Field>
               </div>
             </section>
@@ -261,7 +245,6 @@ function App() {
             </div>
           </form>
 
-          {/* Diagnostic tools dashboard */}
           <section className="tools-panel">
             <div className="card-header">
               <PieChart size={18} />
@@ -283,7 +266,7 @@ function App() {
             </div>
           </section>
         </div>
-      </main>
+      </div>
     </div>
   )
 }
