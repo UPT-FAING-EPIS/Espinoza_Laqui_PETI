@@ -1,6 +1,6 @@
 package com.strategicti.support;
 
-import com.strategicti.application.ports.out.PlanningGroupRepositoryPort;
+import com.strategicti.application.ports.out.IPlanningGroupRepositoryPort;
 import com.strategicti.domain.model.PlanningGroup;
 
 import java.util.ArrayList;
@@ -9,7 +9,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-public class InMemoryPlanningGroupRepository implements PlanningGroupRepositoryPort {
+public class InMemoryPlanningGroupRepository implements IPlanningGroupRepositoryPort {
     private final Map<Long, PlanningGroup> groups = new LinkedHashMap<>();
     private long sequence;
 

@@ -1,6 +1,6 @@
 package com.strategicti.support;
 
-import com.strategicti.application.ports.out.UserAccountRepositoryPort;
+import com.strategicti.application.ports.out.IUserAccountRepositoryPort;
 import com.strategicti.domain.model.UserAccount;
 
 import java.util.ArrayList;
@@ -9,7 +9,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-public class InMemoryUserAccountRepository implements UserAccountRepositoryPort {
+public class InMemoryUserAccountRepository implements IUserAccountRepositoryPort {
     private final Map<Long, UserAccount> users = new LinkedHashMap<>();
     private long sequence;
 

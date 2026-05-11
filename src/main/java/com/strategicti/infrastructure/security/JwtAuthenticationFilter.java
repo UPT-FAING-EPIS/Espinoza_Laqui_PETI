@@ -1,7 +1,7 @@
 package com.strategicti.infrastructure.security;
 
-import com.strategicti.application.ports.out.AuthTokenPort;
-import com.strategicti.application.ports.out.UserAccountRepositoryPort;
+import com.strategicti.application.ports.out.IAuthTokenPort;
+import com.strategicti.application.ports.out.IUserAccountRepositoryPort;
 import com.strategicti.application.usecase.AuthenticatedUser;
 import com.strategicti.domain.model.UserStatus;
 import jakarta.servlet.FilterChain;
@@ -19,10 +19,10 @@ import java.util.List;
 
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
-    private final AuthTokenPort tokenPort;
-    private final UserAccountRepositoryPort userRepository;
+    private final IAuthTokenPort tokenPort;
+    private final IUserAccountRepositoryPort userRepository;
 
-    public JwtAuthenticationFilter(AuthTokenPort tokenPort, UserAccountRepositoryPort userRepository) {
+    public JwtAuthenticationFilter(IAuthTokenPort tokenPort, IUserAccountRepositoryPort userRepository) {
         this.tokenPort = tokenPort;
         this.userRepository = userRepository;
     }

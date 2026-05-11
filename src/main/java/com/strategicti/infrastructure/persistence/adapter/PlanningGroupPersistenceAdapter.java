@@ -1,6 +1,6 @@
 package com.strategicti.infrastructure.persistence.adapter;
 
-import com.strategicti.application.ports.out.PlanningGroupRepositoryPort;
+import com.strategicti.application.ports.out.IPlanningGroupRepositoryPort;
 import com.strategicti.domain.model.PlanningGroup;
 import com.strategicti.infrastructure.persistence.entity.PlanningGroupJpaEntity;
 import com.strategicti.infrastructure.persistence.factory.PlanningGroupPersistenceFactory;
@@ -11,7 +11,7 @@ import java.util.List;
 import java.util.Optional;
 
 @Repository
-public class PlanningGroupPersistenceAdapter implements PlanningGroupRepositoryPort {
+public class PlanningGroupPersistenceAdapter implements IPlanningGroupRepositoryPort {
     private final SpringDataPlanningGroupRepository repository;
     private final PlanningGroupPersistenceFactory factory;
 

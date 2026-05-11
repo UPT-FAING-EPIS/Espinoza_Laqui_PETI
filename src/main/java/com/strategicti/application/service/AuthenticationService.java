@@ -1,7 +1,7 @@
 package com.strategicti.application.service;
 
-import com.strategicti.application.ports.out.AuthTokenPort;
-import com.strategicti.application.ports.out.UserAccountRepositoryPort;
+import com.strategicti.application.ports.out.IAuthTokenPort;
+import com.strategicti.application.ports.out.IUserAccountRepositoryPort;
 import com.strategicti.application.usecase.AuthSession;
 import com.strategicti.application.usecase.AuthenticationFailedException;
 import com.strategicti.application.usecase.BootstrapAdminCommand;
@@ -20,14 +20,14 @@ import java.util.Locale;
 
 @Service
 public class AuthenticationService {
-    private final UserAccountRepositoryPort repository;
+    private final IUserAccountRepositoryPort repository;
     private final PasswordEncoder passwordEncoder;
-    private final AuthTokenPort tokenPort;
+    private final IAuthTokenPort tokenPort;
 
     public AuthenticationService(
-            UserAccountRepositoryPort repository,
+            IUserAccountRepositoryPort repository,
             PasswordEncoder passwordEncoder,
-            AuthTokenPort tokenPort
+            IAuthTokenPort tokenPort
     ) {
         this.repository = repository;
         this.passwordEncoder = passwordEncoder;

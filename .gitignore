@@ -1,6 +1,7 @@
 .idea/
 .vscode/
 *.log
+.local-*.err
 *.xlsx
 HELP.md
 

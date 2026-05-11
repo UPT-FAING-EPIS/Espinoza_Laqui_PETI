@@ -1,7 +1,7 @@
 package com.strategicti.application.service;
 
-import com.strategicti.application.ports.out.PlanningGroupRepositoryPort;
-import com.strategicti.application.ports.out.UserAccountRepositoryPort;
+import com.strategicti.application.ports.out.IPlanningGroupRepositoryPort;
+import com.strategicti.application.ports.out.IUserAccountRepositoryPort;
 import com.strategicti.application.usecase.AssignGroupMemberCommand;
 import com.strategicti.application.usecase.CreatePlanningGroupCommand;
 import com.strategicti.application.usecase.GroupMemberSummary;
@@ -22,12 +22,12 @@ import java.util.List;
 
 @Service
 public class PlanningGroupService {
-    private final PlanningGroupRepositoryPort groupRepository;
-    private final UserAccountRepositoryPort userRepository;
+    private final IPlanningGroupRepositoryPort groupRepository;
+    private final IUserAccountRepositoryPort userRepository;
 
     public PlanningGroupService(
-            PlanningGroupRepositoryPort groupRepository,
-            UserAccountRepositoryPort userRepository
+            IPlanningGroupRepositoryPort groupRepository,
+            IUserAccountRepositoryPort userRepository
     ) {
         this.groupRepository = groupRepository;
         this.userRepository = userRepository;

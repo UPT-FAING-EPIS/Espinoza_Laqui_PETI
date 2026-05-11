@@ -1,6 +1,6 @@
 package com.strategicti.application.service;
 
-import com.strategicti.application.ports.out.StrategicPlanRepositoryPort;
+import com.strategicti.application.ports.out.IStrategicPlanRepositoryPort;
 import com.strategicti.application.usecase.CompanyProfileCommand;
 import com.strategicti.application.usecase.PlanSummary;
 import com.strategicti.domain.model.CompanyProfile;
@@ -15,10 +15,10 @@ import java.util.List;
 
 @Service
 public class StrategicPlanService {
-    private final StrategicPlanRepositoryPort repository;
+    private final IStrategicPlanRepositoryPort repository;
     private final PetiProgressPolicy progressPolicy = new PetiProgressPolicy();
 
-    public StrategicPlanService(StrategicPlanRepositoryPort repository) {
+    public StrategicPlanService(IStrategicPlanRepositoryPort repository) {
         this.repository = repository;
     }
 

@@ -5,7 +5,7 @@ import com.strategicti.domain.model.UserAccount;
 
 import java.util.Optional;
 
-public interface AuthTokenPort {
+public interface IAuthTokenPort {
     String issue(UserAccount user);
 
     Optional<AuthenticatedUser> validate(String token);

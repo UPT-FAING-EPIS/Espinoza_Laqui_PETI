@@ -5,7 +5,7 @@ import com.strategicti.domain.model.UserAccount;
 import java.util.List;
 import java.util.Optional;
 
-public interface UserAccountRepositoryPort {
+public interface IUserAccountRepositoryPort {
     Optional<UserAccount> findById(Long id);
 
     Optional<UserAccount> findByEmail(String email);

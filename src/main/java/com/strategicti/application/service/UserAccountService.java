@@ -1,6 +1,6 @@
 package com.strategicti.application.service;
 
-import com.strategicti.application.ports.out.UserAccountRepositoryPort;
+import com.strategicti.application.ports.out.IUserAccountRepositoryPort;
 import com.strategicti.application.usecase.CreateUserCommand;
 import com.strategicti.application.usecase.ResourceNotFoundException;
 import com.strategicti.application.usecase.UpdateCredentialsCommand;
@@ -19,10 +19,10 @@ import java.util.Locale;
 
 @Service
 public class UserAccountService {
-    private final UserAccountRepositoryPort repository;
+    private final IUserAccountRepositoryPort repository;
     private final PasswordEncoder passwordEncoder;
 
-    public UserAccountService(UserAccountRepositoryPort repository, PasswordEncoder passwordEncoder) {
+    public UserAccountService(IUserAccountRepositoryPort repository, PasswordEncoder passwordEncoder) {
         this.repository = repository;
         this.passwordEncoder = passwordEncoder;
     }

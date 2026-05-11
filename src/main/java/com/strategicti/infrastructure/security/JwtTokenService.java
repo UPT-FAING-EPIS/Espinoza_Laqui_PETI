@@ -1,6 +1,6 @@
 package com.strategicti.infrastructure.security;
 
-import com.strategicti.application.ports.out.AuthTokenPort;
+import com.strategicti.application.ports.out.IAuthTokenPort;
 import com.strategicti.application.usecase.AuthenticatedUser;
 import com.strategicti.domain.model.SystemRole;
 import com.strategicti.domain.model.UserAccount;
@@ -20,7 +20,7 @@ import java.util.Map;
 import java.util.Optional;
 
 @Component
-public class JwtTokenService implements AuthTokenPort {
+public class JwtTokenService implements IAuthTokenPort {
     private static final String HMAC_ALGORITHM = "HmacSHA256";
     private final String secret;
     private final long expirationSeconds;

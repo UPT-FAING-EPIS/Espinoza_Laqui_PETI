@@ -3,6 +3,8 @@ import { fetchCurrentUser, login as apiLogin } from '../api/authApi'
 import type { ReactNode } from 'react'
 import type { LoginCredentials, UserSummary } from '../types'
 
+const AUTH_EXPIRED_EVENT = 'strategicti:auth-expired'
+
 type AuthState = {
   user: UserSummary | null
   loading: boolean
@@ -26,8 +28,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     fetchCurrentUser()
       .then(setUser)
-      .catch(() => localStorage.removeItem('access_token'))
+      .catch(() => {
+        localStorage.removeItem('access_token')
+        setUser(null)
+      })
       .finally(() => setLoading(false))
+  }, [])
+
+  useEffect(() => {
+    function handleAuthExpired() {
+      setUser(null)
+    }
+
+    window.addEventListener(AUTH_EXPIRED_EVENT, handleAuthExpired)
+    return () => window.removeEventListener(AUTH_EXPIRED_EVENT, handleAuthExpired)
   }, [])
 
   async function login(credentials: LoginCredentials) {
@@ -53,4 +67,3 @@ export function useAuth() {
   if (!ctx) throw new Error('useAuth must be inside AuthProvider')
   return ctx
 }
-

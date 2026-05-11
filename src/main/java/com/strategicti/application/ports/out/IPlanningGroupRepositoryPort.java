@@ -5,7 +5,7 @@ import com.strategicti.domain.model.PlanningGroup;
 import java.util.List;
 import java.util.Optional;
 
-public interface PlanningGroupRepositoryPort {
+public interface IPlanningGroupRepositoryPort {
     Optional<PlanningGroup> findById(Long id);
 
     List<PlanningGroup> findAll();

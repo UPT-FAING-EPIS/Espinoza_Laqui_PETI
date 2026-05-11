@@ -1,6 +1,6 @@
 package com.strategicti.infrastructure.persistence.adapter;
 
-import com.strategicti.application.ports.out.UserAccountRepositoryPort;
+import com.strategicti.application.ports.out.IUserAccountRepositoryPort;
 import com.strategicti.domain.model.UserAccount;
 import com.strategicti.infrastructure.persistence.entity.UserAccountJpaEntity;
 import com.strategicti.infrastructure.persistence.factory.UserAccountPersistenceFactory;
@@ -11,7 +11,7 @@ import java.util.List;
 import java.util.Optional;
 
 @Repository
-public class UserAccountPersistenceAdapter implements UserAccountRepositoryPort {
+public class UserAccountPersistenceAdapter implements IUserAccountRepositoryPort {
     private final SpringDataUserAccountRepository repository;
     private final UserAccountPersistenceFactory factory;
 

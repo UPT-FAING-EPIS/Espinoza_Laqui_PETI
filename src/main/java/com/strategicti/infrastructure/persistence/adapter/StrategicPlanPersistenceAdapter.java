@@ -1,6 +1,6 @@
 package com.strategicti.infrastructure.persistence.adapter;
 
-import com.strategicti.application.ports.out.StrategicPlanRepositoryPort;
+import com.strategicti.application.ports.out.IStrategicPlanRepositoryPort;
 import com.strategicti.domain.model.StrategicPlan;
 import com.strategicti.infrastructure.persistence.entity.StrategicPlanJpaEntity;
 import com.strategicti.infrastructure.persistence.factory.StrategicPlanPersistenceFactory;
@@ -10,7 +10,7 @@ import org.springframework.stereotype.Repository;
 import java.util.Optional;
 
 @Repository
-public class StrategicPlanPersistenceAdapter implements StrategicPlanRepositoryPort {
+public class StrategicPlanPersistenceAdapter implements IStrategicPlanRepositoryPort {
     private final SpringDataStrategicPlanRepository repository;
     private final StrategicPlanPersistenceFactory factory;
 

@@ -1,6 +1,6 @@
 package com.strategicti.application.service;
 
-import com.strategicti.application.ports.out.AuthTokenPort;
+import com.strategicti.application.ports.out.IAuthTokenPort;
 import com.strategicti.application.usecase.AuthSession;
 import com.strategicti.application.usecase.AuthenticatedUser;
 import com.strategicti.application.usecase.AuthenticationFailedException;
@@ -88,7 +88,7 @@ class AuthenticationServiceTest {
         assertEquals(DefaultView.GROUP_MANAGEMENT, updated.defaultView());
     }
 
-    private static class FixedTokenPort implements AuthTokenPort {
+    private static class FixedTokenPort implements IAuthTokenPort {
         @Override
         public String issue(UserAccount user) {
             return "token-" + user.id();
