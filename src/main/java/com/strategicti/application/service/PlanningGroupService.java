@@ -3,7 +3,9 @@ package com.strategicti.application.service;
 import com.strategicti.application.ports.out.IPlanningGroupRepositoryPort;
 import com.strategicti.application.ports.out.IUserAccountRepositoryPort;
 import com.strategicti.application.usecase.AssignGroupMemberCommand;
+import com.strategicti.application.usecase.AuthenticatedUser;
 import com.strategicti.application.usecase.CreatePlanningGroupCommand;
+import com.strategicti.application.usecase.ForbiddenOperationException;
 import com.strategicti.application.usecase.GroupMemberSummary;
 import com.strategicti.application.usecase.PlanningGroupSummary;
 import com.strategicti.application.usecase.ResourceNotFoundException;
@@ -12,6 +14,7 @@ import com.strategicti.application.usecase.UpdatePlanningGroupCommand;
 import com.strategicti.domain.model.GroupMember;
 import com.strategicti.domain.model.GroupRole;
 import com.strategicti.domain.model.PlanningGroup;
+import com.strategicti.domain.model.SystemRole;
 import com.strategicti.domain.model.UserAccount;
 import com.strategicti.domain.model.UserStatus;
 import org.springframework.stereotype.Service;
@@ -60,6 +63,15 @@ public class PlanningGroupService {
     @Transactional(readOnly = true)
     public PlanningGroupSummary getGroup(Long id) {
         return toSummary(findGroup(id));
+    }
+
+    @Transactional(readOnly = true)
+    public PlanningGroupSummary getGroupForViewer(Long id, AuthenticatedUser viewer) {
+        PlanningGroup group = findGroup(id);
+        if (viewer.role() == SystemRole.ADMINISTRADOR || group.hasMember(viewer.id())) {
+            return toSummary(group);
+        }
+        throw new ForbiddenOperationException("No pertenece al grupo solicitado.");
     }
 
     @Transactional

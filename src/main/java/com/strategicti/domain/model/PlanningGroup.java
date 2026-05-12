@@ -66,6 +66,10 @@ public record PlanningGroup(
         return withMembers(nextMembers);
     }
 
+    public boolean hasMember(Long userId) {
+        return containsUser(userId);
+    }
+
     private PlanningGroup withMembers(List<GroupMember> nextMembers) {
         return new PlanningGroup(id, name, description, List.copyOf(nextMembers), createdAt, Instant.now());
     }

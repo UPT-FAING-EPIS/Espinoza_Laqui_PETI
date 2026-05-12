@@ -13,8 +13,8 @@ public class PetiProgressPolicy {
             throw new IllegalStateException("La fase solicitada todavia esta bloqueada.");
         }
 
-        if (phase == PetiPhase.IDENTITY && !plan.profile().isIdentityReady()) {
-            throw new IllegalStateException("Complete la informacion de empresa, mision, vision y valores antes de cerrar la fase de identidad.");
+        if (phase == PetiPhase.IDENTITY && !plan.isIdentityReady()) {
+            throw new IllegalStateException("Complete la informacion de empresa, mision, vision, valores y objetivos antes de cerrar la fase de identidad.");
         }
     }
 

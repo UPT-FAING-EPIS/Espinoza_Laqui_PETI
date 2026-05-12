@@ -8,11 +8,15 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.OneToMany;
+import jakarta.persistence.OrderBy;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "strategic_plans")
@@ -23,6 +27,9 @@ public class StrategicPlanJpaEntity {
 
     @Column(nullable = false)
     private boolean currentPlan = true;
+
+    @Column(name = "group_id")
+    private Long groupId;
 
     private String companyName;
     private String businessLine;
@@ -38,6 +45,10 @@ public class StrategicPlanJpaEntity {
 
     @Column(length = 2000)
     private String valuesText;
+
+    @OneToMany(mappedBy = "plan", cascade = jakarta.persistence.CascadeType.ALL, orphanRemoval = true)
+    @OrderBy("position ASC")
+    private List<StrategicObjectiveJpaEntity> objectives = new ArrayList<>();
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
@@ -71,6 +82,14 @@ public class StrategicPlanJpaEntity {
 
     public void setCurrentPlan(boolean currentPlan) {
         this.currentPlan = currentPlan;
+    }
+
+    public Long getGroupId() {
+        return groupId;
+    }
+
+    public void setGroupId(Long groupId) {
+        this.groupId = groupId;
     }
 
     public String getCompanyName() {
@@ -119,6 +138,14 @@ public class StrategicPlanJpaEntity {
 
     public void setValuesText(String valuesText) {
         this.valuesText = valuesText;
+    }
+
+    public List<StrategicObjectiveJpaEntity> getObjectives() {
+        return objectives;
+    }
+
+    public void setObjectives(List<StrategicObjectiveJpaEntity> objectives) {
+        this.objectives = objectives;
     }
 
     public PetiPhase getActivePhase() {

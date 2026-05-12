@@ -12,6 +12,10 @@ public record CompanyProfile(
         return new CompanyProfile("", "", "", "", "", "");
     }
 
+    public CompanyProfile withIdentity(String mission, String vision, String valuesText) {
+        return new CompanyProfile(companyName, businessLine, description, mission, vision, valuesText);
+    }
+
     public boolean isIdentityReady() {
         return hasText(companyName)
                 && hasText(businessLine)

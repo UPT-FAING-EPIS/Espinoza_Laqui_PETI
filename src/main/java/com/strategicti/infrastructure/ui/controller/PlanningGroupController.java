@@ -52,8 +52,9 @@ public class PlanningGroupController {
     }
 
     @GetMapping("/{id}")
-    public PlanningGroupSummary get(@PathVariable Long id) {
-        return service.getGroup(id);
+    public PlanningGroupSummary get(@PathVariable Long id, Authentication authentication) {
+        AuthenticatedUser user = (AuthenticatedUser) authentication.getPrincipal();
+        return service.getGroupForViewer(id, user);
     }
 
     @PutMapping("/{id}")
