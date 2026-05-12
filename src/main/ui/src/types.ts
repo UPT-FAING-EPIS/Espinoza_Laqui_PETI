@@ -117,11 +117,35 @@ export type PhaseSnapshot = {
   progress: number
 }
 
+export type StrategicObjective = {
+  generalObjective: string
+  specificObjectives: string[]
+}
+
 export type PlanSummary = {
   id: number | null
+  groupId: number | null
   profile: CompanyProfile
+  objectives: StrategicObjective[]
   activePhase: PetiPhase
   totalProgress: number
   phases: PhaseSnapshot[]
   updatedAt: string
+}
+
+export type IdentitySectionSummary = {
+  planId: number | null
+  groupId: number | null
+  mission: string
+  vision: string
+  valuesText: string
+  objectives: StrategicObjective[]
+  updatedAt: string
+}
+
+export type UpdateIdentityPayload = {
+  mission: string
+  vision: string
+  valuesText: string
+  objectives: StrategicObjective[]
 }

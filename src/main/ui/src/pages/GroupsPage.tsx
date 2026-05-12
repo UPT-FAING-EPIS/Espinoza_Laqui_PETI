@@ -2,6 +2,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import {
   ChevronLeft,
   CircleAlert,
+  FileText,
   Network,
   Pencil,
   Plus,
@@ -12,6 +13,7 @@ import {
 } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
+import { Link } from 'react-router-dom'
 import { z } from 'zod'
 import {
   assignMember,
@@ -220,6 +222,10 @@ function GroupDetail({
           <button className="gpage-act-btn" type="button" onClick={onEdit} title="Editar grupo">
             <Pencil size={16} />
           </button>
+          <Link className="gpage-plan-btn" to={`/groups/${group.id}/plan`}>
+            <FileText size={16} />
+            Plan PETI
+          </Link>
           <button className="gpage-add-btn" type="button" onClick={onAssign}>
             <UserPlus size={16} />
             Asignar miembro

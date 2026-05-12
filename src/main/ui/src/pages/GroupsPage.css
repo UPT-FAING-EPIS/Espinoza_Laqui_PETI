@@ -48,9 +48,34 @@
   transition: all 0.2s ease;
 }
 
-.gpage-add-btn:hover {
+.gpage-add-btn:hover,
+.gpage-plan-btn:hover {
   box-shadow: 0 4px 18px rgba(59, 130, 246, 0.35);
   transform: translateY(-1px);
+}
+
+.gpage-plan-btn {
+  align-items: center;
+  background: var(--surface-2);
+  border: 1px solid var(--border-2);
+  border-radius: var(--radius);
+  color: var(--ink);
+  cursor: pointer;
+  display: inline-flex;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  gap: 7px;
+  min-height: 40px;
+  padding: 0 16px;
+  text-decoration: none;
+  transition: all 0.2s ease;
+}
+
+.gpage-plan-btn:hover {
+  background: var(--surface-3);
+  border-color: var(--blue);
+  color: var(--blue);
 }
 
 .gpage-act-btn {

@@ -1,5 +1,6 @@
-import { ChevronDown, ChevronUp, Network, Users } from 'lucide-react'
+import { ChevronDown, ChevronUp, FileText, Network, Users } from 'lucide-react'
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { listMyGroups } from '../api/groupApi'
 import { useAuth } from '../context/AuthContext'
 import type { PlanningGroupSummary } from '../types'
@@ -96,6 +97,12 @@ export default function MyGroupsPage() {
                           </span>
                         </div>
                       ))}
+                    </div>
+                    <div className="mygroups-actions">
+                      <Link className="mygroups-plan-link" to={`/groups/${group.id}/plan`}>
+                        <FileText size={16} />
+                        Abrir plan PETI
+                      </Link>
                     </div>
                   </div>
                 )}

@@ -1,0 +1,240 @@
+/* ============================================
+   GROUP PLAN PAGE
+   ============================================ */
+.gplan-page {
+  max-width: 1180px;
+}
+
+.gplan-back-btn {
+  align-items: center;
+  background: none;
+  border: none;
+  color: var(--ink-3);
+  cursor: pointer;
+  display: inline-flex;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  gap: 4px;
+  margin-bottom: 10px;
+  padding: 0;
+  transition: color 0.2s ease;
+}
+
+.gplan-back-btn:hover {
+  color: var(--ink);
+}
+
+.gplan-empty-card {
+  align-items: center;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 56px 20px;
+  text-align: center;
+}
+
+.gplan-empty-icon {
+  align-items: center;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  color: var(--ink-3);
+  display: flex;
+  height: 84px;
+  justify-content: center;
+  width: 84px;
+}
+
+.gplan-empty-card h2 {
+  color: var(--ink);
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.gplan-empty-card p {
+  color: var(--ink-3);
+  font-size: 14px;
+  margin-bottom: 4px;
+}
+
+.gplan-card-header-action {
+  justify-content: space-between;
+}
+
+.gplan-card-title {
+  align-items: center;
+  display: flex;
+  gap: 10px;
+}
+
+.gplan-card-title svg {
+  color: var(--blue);
+}
+
+.gplan-inline-btn,
+.gplan-link-btn {
+  align-items: center;
+  background: var(--surface-2);
+  border: 1px solid var(--border-2);
+  border-radius: var(--radius-sm);
+  color: var(--ink-2);
+  cursor: pointer;
+  display: inline-flex;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  gap: 6px;
+  min-height: 32px;
+  padding: 0 12px;
+  transition: all 0.2s ease;
+}
+
+.gplan-inline-btn:hover,
+.gplan-link-btn:hover {
+  background: var(--surface-3);
+  border-color: var(--blue);
+  color: var(--blue);
+}
+
+.gplan-objectives {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.gplan-objective {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px;
+}
+
+.gplan-objective-head {
+  align-items: flex-start;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: 1fr auto;
+}
+
+.gplan-remove-btn {
+  align-items: center;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  color: var(--ink-3);
+  cursor: pointer;
+  display: flex;
+  flex-shrink: 0;
+  height: 34px;
+  justify-content: center;
+  transition: all 0.2s ease;
+  width: 34px;
+}
+
+.gplan-remove-btn:hover {
+  background: rgba(239, 68, 68, 0.1);
+  border-color: rgba(239, 68, 68, 0.2);
+  color: var(--red);
+}
+
+.gplan-specific-list {
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 12px;
+  padding-top: 12px;
+}
+
+.gplan-specific-title {
+  align-items: center;
+  color: var(--ink-2);
+  display: flex;
+  font-size: 12px;
+  font-weight: 700;
+  gap: 6px;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.gplan-specific-row {
+  align-items: center;
+  display: grid;
+  gap: 8px;
+  grid-template-columns: 1fr auto;
+}
+
+.gplan-link-btn {
+  justify-content: center;
+  width: fit-content;
+}
+
+.gplan-side-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px;
+}
+
+.gplan-side-item {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+}
+
+.gplan-side-item span {
+  color: var(--ink-3);
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.gplan-side-item strong {
+  color: var(--ink);
+  display: block;
+  font-size: 14px;
+  font-weight: 700;
+  margin-top: 3px;
+}
+
+.gplan-side-link {
+  align-items: center;
+  background: var(--surface-2);
+  border: 1px solid var(--border-2);
+  border-radius: var(--radius);
+  color: var(--ink);
+  display: inline-flex;
+  font-size: 13px;
+  font-weight: 700;
+  gap: 8px;
+  justify-content: center;
+  min-height: 40px;
+  text-decoration: none;
+  transition: all 0.2s ease;
+}
+
+.gplan-side-link:hover {
+  background: var(--surface-3);
+  border-color: var(--blue);
+  color: var(--blue);
+}
+
+@media (max-width: 640px) {
+  .gplan-objective-head,
+  .gplan-specific-row {
+    grid-template-columns: 1fr;
+  }
+
+  .gplan-objective-head .gplan-remove-btn,
+  .gplan-specific-row .gplan-remove-btn {
+    justify-self: flex-end;
+  }
+}

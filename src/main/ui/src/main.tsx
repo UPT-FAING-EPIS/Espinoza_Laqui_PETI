@@ -3,12 +3,13 @@ import { createRoot } from 'react-dom/client'
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import './index.css'
-import App from './App'
 import AppShell from './layout/AppShell'
 import DashboardPage from './pages/DashboardPage'
 import GroupsPage from './pages/GroupsPage'
+import GroupPlanPage from './pages/GroupPlanPage'
 import LoginPage from './pages/LoginPage'
 import MyGroupsPage from './pages/MyGroupsPage'
+import PlanGatewayPage from './pages/PlanGatewayPage'
 import ProfilePage from './pages/ProfilePage'
 import UsersPage from './pages/UsersPage'
 import type { ReactNode } from 'react'
@@ -86,7 +87,8 @@ createRoot(document.getElementById('root')!).render(
           >
             <Route index element={<DefaultViewRoute />} />
             <Route path="dashboard" element={<DashboardPage />} />
-            <Route path="plan" element={<App />} />
+            <Route path="plan" element={<PlanGatewayPage />} />
+            <Route path="groups/:groupId/plan" element={<GroupPlanPage />} />
             <Route path="profile" element={<ProfilePage />} />
             <Route path="my-groups" element={<MyGroupsPage />} />
             <Route

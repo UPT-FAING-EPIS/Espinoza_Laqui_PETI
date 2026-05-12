@@ -8,7 +8,7 @@ import {
   Users,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
-import { NavLink, Outlet } from 'react-router-dom'
+import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import type { SystemRole } from '../types'
 import './AppShell.css'
@@ -31,6 +31,7 @@ const navItems: NavItem[] = [
 
 export default function AppShell() {
   const { user, logout } = useAuth()
+  const location = useLocation()
   if (!user) return null
 
   const initials = `${user.firstName.charAt(0)}${user.lastName.charAt(0)}`.toUpperCase()
@@ -59,7 +60,9 @@ export default function AppShell() {
               key={item.to}
               to={item.to}
               end={item.to === '/'}
-              className={({ isActive }) => `shell-nav-item ${isActive ? 'active' : ''}`}
+              className={({ isActive }) =>
+                `shell-nav-item ${isNavItemActive(item.to, isActive, location.pathname) ? 'active' : ''}`
+              }
             >
               <item.icon size={18} />
               <span>{item.label}</span>
@@ -88,4 +91,12 @@ export default function AppShell() {
       </main>
     </div>
   )
+}
+
+function isNavItemActive(to: string, isActive: boolean, pathname: string) {
+  if (to === '/plan' && /^\/groups\/\d+\/plan/.test(pathname)) {
+    return true
+  }
+
+  return isActive
 }

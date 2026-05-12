@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import { fetchCurrentUser, login as apiLogin } from '../api/authApi'
+import { clearActivePetiGroupId } from '../session'
 import type { ReactNode } from 'react'
 import type { LoginCredentials, UserSummary } from '../types'
 
@@ -30,6 +31,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .then(setUser)
       .catch(() => {
         localStorage.removeItem('access_token')
+        clearActivePetiGroupId()
         setUser(null)
       })
       .finally(() => setLoading(false))
@@ -37,6 +39,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     function handleAuthExpired() {
+      clearActivePetiGroupId()
       setUser(null)
     }
 
@@ -47,11 +50,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   async function login(credentials: LoginCredentials) {
     const session = await apiLogin(credentials)
     localStorage.setItem('access_token', session.accessToken)
+    clearActivePetiGroupId()
     setUser(session.user)
   }
 
   function logout() {
     localStorage.removeItem('access_token')
+    clearActivePetiGroupId()
     setUser(null)
   }
 
