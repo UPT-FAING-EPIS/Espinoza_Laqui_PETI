@@ -49,6 +49,11 @@ public class InMemoryPlanPhaseWorkflowRepository implements IPlanPhaseWorkflowRe
     }
 
     @Override
+    public void deleteChangeRequest(Long id) {
+        requests.remove(id);
+    }
+
+    @Override
     public List<PlanChangeRequest> findChangeRequests(Long planId, PetiPhase phase) {
         return requests.values().stream()
                 .filter(request -> request.planId().equals(planId) && request.phase() == phase)

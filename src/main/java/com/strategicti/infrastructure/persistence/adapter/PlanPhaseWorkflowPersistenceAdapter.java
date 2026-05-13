@@ -45,6 +45,11 @@ public class PlanPhaseWorkflowPersistenceAdapter implements IPlanPhaseWorkflowRe
     }
 
     @Override
+    public void deleteChangeRequest(Long id) {
+        changeRequestRepository.deleteById(id);
+    }
+
+    @Override
     public List<PlanChangeRequest> findChangeRequests(Long planId, PetiPhase phase) {
         return changeRequestRepository.findByPlanIdAndPhaseOrderByCreatedAtDesc(planId, phase).stream()
                 .map(factory::toDomain)

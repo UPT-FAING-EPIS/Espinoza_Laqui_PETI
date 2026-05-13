@@ -11,9 +11,11 @@ import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
@@ -53,6 +55,18 @@ public class GroupPlanPhaseWorkflowController {
         return service.createChangeRequest(groupId, phase, command, user);
     }
 
+    @PutMapping("/changes/{requestId}")
+    public PhaseChangeRequestSummary updateChange(
+            @PathVariable Long groupId,
+            @PathVariable PetiPhase phase,
+            @PathVariable Long requestId,
+            @Valid @RequestBody CreatePhaseChangeRequestCommand command,
+            Authentication authentication
+    ) {
+        AuthenticatedUser user = (AuthenticatedUser) authentication.getPrincipal();
+        return service.updateChangeRequest(groupId, phase, requestId, command, user);
+    }
+
     @PostMapping("/changes/{requestId}/submit")
     public PhaseChangeRequestSummary submitChange(
             @PathVariable Long groupId,
@@ -86,6 +100,18 @@ public class GroupPlanPhaseWorkflowController {
     ) {
         AuthenticatedUser user = (AuthenticatedUser) authentication.getPrincipal();
         return service.rejectChangeRequest(groupId, phase, requestId, review(command), user);
+    }
+
+    @DeleteMapping("/changes/{requestId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void discardChange(
+            @PathVariable Long groupId,
+            @PathVariable PetiPhase phase,
+            @PathVariable Long requestId,
+            Authentication authentication
+    ) {
+        AuthenticatedUser user = (AuthenticatedUser) authentication.getPrincipal();
+        service.discardChangeRequest(groupId, phase, requestId, user);
     }
 
     @GetMapping("/versions")

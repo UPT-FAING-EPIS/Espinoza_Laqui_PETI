@@ -14,6 +14,8 @@ public interface IPlanPhaseWorkflowRepositoryPort {
 
     Optional<PlanChangeRequest> findChangeRequestById(Long id);
 
+    void deleteChangeRequest(Long id);
+
     List<PlanChangeRequest> findChangeRequests(Long planId, PetiPhase phase);
 
     boolean existsChangeRequestWithStatus(Long planId, PetiPhase phase, Collection<PhaseChangeStatus> statuses);

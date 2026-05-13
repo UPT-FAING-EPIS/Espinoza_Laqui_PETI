@@ -9,6 +9,7 @@ import {
   GitPullRequest,
   History,
   ListChecks,
+  PencilLine,
   Plus,
   RefreshCcw,
   Save,
@@ -19,13 +20,14 @@ import {
 } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import { z } from 'zod'
 import { getGroup } from '../api/groupApi'
 import {
   approvePhaseChangeRequest,
   createGroupPlan,
   createPhaseChangeRequest,
+  discardPhaseChangeRequest,
   getGroupPlan,
   getGroupPlanIdentity,
   listPhaseChangeRequests,
@@ -33,6 +35,7 @@ import {
   rejectPhaseChangeRequest,
   saveGroupPlanIdentity,
   submitPhaseChangeRequest,
+  updatePhaseChangeRequest,
 } from '../api/planApi'
 import { useAuth } from '../context/AuthContext'
 import { setActivePetiGroupId } from '../session'
@@ -41,6 +44,7 @@ import './GroupPlanPage.css'
 import type { ReactNode } from 'react'
 import type {
   IdentitySectionSummary,
+  PhaseChangeEntry,
   PhaseChangeRequestSummary,
   PhaseChangeStatus,
   PhaseSnapshot,
@@ -98,6 +102,8 @@ export default function GroupPlanPage() {
   const [saving, setSaving] = useState(false)
   const [creating, setCreating] = useState(false)
   const [workflowAction, setWorkflowAction] = useState<string | null>(null)
+  const [selectedVersion, setSelectedVersion] = useState<PhaseVersionSummary | null>(null)
+  const [overviewOpen, setOverviewOpen] = useState(false)
   const [planMissing, setPlanMissing] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
@@ -124,13 +130,25 @@ export default function GroupPlanPage() {
     () => phaseChanges.find((change) => change.status === 'PENDING_APPROVAL') ?? null,
     [phaseChanges],
   )
+  const draftIdentityRequest = useMemo(
+    () => phaseChanges.find((change) => change.status === 'DRAFT' && change.createdByUserId === user?.id) ?? null,
+    [phaseChanges, user?.id],
+  )
+  const latestOfficialVersion = useMemo(
+    () => phaseVersions[0] ?? null,
+    [phaseVersions],
+  )
   const isLeader = useMemo(
     () => group?.members.some((member) => member.userId === user?.id && member.role === 'LIDER') ?? false,
     [group, user],
   )
   const identityCompleted = identityPhase?.completed ?? false
   const workflowBusy = workflowAction !== null
-  const phaseStatus = identityCompleted ? 'APPROVED' : pendingIdentityRequest ? 'PENDING_APPROVAL' : 'DRAFT'
+  const phaseStatus = pendingIdentityRequest
+    ? 'PENDING_APPROVAL'
+    : draftIdentityRequest
+      ? 'DRAFT'
+      : identityCompleted ? 'APPROVED' : 'DRAFT'
 
   const load = useCallback(async () => {
     if (!numericGroupId) {
@@ -158,15 +176,21 @@ export default function GroupPlanPage() {
       setIdentity(nextIdentity)
       setPhaseChanges(nextChanges)
       setPhaseVersions(nextVersions)
+      const editableDraft = nextChanges.find(
+        (change) => change.status === 'DRAFT' && change.createdByUserId === user?.id,
+      )
+      const formPayload = editableDraft
+        ? identityPayloadFromContent(editableDraft.proposedContent)
+        : identityPayloadFromCurrent(nextPlan, nextIdentity)
       reset({
-        companyName: nextPlan.profile.companyName,
-        businessLine: nextPlan.profile.businessLine,
-        description: nextPlan.profile.description,
-        mission: nextIdentity.mission,
-        vision: nextIdentity.vision,
-        valuesText: nextIdentity.valuesText,
+        companyName: formPayload.companyName,
+        businessLine: formPayload.businessLine,
+        description: formPayload.description,
+        mission: formPayload.mission,
+        vision: formPayload.vision,
+        valuesText: formPayload.valuesText,
       })
-      setObjectives(nextIdentity.objectives.length > 0 ? nextIdentity.objectives : [emptyObjective()])
+      setObjectives(formPayload.objectives.length > 0 ? formPayload.objectives : [emptyObjective()])
     } catch (exception) {
       const message = exception instanceof Error ? exception.message : 'No se pudo cargar el plan.'
       if (message.toLowerCase().includes('aun no tiene un plan')) {
@@ -182,7 +206,7 @@ export default function GroupPlanPage() {
     } finally {
       setLoading(false)
     }
-  }, [navigate, numericGroupId, reset])
+  }, [navigate, numericGroupId, reset, user?.id])
 
   useEffect(() => {
     load()
@@ -203,9 +227,9 @@ export default function GroupPlanPage() {
   }
 
   async function onSubmit(values: IdentityForm) {
-    if (!numericGroupId) return
-    if (identityCompleted) {
-      setError('La fase de identidad ya fue aprobada. Envie una solicitud de cambio para modificarla.')
+    if (!numericGroupId || !plan) return
+    if (pendingIdentityRequest) {
+      setError('Ya existe una solicitud pendiente para esta fase. Espere la revision del lider.')
       return
     }
     setSaving(true)
@@ -213,6 +237,27 @@ export default function GroupPlanPage() {
     setNotice(null)
     try {
       const payload = identityPayload(values, objectives)
+      if (identityCompleted) {
+        const entries = identityChangeEntries(plan, identity, payload)
+        if (entries.length === 0) {
+          if (draftIdentityRequest) {
+            await discardPhaseChangeRequest(numericGroupId, 'IDENTITY', draftIdentityRequest.id)
+            setPhaseChanges((current) => current.filter((change) => change.id !== draftIdentityRequest.id))
+            setNotice('Borrador descartado. El editor coincide con la version oficial actual.')
+            return
+          }
+          setError('No hay cambios para guardar como borrador.')
+          return
+        }
+        const requestPayload = identityChangeRequestPayload(payload, entries, 'Actualizar identidad estrategica')
+        const savedDraft = draftIdentityRequest
+          ? await updatePhaseChangeRequest(numericGroupId, 'IDENTITY', draftIdentityRequest.id, requestPayload)
+          : await createPhaseChangeRequest(numericGroupId, 'IDENTITY', requestPayload)
+        setPhaseChanges((current) => upsertPhaseChange(current, savedDraft))
+        setNotice('Borrador de cambio guardado. Puede enviarlo a revision cuando este listo.')
+        return
+      }
+
       const nextIdentity = await saveGroupPlanIdentity(numericGroupId, payload)
       const nextPlan = await getGroupPlan(numericGroupId)
       setIdentity(nextIdentity)
@@ -228,7 +273,7 @@ export default function GroupPlanPage() {
       setObjectives(nextIdentity.objectives.length > 0 ? nextIdentity.objectives : [emptyObjective()])
       setNotice('Borrador de identidad guardado.')
     } catch (exception) {
-      setError(exception instanceof Error ? exception.message : 'No se pudo guardar la identidad.')
+      setError(exception instanceof Error ? exception.message : 'No se pudo guardar el borrador.')
     } finally {
       setSaving(false)
     }
@@ -236,9 +281,18 @@ export default function GroupPlanPage() {
 
   async function handleSendForReview(values: IdentityForm) {
     if (!numericGroupId || !plan) return
+    if (pendingIdentityRequest) {
+      setError('Ya existe una solicitud pendiente para esta fase. Espere la revision del lider.')
+      return
+    }
     const payload = identityPayload(values, objectives)
     if (!identityReady(payload)) {
       setError('Complete datos de empresa, mision, vision, valores y al menos un objetivo antes de enviar a revision.')
+      return
+    }
+    const entries = identityChangeEntries(plan, identity, payload)
+    if (identityCompleted && entries.length === 0) {
+      setError('No hay cambios para enviar a revision.')
       return
     }
 
@@ -246,22 +300,14 @@ export default function GroupPlanPage() {
     setError(null)
     setNotice(null)
     try {
-      const request = await createPhaseChangeRequest(numericGroupId, 'IDENTITY', {
-        title: identityCompleted ? 'Actualizar identidad estrategica' : 'Aprobar identidad estrategica',
-        description: identityCompleted
-          ? 'Propuesta de cambio sobre una fase ya aprobada.'
-          : 'Solicitud para aprobar la fase de identidad estrategica.',
-        proposedContent: {
-          companyName: payload.companyName,
-          businessLine: payload.businessLine,
-          description: payload.description,
-          mission: payload.mission,
-          vision: payload.vision,
-          valuesText: payload.valuesText,
-          objectives: payload.objectives,
-        },
-        entries: identityChangeEntries(plan, identity, payload),
-      })
+      const requestPayload = identityChangeRequestPayload(
+        payload,
+        entries,
+        identityCompleted ? 'Actualizar identidad estrategica' : 'Aprobar identidad estrategica',
+      )
+      const request = draftIdentityRequest
+        ? await updatePhaseChangeRequest(numericGroupId, 'IDENTITY', draftIdentityRequest.id, requestPayload)
+        : await createPhaseChangeRequest(numericGroupId, 'IDENTITY', requestPayload)
       await submitPhaseChangeRequest(numericGroupId, 'IDENTITY', request.id)
       await load()
       setNotice('Solicitud enviada a revision del lider.')
@@ -270,6 +316,64 @@ export default function GroupPlanPage() {
     } finally {
       setWorkflowAction(null)
     }
+  }
+
+  async function handleSubmitDraft(requestId: number) {
+    if (!numericGroupId) return
+    setWorkflowAction(`submit-${requestId}`)
+    setError(null)
+    setNotice(null)
+    try {
+      await submitPhaseChangeRequest(numericGroupId, 'IDENTITY', requestId)
+      await load()
+      setNotice('Solicitud enviada a revision del lider.')
+    } catch (exception) {
+      setError(exception instanceof Error ? exception.message : 'No se pudo enviar el borrador.')
+    } finally {
+      setWorkflowAction(null)
+    }
+  }
+
+  async function handleDiscardDraft(requestId: number) {
+    if (!numericGroupId) return
+    setWorkflowAction(`discard-${requestId}`)
+    setError(null)
+    setNotice(null)
+    try {
+      await discardPhaseChangeRequest(numericGroupId, 'IDENTITY', requestId)
+      setPhaseChanges((current) => current.filter((change) => change.id !== requestId))
+      setNotice('Borrador descartado.')
+    } catch (exception) {
+      setError(exception instanceof Error ? exception.message : 'No se pudo descartar el borrador.')
+    } finally {
+      setWorkflowAction(null)
+    }
+  }
+
+  function handleLoadContentInEditor(payload: UpdateIdentityPayload, sourceLabel: string) {
+    setError(null)
+    setNotice(
+      pendingIdentityRequest
+        ? `Contenido de ${sourceLabel} cargado en el editor. Hay una solicitud pendiente antes de guardar nuevos cambios.`
+        : `Contenido de ${sourceLabel} cargado en el editor. Guarde el borrador o envielo a revision.`,
+    )
+    reset({
+      companyName: payload.companyName,
+      businessLine: payload.businessLine,
+      description: payload.description,
+      mission: payload.mission,
+      vision: payload.vision,
+      valuesText: payload.valuesText,
+    })
+    setObjectives(payload.objectives.length > 0 ? payload.objectives : [emptyObjective()])
+    setSelectedVersion(null)
+    setOverviewOpen(false)
+  }
+
+  function openPlanOverview(version?: PhaseVersionSummary | null) {
+    setError(null)
+    setSelectedVersion(version ?? latestOfficialVersion ?? null)
+    setOverviewOpen(true)
   }
 
   async function handleReview(approved: boolean) {
@@ -544,18 +648,9 @@ export default function GroupPlanPage() {
               </section>
 
               <div className="form-actions">
-                <button className="btn btn-secondary" type="submit" disabled={saving || workflowBusy || identityCompleted}>
+                <button className="btn btn-secondary" type="submit" disabled={saving || workflowBusy || Boolean(pendingIdentityRequest)}>
                   <Save size={16} />
-                  {saving ? 'Guardando...' : 'Guardar borrador'}
-                </button>
-                <button
-                  className="btn btn-primary"
-                  type="button"
-                  disabled={workflowBusy || Boolean(pendingIdentityRequest)}
-                  onClick={handleSubmit(handleSendForReview)}
-                >
-                  <Send size={16} />
-                  {workflowAction === 'submit' ? 'Enviando...' : 'Enviar a revision'}
+                  {saving ? 'Guardando...' : identityCompleted ? 'Guardar cambio' : 'Guardar borrador'}
                 </button>
               </div>
             </form>
@@ -616,27 +711,98 @@ export default function GroupPlanPage() {
                       )}
                     </div>
                   )}
+                  {!pendingIdentityRequest && draftIdentityRequest && (
+                    <div className="gplan-request-card">
+                      <strong>{draftIdentityRequest.title}</strong>
+                      <span>Borrador actualizado {formatDate(draftIdentityRequest.updatedAt)}</span>
+                      <div className="gplan-review-actions">
+                        <button
+                          className="gplan-review-btn submit"
+                          type="button"
+                          disabled={workflowBusy}
+                          onClick={() => handleSubmitDraft(draftIdentityRequest.id)}
+                          title="Enviar borrador a revision"
+                        >
+                          <Send size={14} />
+                          {workflowAction === `submit-${draftIdentityRequest.id}` ? 'Enviando...' : 'Enviar'}
+                        </button>
+                        <button
+                          className="gplan-review-btn discard"
+                          type="button"
+                          disabled={workflowBusy}
+                          onClick={() => handleDiscardDraft(draftIdentityRequest.id)}
+                          title="Descartar borrador"
+                        >
+                          <Trash2 size={14} />
+                          {workflowAction === `discard-${draftIdentityRequest.id}` ? '...' : 'Descartar'}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                  {!pendingIdentityRequest && !draftIdentityRequest && (
+                    <div className="gplan-request-card">
+                      <strong>{identityCompleted ? 'Cambios sin enviar' : 'Identidad pendiente de revision'}</strong>
+                      <span>
+                        {identityCompleted
+                          ? 'Guarde cambios o envie el formulario actual al lider.'
+                          : 'Envie la identidad al lider cuando el formulario este completo.'}
+                      </span>
+                      <div className="gplan-review-actions single">
+                        <button
+                          className="gplan-review-btn submit"
+                          type="button"
+                          disabled={workflowBusy}
+                          onClick={handleSubmit(handleSendForReview)}
+                          title="Enviar a revision"
+                        >
+                          <Send size={14} />
+                          {workflowAction === 'submit' ? 'Enviando...' : 'Enviar a revision'}
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
                 <div className="gplan-history-block">
                   <div className="gplan-workflow-title">
                     <History size={16} />
                     <span>Versiones</span>
                   </div>
-                  {phaseVersions.length === 0 && <p className="gplan-muted">Sin versiones aprobadas.</p>}
-                  {phaseVersions.slice(0, 3).map((version) => (
-                    <div className="gplan-version-row" key={version.id}>
-                      <span>v{version.versionNumber}</span>
-                      <strong>{formatDate(version.approvedAt)}</strong>
-                    </div>
-                  ))}
+                  <button className="gplan-overview-card" type="button" onClick={() => openPlanOverview()}>
+                    <FileText size={16} />
+                    <span>
+                      <strong>Resumen PETI</strong>
+                      <small>
+                        {latestOfficialVersion
+                          ? `Ultima version v${latestOfficialVersion.versionNumber} - ${formatDate(latestOfficialVersion.approvedAt)}`
+                          : 'Sin versiones aprobadas - Ver estado actual'}
+                      </small>
+                    </span>
+                  </button>
                 </div>
-                <Link className="gplan-side-link" to={group ? `/groups/${group.id}/plan` : '/my-groups'}>
-                  <FileText size={16} />
-                  Identidad PETI
-                </Link>
               </div>
             </aside>
           </div>
+        )}
+
+        {overviewOpen && plan && (
+          <PlanOverviewModal
+            group={group}
+            plan={plan}
+            identity={identity}
+            versions={phaseVersions}
+            selectedVersion={selectedVersion}
+            phaseStatus={phaseStatus}
+            pendingRequest={pendingIdentityRequest}
+            draftRequest={draftIdentityRequest}
+            comparisonEntries={
+              selectedVersion && identity
+                ? identityChangeEntries(plan, identity, identityPayloadFromContent(selectedVersion.content))
+                : []
+            }
+            onClose={() => setOverviewOpen(false)}
+            onLoadContent={handleLoadContentInEditor}
+            onSelectVersion={setSelectedVersion}
+          />
         )}
       </div>
     </div>
@@ -676,6 +842,40 @@ function identityReady(payload: UpdateIdentityPayload) {
   )
 }
 
+function identityChangeRequestPayload(
+  payload: UpdateIdentityPayload,
+  entries: PhaseChangeEntry[],
+  title: string,
+) {
+  return {
+    title,
+    description: title.startsWith('Actualizar')
+      ? 'Propuesta de cambio sobre una fase ya aprobada.'
+      : 'Solicitud para aprobar la fase de identidad estrategica.',
+    proposedContent: {
+      companyName: payload.companyName,
+      businessLine: payload.businessLine,
+      description: payload.description,
+      mission: payload.mission,
+      vision: payload.vision,
+      valuesText: payload.valuesText,
+      objectives: payload.objectives,
+    },
+    entries,
+  }
+}
+
+function upsertPhaseChange(
+  current: PhaseChangeRequestSummary[],
+  nextChange: PhaseChangeRequestSummary,
+) {
+  const exists = current.some((change) => change.id === nextChange.id)
+  const next = exists
+    ? current.map((change) => (change.id === nextChange.id ? nextChange : change))
+    : [nextChange, ...current]
+  return next.sort((left, right) => Date.parse(right.updatedAt) - Date.parse(left.updatedAt))
+}
+
 function identityChangeEntries(
   plan: PlanSummary,
   identity: IdentitySectionSummary | null,
@@ -696,6 +896,52 @@ function identityChangeEntries(
 
 function entry(fieldKey: string, previousValue: string, proposedValue: string) {
   return { fieldKey, previousValue, proposedValue }
+}
+
+function identityPayloadFromContent(content: Record<string, unknown>): UpdateIdentityPayload {
+  return {
+    companyName: textValue(content.companyName),
+    businessLine: textValue(content.businessLine),
+    description: textValue(content.description),
+    mission: textValue(content.mission),
+    vision: textValue(content.vision),
+    valuesText: textValue(content.valuesText),
+    objectives: objectiveValues(content.objectives),
+  }
+}
+
+function identityPayloadFromCurrent(
+  plan: PlanSummary,
+  identity: IdentitySectionSummary | null,
+): UpdateIdentityPayload {
+  return {
+    companyName: plan.profile.companyName,
+    businessLine: plan.profile.businessLine,
+    description: plan.profile.description,
+    mission: identity?.mission ?? plan.profile.mission,
+    vision: identity?.vision ?? plan.profile.vision,
+    valuesText: identity?.valuesText ?? plan.profile.valuesText,
+    objectives: identity?.objectives ?? plan.objectives,
+  }
+}
+
+function textValue(value: unknown) {
+  return typeof value === 'string' ? value : ''
+}
+
+function objectiveValues(value: unknown): StrategicObjective[] {
+  if (!Array.isArray(value)) {
+    return []
+  }
+  return value
+    .filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === 'object' && !Array.isArray(item))
+    .map((item) => ({
+      generalObjective: textValue(item.generalObjective),
+      specificObjectives: Array.isArray(item.specificObjectives)
+        ? item.specificObjectives.map(textValue).filter(Boolean)
+        : [],
+    }))
+    .filter((objective) => objective.generalObjective || objective.specificObjectives.length > 0)
 }
 
 function formatDate(value?: string | null) {
@@ -720,6 +966,249 @@ function Field({
       {error && <small className="field-error">{error}</small>}
     </label>
   )
+}
+
+function PlanOverviewModal({
+  comparisonEntries,
+  draftRequest,
+  group,
+  identity,
+  onClose,
+  onLoadContent,
+  onSelectVersion,
+  pendingRequest,
+  phaseStatus,
+  plan,
+  selectedVersion,
+  versions,
+}: {
+  comparisonEntries: PhaseChangeEntry[]
+  draftRequest: PhaseChangeRequestSummary | null
+  group: PlanningGroupSummary | null
+  identity: IdentitySectionSummary | null
+  onClose: () => void
+  onLoadContent: (payload: UpdateIdentityPayload, sourceLabel: string) => void
+  onSelectVersion: (version: PhaseVersionSummary | null) => void
+  pendingRequest: PhaseChangeRequestSummary | null
+  phaseStatus: PhaseChangeStatus
+  plan: PlanSummary
+  selectedVersion: PhaseVersionSummary | null
+  versions: PhaseVersionSummary[]
+}) {
+  const payload = selectedVersion
+    ? identityPayloadFromContent(selectedVersion.content)
+    : identityPayloadFromCurrent(plan, identity)
+  const hasChanges = selectedVersion ? comparisonEntries.length > 0 : false
+  const activePhase = plan.phases.find((phase) => phase.phase === plan.activePhase)
+
+  return (
+    <div className="gplan-preview-overlay" role="dialog" aria-modal="true" aria-labelledby="plan-overview-title">
+      <section className="gplan-preview-modal">
+        <header className="gplan-preview-header">
+          <div>
+            <span className="gplan-preview-kicker">Mini dashboard</span>
+            <h2 id="plan-overview-title">Resumen PETI</h2>
+            <p>{group?.name ?? 'Plan del grupo'} - {activePhase?.title ?? 'Fase activa'}</p>
+          </div>
+          <button className="btn-icon" type="button" onClick={onClose} title="Cerrar">
+            <XCircle size={18} />
+          </button>
+        </header>
+
+        <div className="gplan-preview-body">
+          <div className="gplan-dashboard-grid">
+            <DashboardMetric label="Grupo" value={group?.name ?? '-'} />
+            <DashboardMetric label="Plan" value={plan.id ? `#${plan.id}` : '-'} />
+            <DashboardMetric label="Avance" value={`${plan.totalProgress}%`} />
+            <DashboardMetric label="Fase activa" value={activePhase?.title ?? '-'} />
+          </div>
+
+          <div className="gplan-dashboard-layout">
+            <section className="gplan-dashboard-panel">
+              <h3>Fases del PETI</h3>
+              <div className="gplan-mini-phase-list">
+                {plan.phases.map((phase) => (
+                  <div
+                    className={`gplan-mini-phase ${phase.completed ? 'completed' : phase.locked ? 'locked' : phase.phase === plan.activePhase ? 'active' : ''}`}
+                    key={phase.phase}
+                  >
+                    <span>{phase.title}</span>
+                    <strong>{phase.completed ? 'Completada' : phase.locked ? 'Bloqueada' : `${phase.progress}%`}</strong>
+                  </div>
+                ))}
+              </div>
+            </section>
+
+            <section className="gplan-dashboard-panel">
+              <h3>Control de fase</h3>
+              <span className={`gplan-status gplan-status--${phaseStatus.toLowerCase()}`}>
+                {statusLabels[phaseStatus]}
+              </span>
+              {pendingRequest && (
+                <p className="gplan-dashboard-note">
+                  Solicitud pendiente: <strong>{pendingRequest.title}</strong>
+                </p>
+              )}
+              {!pendingRequest && draftRequest && (
+                <p className="gplan-dashboard-note">
+                  Borrador abierto: <strong>{draftRequest.title}</strong>
+                </p>
+              )}
+              {!pendingRequest && !draftRequest && (
+                <p className="gplan-muted">No hay solicitudes abiertas para identidad.</p>
+              )}
+            </section>
+
+            <section className="gplan-dashboard-panel">
+              <h3>Versiones de identidad</h3>
+              <div className="gplan-preview-version-list">
+                <button
+                  className={`gplan-preview-version ${selectedVersion ? '' : 'active'}`}
+                  type="button"
+                  onClick={() => onSelectVersion(null)}
+                >
+                  <span>Actual</span>
+                  <strong>{formatDate(plan.updatedAt)}</strong>
+                </button>
+                {versions.length === 0 && <p className="gplan-muted">Sin versiones aprobadas.</p>}
+                {versions.map((version) => (
+                  <button
+                    className={`gplan-preview-version ${selectedVersion?.id === version.id ? 'active' : ''}`}
+                    key={version.id}
+                    type="button"
+                    onClick={() => onSelectVersion(version)}
+                  >
+                    <span>v{version.versionNumber}</span>
+                    <strong>{formatDate(version.approvedAt)}</strong>
+                  </button>
+                ))}
+              </div>
+            </section>
+          </div>
+
+          <section className="gplan-preview-focus">
+            <div className="gplan-preview-focus-head">
+              <div>
+                <span className="gplan-preview-kicker">
+                  {selectedVersion ? 'Version oficial' : 'Contenido actual'}
+                </span>
+                <h3>
+                  {selectedVersion
+                    ? `Identidad PETI v${selectedVersion.versionNumber}`
+                    : 'Identidad PETI actual'}
+                </h3>
+              </div>
+              {selectedVersion && <strong>Aprobada {formatDate(selectedVersion.approvedAt)}</strong>}
+            </div>
+            <IdentityPreviewContent payload={payload} />
+          </section>
+
+          {selectedVersion && (
+            <section className="gplan-preview-diff">
+              <h3>Cambios contra version actual</h3>
+              {hasChanges ? (
+                <div className="gplan-diff-list">
+                  {comparisonEntries.map((entry) => (
+                    <span key={entry.fieldKey}>{fieldLabel(entry.fieldKey)}</span>
+                  ))}
+                </div>
+              ) : (
+                <p className="gplan-muted">Esta version coincide con el contenido actual.</p>
+              )}
+            </section>
+          )}
+        </div>
+
+        <footer className="gplan-preview-actions">
+          <button className="btn btn-secondary" type="button" onClick={onClose}>
+            Cerrar
+          </button>
+          <button
+            className="btn btn-primary"
+            type="button"
+            onClick={() => onLoadContent(payload, selectedVersion ? `v${selectedVersion.versionNumber}` : 'la version actual')}
+          >
+            <PencilLine size={16} />
+            Cargar en editor
+          </button>
+        </footer>
+      </section>
+    </div>
+  )
+}
+
+function DashboardMetric({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="gplan-dashboard-metric">
+      <span>{label}</span>
+      <strong>{value}</strong>
+    </div>
+  )
+}
+
+function IdentityPreviewContent({ payload }: { payload: UpdateIdentityPayload }) {
+  return (
+    <div className="gplan-preview-sections">
+      <section>
+        <h3>Datos de empresa</h3>
+        <PreviewItem label="Nombre" value={payload.companyName} />
+        <PreviewItem label="Rubro" value={payload.businessLine} />
+        <PreviewItem label="Descripcion" value={payload.description} multiline />
+      </section>
+      <section>
+        <h3>Identidad estrategica</h3>
+        <PreviewItem label="Mision" value={payload.mission} multiline />
+        <PreviewItem label="Vision" value={payload.vision} multiline />
+        <PreviewItem label="Valores" value={payload.valuesText} multiline />
+      </section>
+      <section className="gplan-preview-objectives">
+        <h3>Objetivos</h3>
+        {payload.objectives.length === 0 && <p className="gplan-muted">Sin objetivos registrados.</p>}
+        {payload.objectives.map((objective, index) => (
+          <article key={`${objective.generalObjective}-${index}`}>
+            <strong>{objective.generalObjective || `Objetivo ${index + 1}`}</strong>
+            {objective.specificObjectives.length > 0 && (
+              <ul>
+                {objective.specificObjectives.map((specific, specificIndex) => (
+                  <li key={`${specific}-${specificIndex}`}>{specific}</li>
+                ))}
+              </ul>
+            )}
+          </article>
+        ))}
+      </section>
+    </div>
+  )
+}
+
+function PreviewItem({
+  label,
+  multiline,
+  value,
+}: {
+  label: string
+  multiline?: boolean
+  value: string
+}) {
+  return (
+    <div className={`gplan-preview-item ${multiline ? 'multiline' : ''}`}>
+      <span>{label}</span>
+      <p>{value || '-'}</p>
+    </div>
+  )
+}
+
+function fieldLabel(fieldKey: string) {
+  const labels: Record<string, string> = {
+    businessLine: 'Rubro',
+    companyName: 'Nombre',
+    description: 'Descripcion',
+    mission: 'Mision',
+    objectives: 'Objetivos',
+    valuesText: 'Valores',
+    vision: 'Vision',
+  }
+  return labels[fieldKey] ?? fieldKey
 }
 
 function StepperItem({

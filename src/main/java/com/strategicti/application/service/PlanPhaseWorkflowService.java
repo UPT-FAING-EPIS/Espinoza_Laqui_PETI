@@ -83,6 +83,26 @@ public class PlanPhaseWorkflowService {
     }
 
     @Transactional
+    public PhaseChangeRequestSummary updateChangeRequest(
+            Long groupId,
+            PetiPhase phase,
+            Long requestId,
+            CreatePhaseChangeRequestCommand command,
+            AuthenticatedUser viewer
+    ) {
+        WorkflowContext context = contextFor(groupId, viewer);
+        PlanChangeRequest request = findRequest(context.plan(), phase, requestId);
+        assertCreatorOrLeader(context.group(), request, viewer);
+        String contentJson = contentAsJson(command.proposedContent());
+        return toSummary(workflowRepository.saveChangeRequest(request.updateDraft(
+                contentMapper.clean(command.title()),
+                contentMapper.clean(command.description()),
+                contentJson,
+                entries(command.entries())
+        )));
+    }
+
+    @Transactional
     public PhaseChangeRequestSummary submitChangeRequest(
             Long groupId,
             PetiPhase phase,
@@ -141,6 +161,17 @@ public class PlanPhaseWorkflowService {
         return toSummary(workflowRepository.saveChangeRequest(
                 request.reject(viewer.id(), contentMapper.clean(command.comment()))
         ));
+    }
+
+    @Transactional
+    public void discardChangeRequest(Long groupId, PetiPhase phase, Long requestId, AuthenticatedUser viewer) {
+        WorkflowContext context = contextFor(groupId, viewer);
+        PlanChangeRequest request = findRequest(context.plan(), phase, requestId);
+        assertCreatorOrLeader(context.group(), request, viewer);
+        if (request.status() != PhaseChangeStatus.DRAFT && request.status() != PhaseChangeStatus.REJECTED) {
+            throw new IllegalStateException("Solo una solicitud en borrador o rechazada puede descartarse.");
+        }
+        workflowRepository.deleteChangeRequest(request.id());
     }
 
     @Transactional(readOnly = true)

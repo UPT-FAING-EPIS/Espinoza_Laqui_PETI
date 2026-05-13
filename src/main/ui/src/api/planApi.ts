@@ -64,6 +64,18 @@ export function createPhaseChangeRequest(
   })
 }
 
+export function updatePhaseChangeRequest(
+  groupId: number,
+  phase: PetiPhase,
+  requestId: number,
+  payload: CreatePhaseChangeRequestPayload,
+) {
+  return request<PhaseChangeRequestSummary>(`/groups/${groupId}/plan/phases/${phase}/changes/${requestId}`, {
+    method: 'PUT',
+    body: JSON.stringify(payload),
+  })
+}
+
 export function submitPhaseChangeRequest(groupId: number, phase: PetiPhase, requestId: number) {
   return request<PhaseChangeRequestSummary>(`/groups/${groupId}/plan/phases/${phase}/changes/${requestId}/submit`, {
     method: 'POST',
@@ -91,6 +103,12 @@ export function rejectPhaseChangeRequest(
   return request<PhaseChangeRequestSummary>(`/groups/${groupId}/plan/phases/${phase}/changes/${requestId}/reject`, {
     method: 'POST',
     body: JSON.stringify(payload),
+  })
+}
+
+export function discardPhaseChangeRequest(groupId: number, phase: PetiPhase, requestId: number) {
+  return request<void>(`/groups/${groupId}/plan/phases/${phase}/changes/${requestId}`, {
+    method: 'DELETE',
   })
 }
 

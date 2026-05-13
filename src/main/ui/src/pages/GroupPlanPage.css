@@ -218,26 +218,54 @@
   margin-top: 3px;
 }
 
-.gplan-side-link {
+.gplan-overview-card {
   align-items: center;
   background: var(--surface-2);
   border: 1px solid var(--border-2);
   border-radius: var(--radius);
   color: var(--ink);
-  display: inline-flex;
-  font-size: 13px;
-  font-weight: 700;
-  gap: 8px;
-  justify-content: center;
-  min-height: 40px;
-  text-decoration: none;
+  cursor: pointer;
+  display: grid;
+  font: inherit;
+  gap: 10px;
+  grid-template-columns: auto 1fr;
+  min-height: 54px;
+  padding: 10px 12px;
+  text-align: left;
   transition: all 0.2s ease;
+  width: 100%;
 }
 
-.gplan-side-link:hover {
+.gplan-overview-card:hover {
   background: var(--surface-3);
   border-color: var(--blue);
   color: var(--blue);
+}
+
+.gplan-overview-card svg {
+  color: var(--blue);
+}
+
+.gplan-overview-card span {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.gplan-overview-card strong {
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.gplan-overview-card small {
+  color: var(--ink-3);
+  font-size: 11px;
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .gplan-workflow-summary,
@@ -347,6 +375,16 @@
   color: var(--red);
 }
 
+.gplan-review-btn.submit {
+  background: rgba(59, 130, 246, 0.1);
+  color: var(--blue);
+}
+
+.gplan-review-btn.discard {
+  background: rgba(148, 163, 184, 0.1);
+  color: var(--ink-3);
+}
+
 .gplan-review-btn.approve:hover:not(:disabled) {
   border-color: rgba(34, 197, 94, 0.25);
 }
@@ -355,32 +393,360 @@
   border-color: rgba(239, 68, 68, 0.25);
 }
 
+.gplan-review-btn.submit:hover:not(:disabled) {
+  border-color: rgba(59, 130, 246, 0.25);
+}
+
+.gplan-review-btn.discard:hover:not(:disabled) {
+  border-color: rgba(148, 163, 184, 0.25);
+  color: var(--ink-2);
+}
+
 .gplan-review-btn:disabled {
   cursor: not-allowed;
   opacity: 0.45;
 }
 
-.gplan-version-row {
+.gplan-review-actions.single {
+  grid-template-columns: 1fr;
+}
+
+.gplan-preview-overlay {
   align-items: center;
+  background: rgba(3, 7, 18, 0.68);
+  display: flex;
+  inset: 0;
+  justify-content: center;
+  padding: 24px;
+  position: fixed;
+  z-index: 40;
+}
+
+.gplan-preview-modal {
+  background: var(--surface);
+  border: 1px solid var(--border-2);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.42);
+  display: flex;
+  flex-direction: column;
+  max-height: min(86vh, 760px);
+  max-width: 860px;
+  overflow: hidden;
+  width: min(100%, 860px);
+}
+
+.gplan-preview-header {
+  align-items: flex-start;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  gap: 18px;
+  justify-content: space-between;
+  padding: 20px 22px;
+}
+
+.gplan-preview-kicker {
+  color: var(--blue);
+  display: block;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  margin-bottom: 6px;
+  text-transform: uppercase;
+}
+
+.gplan-preview-header h2 {
+  color: var(--ink);
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: 0;
+  margin: 0;
+}
+
+.gplan-preview-header p {
+  color: var(--ink-3);
+  font-size: 13px;
+  margin-top: 4px;
+}
+
+.gplan-preview-body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  overflow: auto;
+  padding: 18px 22px;
+}
+
+.gplan-dashboard-grid {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.gplan-dashboard-metric,
+.gplan-dashboard-panel,
+.gplan-preview-focus {
   background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.gplan-dashboard-metric {
+  min-width: 0;
+  padding: 12px;
+}
+
+.gplan-dashboard-metric span {
+  color: var(--ink-3);
+  display: block;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  margin-bottom: 6px;
+  text-transform: uppercase;
+}
+
+.gplan-dashboard-metric strong {
+  color: var(--ink);
+  display: block;
+  font-size: 14px;
+  font-weight: 800;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gplan-dashboard-layout {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: 1.1fr 0.9fr 0.9fr;
+}
+
+.gplan-dashboard-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+  padding: 14px;
+}
+
+.gplan-dashboard-panel h3,
+.gplan-preview-focus h3 {
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 800;
+  margin: 0;
+}
+
+.gplan-dashboard-note {
+  color: var(--ink-3);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.gplan-dashboard-note strong {
+  color: var(--ink-2);
+}
+
+.gplan-mini-phase-list,
+.gplan-preview-version-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.gplan-mini-phase,
+.gplan-preview-version {
+  align-items: center;
+  background: rgba(15, 23, 42, 0.3);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   display: flex;
   gap: 10px;
   justify-content: space-between;
-  padding: 9px 10px;
+  min-height: 38px;
+  padding: 8px 10px;
 }
 
-.gplan-version-row span {
+.gplan-mini-phase span,
+.gplan-preview-version span {
+  color: var(--ink-2);
+  font-size: 12px;
+  font-weight: 800;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gplan-mini-phase strong,
+.gplan-preview-version strong {
+  color: var(--ink-3);
+  flex-shrink: 0;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.gplan-mini-phase.active {
+  border-color: rgba(59, 130, 246, 0.35);
+}
+
+.gplan-mini-phase.active strong {
   color: var(--blue);
+}
+
+.gplan-mini-phase.completed strong {
+  color: var(--green);
+}
+
+.gplan-mini-phase.locked {
+  opacity: 0.55;
+}
+
+.gplan-preview-version {
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+  transition: all 0.2s ease;
+  width: 100%;
+}
+
+.gplan-preview-version:hover,
+.gplan-preview-version.active {
+  background: var(--surface-3);
+  border-color: var(--blue);
+}
+
+.gplan-preview-version.active span,
+.gplan-preview-version.active strong {
+  color: var(--blue);
+}
+
+.gplan-preview-focus {
+  padding: 14px;
+}
+
+.gplan-preview-focus-head {
+  align-items: flex-start;
+  display: flex;
+  gap: 14px;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.gplan-preview-focus-head strong {
+  color: var(--ink-3);
+  flex-shrink: 0;
   font-size: 12px;
   font-weight: 800;
 }
 
-.gplan-version-row strong {
+.gplan-preview-sections {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.gplan-preview-sections section,
+.gplan-preview-diff {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px;
+}
+
+.gplan-preview-sections section:last-child {
+  grid-column: 1 / -1;
+}
+
+.gplan-preview-sections h3,
+.gplan-preview-diff h3 {
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 800;
+  margin-bottom: 12px;
+}
+
+.gplan-preview-item {
+  display: grid;
+  gap: 6px;
+  grid-template-columns: 110px 1fr;
+}
+
+.gplan-preview-item + .gplan-preview-item {
+  border-top: 1px solid var(--border);
+  margin-top: 10px;
+  padding-top: 10px;
+}
+
+.gplan-preview-item.multiline {
+  grid-template-columns: 1fr;
+}
+
+.gplan-preview-item span {
+  color: var(--ink-3);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.gplan-preview-item p {
   color: var(--ink-2);
+  font-size: 13px;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.gplan-preview-objectives article {
+  background: rgba(15, 23, 42, 0.32);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 12px;
+}
+
+.gplan-preview-objectives article + article {
+  margin-top: 10px;
+}
+
+.gplan-preview-objectives strong {
+  color: var(--ink);
+  display: block;
+  font-size: 13px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.gplan-preview-objectives ul {
+  color: var(--ink-3);
+  font-size: 13px;
+  line-height: 1.55;
+  margin: 8px 0 0 18px;
+}
+
+.gplan-diff-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.gplan-diff-list span {
+  background: rgba(59, 130, 246, 0.1);
+  border: 1px solid rgba(59, 130, 246, 0.18);
+  border-radius: 999px;
+  color: var(--blue);
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 800;
+  padding: 6px 10px;
+}
+
+.gplan-preview-actions {
+  border-top: 1px solid var(--border);
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  padding: 16px 22px;
 }
 
 @media (max-width: 640px) {
@@ -396,5 +762,40 @@
 
   .gplan-review-actions {
     grid-template-columns: 1fr;
+  }
+
+  .gplan-preview-overlay {
+    align-items: stretch;
+    padding: 12px;
+  }
+
+  .gplan-preview-modal {
+    max-height: calc(100vh - 24px);
+  }
+
+  .gplan-preview-header,
+  .gplan-preview-actions {
+    padding: 16px;
+  }
+
+  .gplan-preview-body {
+    padding: 16px;
+  }
+
+  .gplan-dashboard-grid,
+  .gplan-dashboard-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .gplan-preview-focus-head {
+    flex-direction: column;
+  }
+
+  .gplan-preview-sections {
+    grid-template-columns: 1fr;
+  }
+
+  .gplan-preview-actions {
+    flex-direction: column-reverse;
   }
 }

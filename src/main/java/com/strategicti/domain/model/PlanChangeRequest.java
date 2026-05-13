@@ -77,6 +77,34 @@ public record PlanChangeRequest(
         );
     }
 
+    public PlanChangeRequest updateDraft(
+            String title,
+            String description,
+            String proposedContentJson,
+            List<PlanPhaseChangeEntry> entries
+    ) {
+        if (status != PhaseChangeStatus.DRAFT && status != PhaseChangeStatus.REJECTED) {
+            throw new IllegalStateException("Solo una solicitud en borrador o rechazada puede editarse.");
+        }
+        return new PlanChangeRequest(
+                id,
+                planId,
+                phase,
+                PhaseChangeStatus.DRAFT,
+                title,
+                description,
+                proposedContentJson,
+                entries,
+                createdByUserId,
+                createdAt,
+                null,
+                null,
+                null,
+                "",
+                Instant.now()
+        );
+    }
+
     public PlanChangeRequest approve(Long reviewerUserId, String comment) {
         assertPending();
         return reviewed(PhaseChangeStatus.APPROVED, reviewerUserId, comment);

@@ -146,6 +146,63 @@ class PlanPhaseWorkflowServiceTest {
         ));
     }
 
+    @Test
+    void creatorCanUpdateDraftBeforeSubmitting() throws Exception {
+        AuthenticatedUser editorUser = authenticated(editor);
+        PhaseChangeRequestSummary draft = service.createChangeRequest(
+                group.id(),
+                PetiPhase.IDENTITY,
+                identityChangeCommand("Mision inicial"),
+                editorUser
+        );
+
+        PhaseChangeRequestSummary updated = service.updateChangeRequest(
+                group.id(),
+                PetiPhase.IDENTITY,
+                draft.id(),
+                identityChangeCommand("Mision editada"),
+                editorUser
+        );
+
+        assertEquals(PhaseChangeStatus.DRAFT, updated.status());
+        assertEquals("Mision editada", updated.proposedContent().get("mission").asText());
+    }
+
+    @Test
+    void pendingChangeCannotBeUpdatedAsDraft() throws Exception {
+        AuthenticatedUser editorUser = authenticated(editor);
+        PhaseChangeRequestSummary draft = service.createChangeRequest(
+                group.id(),
+                PetiPhase.IDENTITY,
+                identityChangeCommand("Mision inicial"),
+                editorUser
+        );
+        service.submitChangeRequest(group.id(), PetiPhase.IDENTITY, draft.id(), editorUser);
+
+        assertThrows(IllegalStateException.class, () -> service.updateChangeRequest(
+                group.id(),
+                PetiPhase.IDENTITY,
+                draft.id(),
+                identityChangeCommand("Mision editada"),
+                editorUser
+        ));
+    }
+
+    @Test
+    void creatorCanDiscardDraftChangeRequest() throws Exception {
+        AuthenticatedUser editorUser = authenticated(editor);
+        PhaseChangeRequestSummary draft = service.createChangeRequest(
+                group.id(),
+                PetiPhase.IDENTITY,
+                identityChangeCommand("Mision a descartar"),
+                editorUser
+        );
+
+        service.discardChangeRequest(group.id(), PetiPhase.IDENTITY, draft.id(), editorUser);
+
+        assertTrue(service.listChangeRequests(group.id(), PetiPhase.IDENTITY, editorUser).isEmpty());
+    }
+
     private CreatePhaseChangeRequestCommand identityChangeCommand(String mission) throws Exception {
         return new CreatePhaseChangeRequestCommand(
                 "Actualizar identidad",
