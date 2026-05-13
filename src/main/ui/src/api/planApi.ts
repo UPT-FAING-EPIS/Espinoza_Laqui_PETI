@@ -1,5 +1,15 @@
 import { request } from './http'
-import type { CompanyProfile, IdentitySectionSummary, PetiPhase, PlanSummary, UpdateIdentityPayload } from '../types'
+import type {
+  CompanyProfile,
+  CreatePhaseChangeRequestPayload,
+  IdentitySectionSummary,
+  PetiPhase,
+  PhaseChangeRequestSummary,
+  PhaseVersionSummary,
+  PlanSummary,
+  ReviewPhaseChangeRequestPayload,
+  UpdateIdentityPayload,
+} from '../types'
 
 export function getCurrentPlan() {
   return request<PlanSummary>('/plans/current')
@@ -37,4 +47,53 @@ export function saveGroupPlanIdentity(groupId: number, payload: UpdateIdentityPa
     method: 'PUT',
     body: JSON.stringify(payload),
   })
+}
+
+export function listPhaseChangeRequests(groupId: number, phase: PetiPhase) {
+  return request<PhaseChangeRequestSummary[]>(`/groups/${groupId}/plan/phases/${phase}/changes`)
+}
+
+export function createPhaseChangeRequest(
+  groupId: number,
+  phase: PetiPhase,
+  payload: CreatePhaseChangeRequestPayload,
+) {
+  return request<PhaseChangeRequestSummary>(`/groups/${groupId}/plan/phases/${phase}/changes`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
+}
+
+export function submitPhaseChangeRequest(groupId: number, phase: PetiPhase, requestId: number) {
+  return request<PhaseChangeRequestSummary>(`/groups/${groupId}/plan/phases/${phase}/changes/${requestId}/submit`, {
+    method: 'POST',
+  })
+}
+
+export function approvePhaseChangeRequest(
+  groupId: number,
+  phase: PetiPhase,
+  requestId: number,
+  payload: ReviewPhaseChangeRequestPayload,
+) {
+  return request<PhaseChangeRequestSummary>(`/groups/${groupId}/plan/phases/${phase}/changes/${requestId}/approve`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
+}
+
+export function rejectPhaseChangeRequest(
+  groupId: number,
+  phase: PetiPhase,
+  requestId: number,
+  payload: ReviewPhaseChangeRequestPayload,
+) {
+  return request<PhaseChangeRequestSummary>(`/groups/${groupId}/plan/phases/${phase}/changes/${requestId}/reject`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
+}
+
+export function listPhaseVersions(groupId: number, phase: PetiPhase) {
+  return request<PhaseVersionSummary[]>(`/groups/${groupId}/plan/phases/${phase}/versions`)
 }

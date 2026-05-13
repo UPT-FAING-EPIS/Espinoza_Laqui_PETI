@@ -63,7 +63,7 @@ public record StrategicPlan(
     public StrategicPlan complete(PetiPhase phase) {
         EnumSet<PetiPhase> nextCompleted = completedCopy();
         nextCompleted.add(phase);
-        PetiPhase nextActive = phase.next().orElse(phase);
+        PetiPhase nextActive = activePhase == phase ? phase.next().orElse(phase) : activePhase;
         return new StrategicPlan(id, groupId, profile, objectives, nextActive, nextCompleted, Instant.now());
     }
 

@@ -2,14 +2,20 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import {
   Building2,
   ChevronLeft,
+  CheckCircle2,
   CircleAlert,
   FileText,
   Flag,
+  GitPullRequest,
+  History,
   ListChecks,
   Plus,
   RefreshCcw,
   Save,
+  Send,
+  ShieldCheck,
   Trash2,
+  XCircle,
 } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
@@ -17,18 +23,38 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import { z } from 'zod'
 import { getGroup } from '../api/groupApi'
 import {
+  approvePhaseChangeRequest,
   createGroupPlan,
+  createPhaseChangeRequest,
   getGroupPlan,
   getGroupPlanIdentity,
+  listPhaseChangeRequests,
+  listPhaseVersions,
+  rejectPhaseChangeRequest,
   saveGroupPlanIdentity,
+  submitPhaseChangeRequest,
 } from '../api/planApi'
+import { useAuth } from '../context/AuthContext'
 import { setActivePetiGroupId } from '../session'
 import '../App.css'
 import './GroupPlanPage.css'
 import type { ReactNode } from 'react'
-import type { IdentitySectionSummary, PhaseSnapshot, PlanningGroupSummary, PlanSummary, StrategicObjective } from '../types'
+import type {
+  IdentitySectionSummary,
+  PhaseChangeRequestSummary,
+  PhaseChangeStatus,
+  PhaseSnapshot,
+  PhaseVersionSummary,
+  PlanningGroupSummary,
+  PlanSummary,
+  StrategicObjective,
+  UpdateIdentityPayload,
+} from '../types'
 
 const identitySchema = z.object({
+  companyName: z.string().max(160, 'Maximo 160 caracteres.'),
+  businessLine: z.string().max(160, 'Maximo 160 caracteres.'),
+  description: z.string().max(2000, 'Maximo 2000 caracteres.'),
   mission: z.string().max(2000, 'Maximo 2000 caracteres.'),
   vision: z.string().max(2000, 'Maximo 2000 caracteres.'),
   valuesText: z.string().max(2000, 'Maximo 2000 caracteres.'),
@@ -37,9 +63,19 @@ const identitySchema = z.object({
 type IdentityForm = z.infer<typeof identitySchema>
 
 const emptyIdentity: IdentityForm = {
+  companyName: '',
+  businessLine: '',
+  description: '',
   mission: '',
   vision: '',
   valuesText: '',
+}
+
+const statusLabels: Record<PhaseChangeStatus, string> = {
+  DRAFT: 'Borrador',
+  PENDING_APPROVAL: 'Pendiente',
+  APPROVED: 'Aprobada',
+  REJECTED: 'Rechazada',
 }
 
 function emptyObjective(): StrategicObjective {
@@ -47,6 +83,7 @@ function emptyObjective(): StrategicObjective {
 }
 
 export default function GroupPlanPage() {
+  const { user } = useAuth()
   const { groupId } = useParams()
   const navigate = useNavigate()
   const numericGroupId = Number(groupId)
@@ -54,12 +91,16 @@ export default function GroupPlanPage() {
   const [group, setGroup] = useState<PlanningGroupSummary | null>(null)
   const [plan, setPlan] = useState<PlanSummary | null>(null)
   const [identity, setIdentity] = useState<IdentitySectionSummary | null>(null)
+  const [phaseChanges, setPhaseChanges] = useState<PhaseChangeRequestSummary[]>([])
+  const [phaseVersions, setPhaseVersions] = useState<PhaseVersionSummary[]>([])
   const [objectives, setObjectives] = useState<StrategicObjective[]>([emptyObjective()])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [creating, setCreating] = useState(false)
+  const [workflowAction, setWorkflowAction] = useState<string | null>(null)
   const [planMissing, setPlanMissing] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [notice, setNotice] = useState<string | null>(null)
 
   const {
     formState: { errors },
@@ -75,6 +116,21 @@ export default function GroupPlanPage() {
     () => plan?.phases.find((phase) => phase.phase === plan.activePhase),
     [plan],
   )
+  const identityPhase = useMemo(
+    () => plan?.phases.find((phase) => phase.phase === 'IDENTITY'),
+    [plan],
+  )
+  const pendingIdentityRequest = useMemo(
+    () => phaseChanges.find((change) => change.status === 'PENDING_APPROVAL') ?? null,
+    [phaseChanges],
+  )
+  const isLeader = useMemo(
+    () => group?.members.some((member) => member.userId === user?.id && member.role === 'LIDER') ?? false,
+    [group, user],
+  )
+  const identityCompleted = identityPhase?.completed ?? false
+  const workflowBusy = workflowAction !== null
+  const phaseStatus = identityCompleted ? 'APPROVED' : pendingIdentityRequest ? 'PENDING_APPROVAL' : 'DRAFT'
 
   const load = useCallback(async () => {
     if (!numericGroupId) {
@@ -91,14 +147,21 @@ export default function GroupPlanPage() {
       const nextGroup = await getGroup(numericGroupId)
       setGroup(nextGroup)
 
-      const [nextPlan, nextIdentity] = await Promise.all([
+      const [nextPlan, nextIdentity, nextChanges, nextVersions] = await Promise.all([
         getGroupPlan(numericGroupId),
         getGroupPlanIdentity(numericGroupId),
+        listPhaseChangeRequests(numericGroupId, 'IDENTITY'),
+        listPhaseVersions(numericGroupId, 'IDENTITY'),
       ])
 
       setPlan(nextPlan)
       setIdentity(nextIdentity)
+      setPhaseChanges(nextChanges)
+      setPhaseVersions(nextVersions)
       reset({
+        companyName: nextPlan.profile.companyName,
+        businessLine: nextPlan.profile.businessLine,
+        description: nextPlan.profile.description,
         mission: nextIdentity.mission,
         vision: nextIdentity.vision,
         valuesText: nextIdentity.valuesText,
@@ -109,6 +172,8 @@ export default function GroupPlanPage() {
       if (message.toLowerCase().includes('aun no tiene un plan')) {
         setPlan(null)
         setIdentity(null)
+        setPhaseChanges([])
+        setPhaseVersions([])
         setObjectives([emptyObjective()])
         setPlanMissing(true)
       } else {
@@ -139,27 +204,91 @@ export default function GroupPlanPage() {
 
   async function onSubmit(values: IdentityForm) {
     if (!numericGroupId) return
+    if (identityCompleted) {
+      setError('La fase de identidad ya fue aprobada. Envie una solicitud de cambio para modificarla.')
+      return
+    }
     setSaving(true)
     setError(null)
+    setNotice(null)
     try {
-      const payload = {
-        ...values,
-        objectives: normalizeObjectives(objectives),
-      }
+      const payload = identityPayload(values, objectives)
       const nextIdentity = await saveGroupPlanIdentity(numericGroupId, payload)
       const nextPlan = await getGroupPlan(numericGroupId)
       setIdentity(nextIdentity)
       setPlan(nextPlan)
       reset({
+        companyName: nextPlan.profile.companyName,
+        businessLine: nextPlan.profile.businessLine,
+        description: nextPlan.profile.description,
         mission: nextIdentity.mission,
         vision: nextIdentity.vision,
         valuesText: nextIdentity.valuesText,
       })
       setObjectives(nextIdentity.objectives.length > 0 ? nextIdentity.objectives : [emptyObjective()])
+      setNotice('Borrador de identidad guardado.')
     } catch (exception) {
       setError(exception instanceof Error ? exception.message : 'No se pudo guardar la identidad.')
     } finally {
       setSaving(false)
+    }
+  }
+
+  async function handleSendForReview(values: IdentityForm) {
+    if (!numericGroupId || !plan) return
+    const payload = identityPayload(values, objectives)
+    if (!identityReady(payload)) {
+      setError('Complete datos de empresa, mision, vision, valores y al menos un objetivo antes de enviar a revision.')
+      return
+    }
+
+    setWorkflowAction('submit')
+    setError(null)
+    setNotice(null)
+    try {
+      const request = await createPhaseChangeRequest(numericGroupId, 'IDENTITY', {
+        title: identityCompleted ? 'Actualizar identidad estrategica' : 'Aprobar identidad estrategica',
+        description: identityCompleted
+          ? 'Propuesta de cambio sobre una fase ya aprobada.'
+          : 'Solicitud para aprobar la fase de identidad estrategica.',
+        proposedContent: {
+          companyName: payload.companyName,
+          businessLine: payload.businessLine,
+          description: payload.description,
+          mission: payload.mission,
+          vision: payload.vision,
+          valuesText: payload.valuesText,
+          objectives: payload.objectives,
+        },
+        entries: identityChangeEntries(plan, identity, payload),
+      })
+      await submitPhaseChangeRequest(numericGroupId, 'IDENTITY', request.id)
+      await load()
+      setNotice('Solicitud enviada a revision del lider.')
+    } catch (exception) {
+      setError(exception instanceof Error ? exception.message : 'No se pudo enviar la solicitud.')
+    } finally {
+      setWorkflowAction(null)
+    }
+  }
+
+  async function handleReview(approved: boolean) {
+    if (!numericGroupId || !pendingIdentityRequest) return
+    setWorkflowAction(approved ? 'approve' : 'reject')
+    setError(null)
+    setNotice(null)
+    try {
+      if (approved) {
+        await approvePhaseChangeRequest(numericGroupId, 'IDENTITY', pendingIdentityRequest.id, { comment: '' })
+      } else {
+        await rejectPhaseChangeRequest(numericGroupId, 'IDENTITY', pendingIdentityRequest.id, { comment: '' })
+      }
+      await load()
+      setNotice(approved ? 'Solicitud aprobada y version oficial registrada.' : 'Solicitud rechazada.')
+    } catch (exception) {
+      setError(exception instanceof Error ? exception.message : 'No se pudo revisar la solicitud.')
+    } finally {
+      setWorkflowAction(null)
     }
   }
 
@@ -283,6 +412,12 @@ export default function GroupPlanPage() {
             <span>{error}</span>
           </div>
         )}
+        {notice && (
+          <div className="gplan-notice" role="status">
+            <CheckCircle2 size={16} />
+            <span>{notice}</span>
+          </div>
+        )}
 
         {!loading && planMissing && (
           <section className="gplan-empty-card">
@@ -301,6 +436,24 @@ export default function GroupPlanPage() {
         {!loading && plan && (
           <div className="content-grid">
             <form className="form-area" onSubmit={handleSubmit(onSubmit)}>
+              <section className="card">
+                <div className="card-header">
+                  <Building2 size={18} />
+                  <h2>Datos de la empresa</h2>
+                </div>
+                <div className="card-body two-col">
+                  <Field label="Nombre" error={errors.companyName?.message}>
+                    <input {...register('companyName')} placeholder="Nombre de la empresa" />
+                  </Field>
+                  <Field label="Rubro" error={errors.businessLine?.message}>
+                    <input {...register('businessLine')} placeholder="Sector o actividad principal" />
+                  </Field>
+                  <Field label="Descripcion" error={errors.description?.message} wide>
+                    <textarea {...register('description')} rows={3} placeholder="Descripcion breve de la organizacion" />
+                  </Field>
+                </div>
+              </section>
+
               <section className="card">
                 <div className="card-header">
                   <Building2 size={18} />
@@ -391,9 +544,18 @@ export default function GroupPlanPage() {
               </section>
 
               <div className="form-actions">
-                <button className="btn btn-secondary" type="submit" disabled={saving}>
+                <button className="btn btn-secondary" type="submit" disabled={saving || workflowBusy || identityCompleted}>
                   <Save size={16} />
-                  {saving ? 'Guardando...' : 'Guardar identidad'}
+                  {saving ? 'Guardando...' : 'Guardar borrador'}
+                </button>
+                <button
+                  className="btn btn-primary"
+                  type="button"
+                  disabled={workflowBusy || Boolean(pendingIdentityRequest)}
+                  onClick={handleSubmit(handleSendForReview)}
+                >
+                  <Send size={16} />
+                  {workflowAction === 'submit' ? 'Enviando...' : 'Enviar a revision'}
                 </button>
               </div>
             </form>
@@ -416,6 +578,58 @@ export default function GroupPlanPage() {
                   <span>Actualizado</span>
                   <strong>{identity?.updatedAt ? new Date(identity.updatedAt).toLocaleDateString() : '-'}</strong>
                 </div>
+                <div className="gplan-workflow-summary">
+                  <div className="gplan-workflow-title">
+                    <GitPullRequest size={16} />
+                    <span>Revision de fase</span>
+                  </div>
+                  <span className={`gplan-status gplan-status--${phaseStatus.toLowerCase()}`}>
+                    {statusLabels[phaseStatus]}
+                  </span>
+                  {pendingIdentityRequest && (
+                    <div className="gplan-request-card">
+                      <strong>{pendingIdentityRequest.title}</strong>
+                      <span>Enviada {formatDate(pendingIdentityRequest.submittedAt ?? pendingIdentityRequest.updatedAt)}</span>
+                      {isLeader && (
+                        <div className="gplan-review-actions">
+                          <button
+                            className="gplan-review-btn approve"
+                            type="button"
+                            disabled={workflowBusy}
+                            onClick={() => handleReview(true)}
+                            title="Aprobar solicitud"
+                          >
+                            <ShieldCheck size={14} />
+                            Aprobar
+                          </button>
+                          <button
+                            className="gplan-review-btn reject"
+                            type="button"
+                            disabled={workflowBusy}
+                            onClick={() => handleReview(false)}
+                            title="Rechazar solicitud"
+                          >
+                            <XCircle size={14} />
+                            Rechazar
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+                <div className="gplan-history-block">
+                  <div className="gplan-workflow-title">
+                    <History size={16} />
+                    <span>Versiones</span>
+                  </div>
+                  {phaseVersions.length === 0 && <p className="gplan-muted">Sin versiones aprobadas.</p>}
+                  {phaseVersions.slice(0, 3).map((version) => (
+                    <div className="gplan-version-row" key={version.id}>
+                      <span>v{version.versionNumber}</span>
+                      <strong>{formatDate(version.approvedAt)}</strong>
+                    </div>
+                  ))}
+                </div>
                 <Link className="gplan-side-link" to={group ? `/groups/${group.id}/plan` : '/my-groups'}>
                   <FileText size={16} />
                   Identidad PETI
@@ -429,6 +643,18 @@ export default function GroupPlanPage() {
   )
 }
 
+function identityPayload(values: IdentityForm, objectives: StrategicObjective[]): UpdateIdentityPayload {
+  return {
+    companyName: values.companyName.trim(),
+    businessLine: values.businessLine.trim(),
+    description: values.description.trim(),
+    mission: values.mission.trim(),
+    vision: values.vision.trim(),
+    valuesText: values.valuesText.trim(),
+    objectives: normalizeObjectives(objectives),
+  }
+}
+
 function normalizeObjectives(objectives: StrategicObjective[]) {
   return objectives
     .map((objective) => ({
@@ -436,6 +662,44 @@ function normalizeObjectives(objectives: StrategicObjective[]) {
       specificObjectives: objective.specificObjectives.map((specific) => specific.trim()).filter(Boolean),
     }))
     .filter((objective) => objective.generalObjective || objective.specificObjectives.length > 0)
+}
+
+function identityReady(payload: UpdateIdentityPayload) {
+  return Boolean(
+    payload.companyName
+      && payload.businessLine
+      && payload.description
+      && payload.mission
+      && payload.vision
+      && payload.valuesText
+      && payload.objectives.some((objective) => objective.generalObjective && objective.specificObjectives.length > 0),
+  )
+}
+
+function identityChangeEntries(
+  plan: PlanSummary,
+  identity: IdentitySectionSummary | null,
+  payload: UpdateIdentityPayload,
+) {
+  const currentObjectives = JSON.stringify(identity?.objectives ?? [])
+  const nextObjectives = JSON.stringify(payload.objectives)
+  return [
+    entry('companyName', plan.profile.companyName, payload.companyName),
+    entry('businessLine', plan.profile.businessLine, payload.businessLine),
+    entry('description', plan.profile.description, payload.description),
+    entry('mission', identity?.mission ?? '', payload.mission),
+    entry('vision', identity?.vision ?? '', payload.vision),
+    entry('valuesText', identity?.valuesText ?? '', payload.valuesText),
+    entry('objectives', currentObjectives, nextObjectives),
+  ].filter((item) => item.previousValue !== item.proposedValue)
+}
+
+function entry(fieldKey: string, previousValue: string, proposedValue: string) {
+  return { fieldKey, previousValue, proposedValue }
+}
+
+function formatDate(value?: string | null) {
+  return value ? new Date(value).toLocaleDateString() : '-'
 }
 
 function Field({

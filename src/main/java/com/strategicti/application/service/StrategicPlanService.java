@@ -8,34 +8,34 @@ import com.strategicti.application.usecase.ForbiddenOperationException;
 import com.strategicti.application.usecase.IdentitySectionSummary;
 import com.strategicti.application.usecase.PlanSummary;
 import com.strategicti.application.usecase.ResourceNotFoundException;
-import com.strategicti.application.usecase.StrategicObjectiveCommand;
 import com.strategicti.application.usecase.UpdateIdentityCommand;
 import com.strategicti.domain.model.CompanyProfile;
 import com.strategicti.domain.model.PetiPhase;
 import com.strategicti.domain.model.PhaseSnapshot;
 import com.strategicti.domain.model.PlanningGroup;
-import com.strategicti.domain.model.StrategicObjective;
 import com.strategicti.domain.model.StrategicPlan;
 import com.strategicti.domain.model.SystemRole;
 import com.strategicti.domain.service.PetiProgressPolicy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.ArrayList;
 import java.util.List;
 
 @Service
 public class StrategicPlanService {
     private final IStrategicPlanRepositoryPort repository;
     private final IPlanningGroupRepositoryPort groupRepository;
+    private final StrategicPlanContentMapper contentMapper;
     private final PetiProgressPolicy progressPolicy = new PetiProgressPolicy();
 
     public StrategicPlanService(
             IStrategicPlanRepositoryPort repository,
-            IPlanningGroupRepositoryPort groupRepository
+            IPlanningGroupRepositoryPort groupRepository,
+            StrategicPlanContentMapper contentMapper
     ) {
         this.repository = repository;
         this.groupRepository = groupRepository;
+        this.contentMapper = contentMapper;
     }
 
     @Transactional
@@ -48,12 +48,12 @@ public class StrategicPlanService {
     public PlanSummary updateCompanyProfile(CompanyProfileCommand command) {
         StrategicPlan current = repository.findCurrent().orElseGet(StrategicPlan::newPlan);
         StrategicPlan updated = current.updateProfile(new CompanyProfile(
-                clean(command.companyName()),
-                clean(command.businessLine()),
-                clean(command.description()),
-                clean(command.mission()),
-                clean(command.vision()),
-                clean(command.valuesText())
+                contentMapper.clean(command.companyName()),
+                contentMapper.clean(command.businessLine()),
+                contentMapper.clean(command.description()),
+                contentMapper.clean(command.mission()),
+                contentMapper.clean(command.vision()),
+                contentMapper.clean(command.valuesText())
         ));
         return toSummary(repository.save(updated));
     }
@@ -94,11 +94,22 @@ public class StrategicPlanService {
             AuthenticatedUser viewer
     ) {
         StrategicPlan plan = findPlanForAccessibleGroup(groupId, viewer);
-        StrategicPlan updated = plan.updateIdentity(
-                clean(command.mission()),
-                clean(command.vision()),
-                clean(command.valuesText()),
-                normalizeObjectives(command.objectives())
+        if (plan.isCompleted(PetiPhase.IDENTITY)) {
+            throw new IllegalStateException("La fase de identidad ya fue aprobada. Cree una solicitud de cambio para modificarla.");
+        }
+        StrategicPlan withProfile = plan.updateProfile(new CompanyProfile(
+                cleanOrCurrent(command.companyName(), plan.profile().companyName()),
+                cleanOrCurrent(command.businessLine(), plan.profile().businessLine()),
+                cleanOrCurrent(command.description(), plan.profile().description()),
+                plan.profile().mission(),
+                plan.profile().vision(),
+                plan.profile().valuesText()
+        ));
+        StrategicPlan updated = withProfile.updateIdentity(
+                contentMapper.clean(command.mission()),
+                contentMapper.clean(command.vision()),
+                contentMapper.clean(command.valuesText()),
+                contentMapper.normalizeObjectives(command.objectives())
         );
         return toIdentitySummary(repository.save(updated));
     }
@@ -147,40 +158,7 @@ public class StrategicPlanService {
         );
     }
 
-    private List<StrategicObjective> normalizeObjectives(List<StrategicObjectiveCommand> commands) {
-        if (commands == null) {
-            return List.of();
-        }
-
-        List<StrategicObjective> objectives = new ArrayList<>();
-        for (StrategicObjectiveCommand command : commands) {
-            if (command == null) {
-                continue;
-            }
-            String generalObjective = clean(command.generalObjective());
-            List<String> specificObjectives = cleanSpecificObjectives(command.specificObjectives());
-            if (generalObjective.isBlank() && specificObjectives.isEmpty()) {
-                continue;
-            }
-            if (generalObjective.isBlank()) {
-                throw new IllegalArgumentException("El objetivo estrategico no puede estar vacio.");
-            }
-            objectives.add(new StrategicObjective(generalObjective, specificObjectives));
-        }
-        return objectives;
-    }
-
-    private List<String> cleanSpecificObjectives(List<String> values) {
-        if (values == null) {
-            return List.of();
-        }
-        return values.stream()
-                .map(this::clean)
-                .filter(value -> !value.isBlank())
-                .toList();
-    }
-
-    private String clean(String value) {
-        return value == null ? "" : value.trim();
+    private String cleanOrCurrent(String value, String current) {
+        return value == null ? current : contentMapper.clean(value);
     }
 }

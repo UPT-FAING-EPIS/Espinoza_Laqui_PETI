@@ -70,6 +70,11 @@ public record PlanningGroup(
         return containsUser(userId);
     }
 
+    public boolean isLeader(Long userId) {
+        return members.stream()
+                .anyMatch(member -> member.userId().equals(userId) && member.role() == GroupRole.LIDER);
+    }
+
     private PlanningGroup withMembers(List<GroupMember> nextMembers) {
         return new PlanningGroup(id, name, description, List.copyOf(nextMembers), createdAt, Instant.now());
     }
