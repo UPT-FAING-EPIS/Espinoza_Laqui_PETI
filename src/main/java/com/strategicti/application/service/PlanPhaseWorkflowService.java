@@ -128,9 +128,13 @@ public class PlanPhaseWorkflowService {
         assertLeader(context.group(), viewer);
         PlanChangeRequest request = findRequest(context.plan(), phase, requestId);
 
+        progressPolicy.assertPhaseIsUnlocked(context.plan(), phase);
         StrategicPlan updatedPlan = applyContent(context.plan(), request);
-        progressPolicy.assertPhaseCanBeCompleted(updatedPlan, phase);
-        StrategicPlan savedPlan = planRepository.save(updatedPlan.complete(phase));
+        boolean completesPhase = completesPhase(updatedPlan, request);
+        if (completesPhase) {
+            progressPolicy.assertPhaseCanBeCompleted(updatedPlan, phase);
+        }
+        StrategicPlan savedPlan = planRepository.save(completesPhase ? updatedPlan.complete(phase) : updatedPlan);
 
         PlanChangeRequest approved = workflowRepository.saveChangeRequest(
                 request.approve(viewer.id(), contentMapper.clean(command.comment()))
@@ -220,6 +224,11 @@ public class PlanPhaseWorkflowService {
             return plan;
         }
         return applier.apply(plan, request.proposedContentJson());
+    }
+
+    private boolean completesPhase(StrategicPlan plan, PlanChangeRequest request) {
+        PhaseContentApplier applier = contentAppliers.get(request.phase());
+        return applier == null || applier.completesPhase(plan, request.proposedContentJson());
     }
 
     private void assertCreatorOrLeader(PlanningGroup group, PlanChangeRequest request, AuthenticatedUser viewer) {

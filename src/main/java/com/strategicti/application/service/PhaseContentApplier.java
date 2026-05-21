@@ -7,4 +7,8 @@ public interface PhaseContentApplier {
     PetiPhase phase();
 
     StrategicPlan apply(StrategicPlan plan, String contentJson);
+
+    default boolean completesPhase(StrategicPlan plan, String contentJson) {
+        return true;
+    }
 }

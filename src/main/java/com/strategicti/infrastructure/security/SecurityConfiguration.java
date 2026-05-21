@@ -41,6 +41,7 @@ public class SecurityConfiguration {
                         .requestMatchers(HttpMethod.POST, "/api/groups/*/plan").authenticated()
                         .requestMatchers(HttpMethod.GET, "/api/groups/*/plan/identity").authenticated()
                         .requestMatchers(HttpMethod.PUT, "/api/groups/*/plan/identity").authenticated()
+                        .requestMatchers("/api/groups/*/plan/diagnostics/**").authenticated()
                         .requestMatchers("/api/groups/*/plan/phases/**").authenticated()
                         .requestMatchers("/api/groups/**").hasRole(SystemRole.ADMINISTRADOR.name())
                         .requestMatchers("/api/users/**").hasRole(SystemRole.ADMINISTRADOR.name())

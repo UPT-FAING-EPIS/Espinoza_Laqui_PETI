@@ -9,12 +9,16 @@ import java.util.List;
 
 public class PetiProgressPolicy {
     public void assertPhaseCanBeCompleted(StrategicPlan plan, PetiPhase phase) {
-        if (isLocked(plan, phase)) {
-            throw new IllegalStateException("La fase solicitada todavia esta bloqueada.");
-        }
+        assertPhaseIsUnlocked(plan, phase);
 
         if (phase == PetiPhase.IDENTITY && !plan.isIdentityReady()) {
             throw new IllegalStateException("Complete la informacion de empresa, mision, vision, valores y objetivos antes de cerrar la fase de identidad.");
+        }
+    }
+
+    public void assertPhaseIsUnlocked(StrategicPlan plan, PetiPhase phase) {
+        if (isLocked(plan, phase)) {
+            throw new IllegalStateException("La fase solicitada todavia esta bloqueada.");
         }
     }
 
