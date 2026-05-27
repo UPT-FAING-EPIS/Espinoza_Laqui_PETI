@@ -2,27 +2,29 @@
    PETI PAGE LAYOUT (stepper panel + main content)
    ============================================ */
 .peti-page {
-  display: grid;
+  display: block;
   gap: 24px;
-  grid-template-columns: 240px 1fr;
-  align-items: start;
 }
 
 .peti-stepper-panel {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  padding: 20px 16px;
-  position: sticky;
-  top: 28px;
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.22);
+  margin-bottom: 26px;
+  padding: 12px 16px;
+  position: static;
 }
 
-.peti-progress-section {
-  border-top: 1px solid var(--border);
-  display: flex;
-  justify-content: center;
-  margin-top: 16px;
-  padding-top: 16px;
+.peti-phase-label {
+  color: var(--ink-3);
+  display: block;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  margin-bottom: 10px;
+  text-align: center;
+  text-transform: uppercase;
 }
 
 .peti-main {
@@ -34,22 +36,36 @@
    ============================================ */
 .stepper {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
+  gap: 8px;
+  justify-content: center;
 }
 
 .step {
+  align-items: center;
   background: transparent;
-  border: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
   color: inherit;
   cursor: pointer;
   display: flex;
   font: inherit;
-  gap: 14px;
-  padding: 0;
+  gap: 9px;
+  min-height: 42px;
+  min-width: 150px;
+  padding: 8px 12px;
   position: relative;
   text-align: left;
-  transition: opacity 0.2s ease;
-  width: 100%;
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease,
+    opacity 0.2s ease;
+  width: auto;
+}
+
+.step:not(:disabled):hover {
+  background: var(--surface-2);
+  border-color: rgba(59, 130, 246, 0.24);
 }
 
 .step:not(:disabled):hover .step-dot {
@@ -64,9 +80,9 @@
 .step-indicator {
   align-items: center;
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   flex-shrink: 0;
-  width: 32px;
+  width: auto;
 }
 
 .step-dot {
@@ -76,23 +92,20 @@
   border-radius: 50%;
   color: var(--ink-3);
   display: flex;
-  height: 32px;
+  height: 28px;
   justify-content: center;
-  width: 32px;
+  width: 28px;
   position: relative;
   z-index: 1;
   transition: all 0.25s ease;
 }
 
 .step-line {
-  background: var(--border);
-  flex: 1;
-  min-height: 24px;
-  width: 2px;
+  display: none;
 }
 
 .step-content {
-  padding: 4px 0 20px;
+  padding: 0;
   min-width: 0;
 }
 
@@ -106,10 +119,7 @@
 }
 
 .step-content span {
-  color: var(--ink-3);
-  display: block;
-  font-size: 11px;
-  margin-top: 2px;
+  display: none;
 }
 
 /* Stepper states */
@@ -137,6 +147,11 @@
 
 .step.selected .step-content strong {
   color: var(--ink);
+}
+
+.step.selected {
+  background: rgba(59, 130, 246, 0.1);
+  border-color: rgba(59, 130, 246, 0.28);
 }
 
 .step.completed .step-dot {
@@ -222,22 +237,8 @@
 .page-header {
   align-items: flex-start;
   display: flex;
-  justify-content: space-between;
-  margin-bottom: 28px;
-}
-
-.breadcrumb {
-  align-items: center;
-  color: var(--ink-3);
-  display: flex;
-  font-size: 12px;
-  font-weight: 500;
-  gap: 4px;
-  margin-bottom: 8px;
-}
-
-.breadcrumb span:last-child {
-  color: var(--blue);
+  justify-content: flex-start;
+  margin-bottom: 22px;
 }
 
 .page-header h1 {
@@ -314,7 +315,7 @@
 .content-grid {
   display: grid;
   gap: 24px;
-  grid-template-columns: 1fr 320px;
+  grid-template-columns: minmax(0, 1fr) 340px;
   align-items: start;
 }
 
@@ -609,7 +610,7 @@ textarea:focus {
 /* ============================================
    RESPONSIVE
    ============================================ */
-@media (max-width: 1200px) {
+@media (max-width: 980px) {
   .content-grid {
     grid-template-columns: 1fr;
   }
@@ -625,41 +626,20 @@ textarea:focus {
 }
 
 @media (max-width: 860px) {
-  .peti-page {
-    grid-template-columns: 1fr;
-  }
-
   .peti-stepper-panel {
-    display: flex;
-    gap: 16px;
-    align-items: center;
     position: static;
   }
 
   .stepper {
-    flex-direction: row;
-    flex: 1;
-    gap: 0;
+    justify-content: flex-start;
+    overflow-x: auto;
+    padding-bottom: 4px;
   }
 
-  .step { gap: 8px; }
-  .step-indicator { flex-direction: row; width: auto; }
-  .step-line { width: 24px; min-height: 0; height: 2px; }
-  .step-content { padding: 0; white-space: nowrap; }
-  .step-content span { display: none; }
-
-  .peti-progress-section {
-    border-top: none;
-    border-left: 1px solid var(--border);
-    margin-top: 0;
-    padding-top: 0;
-    padding-left: 16px;
+  .step {
+    flex: 0 0 auto;
+    min-width: 132px;
   }
-
-  .progress-ring-wrapper { width: 48px; height: 48px; }
-  .progress-ring { width: 48px; height: 48px; }
-  .progress-ring-label strong { font-size: 12px; }
-  .progress-ring-label span { display: none; }
 }
 
 @media (max-width: 640px) {

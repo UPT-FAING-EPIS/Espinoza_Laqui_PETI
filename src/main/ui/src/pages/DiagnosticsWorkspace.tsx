@@ -1,11 +1,11 @@
 import {
   BarChart3,
   Database,
+  FileText,
   GitPullRequest,
   History,
   PieChart,
   Plus,
-  Save,
   Send,
   ShieldCheck,
   Trash2,
@@ -166,7 +166,6 @@ export function DiagnosticsWorkspace({
   const [changes, setChanges] = useState<PhaseChangeRequestSummary[]>([])
   const [versions, setVersions] = useState<PhaseVersionSummary[]>([])
   const [loading, setLoading] = useState(true)
-  const [saving, setSaving] = useState(false)
   const [workflowAction, setWorkflowAction] = useState<string | null>(null)
 
   const activeToolMeta = diagnosticTools.find((tool) => tool.key === activeTool) ?? diagnosticTools[0]
@@ -218,34 +217,6 @@ export function DiagnosticsWorkspace({
   useEffect(() => {
     loadDiagnostics()
   }, [loadDiagnostics])
-
-  async function handleSaveDraft() {
-    setSaving(true)
-    onError(null)
-    onNotice(null)
-    try {
-      if (activeTool === 'foda') {
-        const next = await saveGroupPlanSwot(groupId, cleanSwot(swot))
-        setSwotSummary(next)
-        setSwot(swotPayloadFromSummary(next))
-      }
-      if (activeTool === 'valueChain') {
-        const next = await saveGroupPlanValueChain(groupId, cleanValueChain(valueChain))
-        setValueChainSummary(next)
-        setValueChain(valueChainPayloadFromSummary(next))
-      }
-      if (activeTool === 'bcg') {
-        const next = await saveGroupPlanBcg(groupId, cleanBcg(bcg))
-        setBcgSummary(next)
-        setBcg(bcgPayloadFromSummary(next))
-      }
-      onNotice(`Borrador de ${activeToolMeta.title} guardado.`)
-    } catch (exception) {
-      onError(exception instanceof Error ? exception.message : 'No se pudo guardar el diagnostico.')
-    } finally {
-      setSaving(false)
-    }
-  }
 
   async function handleSendForReview() {
     if (pendingRequest) {
@@ -328,6 +299,18 @@ export function DiagnosticsWorkspace({
   return (
     <div className="content-grid diag-grid">
       <div className="form-area">
+        <section className="card gplan-plan-summary-card">
+          <div className="card-header">
+            <FileText size={18} />
+            <h2>Plan del grupo</h2>
+          </div>
+          <div className="gplan-plan-summary-grid">
+            <PlanMetric label="Grupo" value={group?.name ?? '-'} />
+            <PlanMetric label="Plan" value={plan.id ? `#${plan.id}` : '-'} />
+            <PlanMetric label="Fase activa" value={activePhaseTitle(plan)} />
+          </div>
+        </section>
+
         <section className="card diag-workspace">
           <div className="card-header gplan-card-header-action">
             <div className="gplan-card-title">
@@ -382,15 +365,6 @@ export function DiagnosticsWorkspace({
               Descartar cambio
             </button>
           )}
-          <button
-            className="btn btn-secondary"
-            type="button"
-            disabled={loading || saving || workflowBusy || Boolean(pendingRequest)}
-            onClick={handleSaveDraft}
-          >
-            <Save size={16} />
-            {saving ? 'Guardando...' : 'Guardar borrador'}
-          </button>
           <button
             className="btn btn-primary"
             type="button"
@@ -458,7 +432,7 @@ export function DiagnosticsWorkspace({
               </div>
             )}
             {!pendingRequest && !activeDraft && (
-              <p className="gplan-muted">Guarde el diagnostico y envie la herramienta activa a revision.</p>
+              <p className="gplan-muted">Complete la herramienta activa y enviela a revision.</p>
             )}
           </div>
 
@@ -476,14 +450,6 @@ export function DiagnosticsWorkspace({
             ))}
           </div>
 
-          <div className="gplan-side-item">
-            <span>Grupo</span>
-            <strong>{group?.name ?? '-'}</strong>
-          </div>
-          <div className="gplan-side-item">
-            <span>Plan</span>
-            <strong>{plan.id ? `#${plan.id}` : '-'}</strong>
-          </div>
         </div>
       </aside>
     </div>
@@ -540,7 +506,7 @@ function SwotEditor({
                     rows={2}
                     value={item.description}
                     onChange={(event) => updateItem(section.key, index, { description: event.target.value })}
-                    placeholder={`${section.title.slice(0, -1)} ${index + 1}`}
+                    placeholder={`${section.title.slice(0, )} ${index + 1}`}
                   />
                   <div className="diag-row-actions">
                     <PrioritySelect
@@ -1103,6 +1069,15 @@ function DiagnosticMetric({ label, value }: { label: string; value: string }) {
   )
 }
 
+function PlanMetric({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="gplan-dashboard-metric">
+      <span>{label}</span>
+      <strong>{value}</strong>
+    </div>
+  )
+}
+
 function PrioritySelect({
   onChange,
   value,
@@ -1325,6 +1300,10 @@ function activeUpdatedAt(
   if (activeTool === 'foda') return swot?.updatedAt
   if (activeTool === 'valueChain') return valueChain?.updatedAt
   return bcg?.updatedAt
+}
+
+function activePhaseTitle(plan: PlanSummary) {
+  return plan.phases.find((phase) => phase.phase === plan.activePhase)?.title ?? '-'
 }
 
 function splitLines(value: string) {

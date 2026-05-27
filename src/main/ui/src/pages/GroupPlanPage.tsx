@@ -1,7 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import {
   Building2,
-  ChevronLeft,
   CheckCircle2,
   CircleAlert,
   FileText,
@@ -11,8 +10,6 @@ import {
   ListChecks,
   PencilLine,
   Plus,
-  RefreshCcw,
-  Save,
   Send,
   ShieldCheck,
   Trash2,
@@ -33,7 +30,6 @@ import {
   listPhaseChangeRequests,
   listPhaseVersions,
   rejectPhaseChangeRequest,
-  saveGroupPlanIdentity,
   submitPhaseChangeRequest,
   updatePhaseChangeRequest,
 } from '../api/planApi'
@@ -101,7 +97,6 @@ export default function GroupPlanPage() {
   const [phaseVersions, setPhaseVersions] = useState<PhaseVersionSummary[]>([])
   const [objectives, setObjectives] = useState<StrategicObjective[]>([emptyObjective()])
   const [loading, setLoading] = useState(true)
-  const [saving, setSaving] = useState(false)
   const [creating, setCreating] = useState(false)
   const [workflowAction, setWorkflowAction] = useState<string | null>(null)
   const [selectedVersion, setSelectedVersion] = useState<PhaseVersionSummary | null>(null)
@@ -141,10 +136,6 @@ export default function GroupPlanPage() {
   const draftIdentityRequest = useMemo(
     () => phaseChanges.find((change) => change.status === 'DRAFT' && change.createdByUserId === user?.id) ?? null,
     [phaseChanges, user?.id],
-  )
-  const latestOfficialVersion = useMemo(
-    () => phaseVersions[0] ?? null,
-    [phaseVersions],
   )
   const isLeader = useMemo(
     () => group?.members.some((member) => member.userId === user?.id && member.role === 'LIDER') ?? false,
@@ -244,59 +235,6 @@ export default function GroupPlanPage() {
     }
   }
 
-  async function onSubmit(values: IdentityForm) {
-    if (!numericGroupId || !plan) return
-    if (pendingIdentityRequest) {
-      setError('Ya existe una solicitud pendiente para esta fase. Espere la revision del lider.')
-      return
-    }
-    setSaving(true)
-    setError(null)
-    setNotice(null)
-    try {
-      const payload = identityPayload(values, objectives)
-      if (identityCompleted) {
-        const entries = identityChangeEntries(plan, identity, payload)
-        if (entries.length === 0) {
-          if (draftIdentityRequest) {
-            await discardPhaseChangeRequest(numericGroupId, 'IDENTITY', draftIdentityRequest.id)
-            setPhaseChanges((current) => current.filter((change) => change.id !== draftIdentityRequest.id))
-            setNotice('Borrador descartado. El editor coincide con la version oficial actual.')
-            return
-          }
-          setError('No hay cambios para guardar como borrador.')
-          return
-        }
-        const requestPayload = identityChangeRequestPayload(payload, entries, 'Actualizar identidad estrategica')
-        const savedDraft = draftIdentityRequest
-          ? await updatePhaseChangeRequest(numericGroupId, 'IDENTITY', draftIdentityRequest.id, requestPayload)
-          : await createPhaseChangeRequest(numericGroupId, 'IDENTITY', requestPayload)
-        setPhaseChanges((current) => upsertPhaseChange(current, savedDraft))
-        setNotice('Borrador de cambio guardado. Puede enviarlo a revision cuando este listo.')
-        return
-      }
-
-      const nextIdentity = await saveGroupPlanIdentity(numericGroupId, payload)
-      const nextPlan = await getGroupPlan(numericGroupId)
-      setIdentity(nextIdentity)
-      setPlan(nextPlan)
-      reset({
-        companyName: nextPlan.profile.companyName,
-        businessLine: nextPlan.profile.businessLine,
-        description: nextPlan.profile.description,
-        mission: nextIdentity.mission,
-        vision: nextIdentity.vision,
-        valuesText: nextIdentity.valuesText,
-      })
-      setObjectives(nextIdentity.objectives.length > 0 ? nextIdentity.objectives : [emptyObjective()])
-      setNotice('Borrador de identidad guardado.')
-    } catch (exception) {
-      setError(exception instanceof Error ? exception.message : 'No se pudo guardar el borrador.')
-    } finally {
-      setSaving(false)
-    }
-  }
-
   async function handleSendForReview(values: IdentityForm) {
     if (!numericGroupId || !plan) return
     if (pendingIdentityRequest) {
@@ -388,9 +326,9 @@ export default function GroupPlanPage() {
     setOverviewOpen(false)
   }
 
-  function openPlanOverview(version?: PhaseVersionSummary | null) {
+  function openPlanOverview(version: PhaseVersionSummary | null = null) {
     setError(null)
-    setSelectedVersion(version ?? latestOfficialVersion ?? null)
+    setSelectedVersion(version)
     setOverviewOpen(true)
   }
 
@@ -463,8 +401,6 @@ export default function GroupPlanPage() {
     )
   }
 
-  const totalProgress = plan?.totalProgress ?? 0
-  const backTo = group ? (window.history.length > 1 ? -1 : 0) : 0
   const viewingPreviousPhase = Boolean(
     plan
       && selectedPhaseSnapshot
@@ -488,6 +424,7 @@ export default function GroupPlanPage() {
   return (
     <div className="peti-page gplan-page">
       <div className="peti-stepper-panel">
+        <span className="peti-phase-label">Fases</span>
         <nav className="stepper" aria-label="Fases del PETI">
           {loading && <StepperSkeleton />}
           {plan?.phases.map((phase, index) => (
@@ -503,53 +440,16 @@ export default function GroupPlanPage() {
           ))}
           {!loading && !plan && <EmptyStepper />}
         </nav>
-        <div className="peti-progress-section">
-          <div className="progress-ring-wrapper">
-            <svg className="progress-ring" viewBox="0 0 80 80">
-              <circle className="progress-ring-bg" cx="40" cy="40" r="34" />
-              <circle
-                className="progress-ring-fill"
-                cx="40"
-                cy="40"
-                r="34"
-                strokeDasharray={`${2 * Math.PI * 34}`}
-                strokeDashoffset={`${2 * Math.PI * 34 * (1 - totalProgress / 100)}`}
-              />
-            </svg>
-            <div className="progress-ring-label">
-              <strong>{totalProgress}%</strong>
-              <span>Avance</span>
-            </div>
-          </div>
-        </div>
       </div>
 
       <div className="peti-main">
         <header className="page-header">
           <div className="page-header-left">
-            <button
-              className="gplan-back-btn"
-              type="button"
-              onClick={() => (backTo === -1 ? navigate(-1) : navigate('/my-groups'))}
-            >
-              <ChevronLeft size={18} />
-              Volver
-            </button>
-            <div className="breadcrumb">
-              <span>PETI</span>
-              <span>/</span>
-              <span>{group?.name ?? 'Grupo'}</span>
-            </div>
             <div className="gplan-title-row">
               <h1>{selectedPhaseTitle}</h1>
               {viewingPreviousPhase && <span className="gplan-phase-pill">Etapa anterior</span>}
             </div>
             <p className="page-subtitle">{selectedPhaseSubtitle}</p>
-          </div>
-          <div className="page-header-right">
-            <button className="btn-icon" type="button" onClick={load} title="Actualizar">
-              <RefreshCcw size={18} />
-            </button>
           </div>
         </header>
 
@@ -594,7 +494,22 @@ export default function GroupPlanPage() {
 
         {showIdentityWorkspace && (
           <div className="content-grid">
-            <form className="form-area" onSubmit={handleSubmit(onSubmit)}>
+            <div className="form-area">
+              <section className="card gplan-plan-summary-card">
+                <div className="card-header">
+                  <FileText size={18} />
+                  <h2>Plan del grupo</h2>
+                </div>
+                <div className="gplan-plan-summary-grid">
+                  <DashboardMetric label="Grupo" value={group?.name ?? '-'} />
+                  <DashboardMetric label="Plan" value={identity?.planId ? `#${identity.planId}` : '-'} />
+                  <DashboardMetric
+                    label="Actualizado"
+                    value={identity?.updatedAt ? new Date(identity.updatedAt).toLocaleDateString() : '-'}
+                  />
+                </div>
+              </section>
+
               <section className="card">
                 <div className="card-header">
                   <Building2 size={18} />
@@ -701,33 +616,14 @@ export default function GroupPlanPage() {
                   ))}
                 </div>
               </section>
-
-              <div className="form-actions">
-                <button className="btn btn-secondary" type="submit" disabled={saving || workflowBusy || Boolean(pendingIdentityRequest)}>
-                  <Save size={16} />
-                  {saving ? 'Guardando...' : identityCompleted ? 'Guardar cambio' : 'Guardar borrador'}
-                </button>
-              </div>
-            </form>
+            </div>
 
             <aside className="tools-panel">
               <div className="card-header">
-                <FileText size={18} />
-                <h2>Plan del grupo</h2>
+                <GitPullRequest size={18} />
+                <h2>Control de fase</h2>
               </div>
               <div className="gplan-side-body">
-                <div className="gplan-side-item">
-                  <span>Grupo</span>
-                  <strong>{group?.name ?? '-'}</strong>
-                </div>
-                <div className="gplan-side-item">
-                  <span>Plan</span>
-                  <strong>{identity?.planId ? `#${identity.planId}` : '-'}</strong>
-                </div>
-                <div className="gplan-side-item">
-                  <span>Actualizado</span>
-                  <strong>{identity?.updatedAt ? new Date(identity.updatedAt).toLocaleDateString() : '-'}</strong>
-                </div>
                 <div className="gplan-workflow-summary">
                   <div className="gplan-workflow-title">
                     <GitPullRequest size={16} />
@@ -799,7 +695,7 @@ export default function GroupPlanPage() {
                       <strong>{identityCompleted ? 'Cambios sin enviar' : 'Identidad pendiente de revision'}</strong>
                       <span>
                         {identityCompleted
-                          ? 'Guarde cambios o envie el formulario actual al lider.'
+                          ? 'Envie el formulario actual al lider cuando quiera proponer cambios.'
                           : 'Envie la identidad al lider cuando el formulario este completo.'}
                       </span>
                       <div className="gplan-review-actions single">
@@ -820,19 +716,32 @@ export default function GroupPlanPage() {
                 <div className="gplan-history-block">
                   <div className="gplan-workflow-title">
                     <History size={16} />
-                    <span>Versiones</span>
+                    <span>Versiones de identidad</span>
                   </div>
-                  <button className="gplan-overview-card" type="button" onClick={() => openPlanOverview()}>
+                  <button className="gplan-overview-card" type="button" onClick={() => openPlanOverview(null)}>
                     <FileText size={16} />
                     <span>
-                      <strong>Resumen PETI</strong>
-                      <small>
-                        {latestOfficialVersion
-                          ? `Ultima version v${latestOfficialVersion.versionNumber} - ${formatDate(latestOfficialVersion.approvedAt)}`
-                          : 'Sin versiones aprobadas - Ver estado actual'}
-                      </small>
+                      <strong>Actual</strong>
+                      <small>Contenido actual - {formatDate(plan?.updatedAt)}</small>
                     </span>
                   </button>
+                  {phaseVersions.length === 0 && <p className="gplan-muted">Sin versiones aprobadas para identidad.</p>}
+                  {phaseVersions.map((version) => (
+                    <button
+                      className="gplan-overview-card"
+                      key={version.id}
+                      type="button"
+                      onClick={() => openPlanOverview(version)}
+                    >
+                      <FileText size={16} />
+                      <span>
+                        <strong>v{version.versionNumber}</strong>
+                        <small>
+                          {formatDate(version.approvedAt)} - {userNameById(group, version.createdByUserId)}
+                        </small>
+                      </span>
+                    </button>
+                  ))}
                 </div>
               </div>
             </aside>
@@ -851,19 +760,9 @@ export default function GroupPlanPage() {
             group={group}
             plan={plan}
             identity={identity}
-            versions={phaseVersions}
             selectedVersion={selectedVersion}
-            phaseStatus={phaseStatus}
-            pendingRequest={pendingIdentityRequest}
-            draftRequest={draftIdentityRequest}
-            comparisonEntries={
-              selectedVersion && identity
-                ? identityChangeEntries(plan, identity, identityPayloadFromContent(selectedVersion.content))
-                : []
-            }
             onClose={() => setOverviewOpen(false)}
             onLoadContent={handleLoadContentInEditor}
-            onSelectVersion={setSelectedVersion}
           />
         )}
       </div>
@@ -925,17 +824,6 @@ function identityChangeRequestPayload(
     },
     entries,
   }
-}
-
-function upsertPhaseChange(
-  current: PhaseChangeRequestSummary[],
-  nextChange: PhaseChangeRequestSummary,
-) {
-  const exists = current.some((change) => change.id === nextChange.id)
-  const next = exists
-    ? current.map((change) => (change.id === nextChange.id ? nextChange : change))
-    : [nextChange, ...current]
-  return next.sort((left, right) => Date.parse(right.updatedAt) - Date.parse(left.updatedAt))
 }
 
 function identityChangeEntries(
@@ -1031,37 +919,25 @@ function Field({
 }
 
 function PlanOverviewModal({
-  comparisonEntries,
-  draftRequest,
   group,
   identity,
   onClose,
   onLoadContent,
-  onSelectVersion,
-  pendingRequest,
-  phaseStatus,
   plan,
   selectedVersion,
-  versions,
 }: {
-  comparisonEntries: PhaseChangeEntry[]
-  draftRequest: PhaseChangeRequestSummary | null
   group: PlanningGroupSummary | null
   identity: IdentitySectionSummary | null
   onClose: () => void
   onLoadContent: (payload: UpdateIdentityPayload, sourceLabel: string) => void
-  onSelectVersion: (version: PhaseVersionSummary | null) => void
-  pendingRequest: PhaseChangeRequestSummary | null
-  phaseStatus: PhaseChangeStatus
   plan: PlanSummary
   selectedVersion: PhaseVersionSummary | null
-  versions: PhaseVersionSummary[]
 }) {
   const payload = selectedVersion
     ? identityPayloadFromContent(selectedVersion.content)
     : identityPayloadFromCurrent(plan, identity)
-  const hasChanges = selectedVersion ? comparisonEntries.length > 0 : false
-  const activePhase = plan.phases.find((phase) => phase.phase === plan.activePhase)
+  const createdBy = selectedVersion ? userNameById(group, selectedVersion.createdByUserId) : '-'
+  const approvedBy = selectedVersion ? userNameById(group, selectedVersion.approvedByUserId) : '-'
 
   return (
     <div className="gplan-preview-overlay" role="dialog" aria-modal="true" aria-labelledby="plan-overview-title">
@@ -1069,8 +945,8 @@ function PlanOverviewModal({
         <header className="gplan-preview-header">
           <div>
             <span className="gplan-preview-kicker">Mini dashboard</span>
-            <h2 id="plan-overview-title">Resumen PETI</h2>
-            <p>{group?.name ?? 'Plan del grupo'} - {activePhase?.title ?? 'Fase activa'}</p>
+            <h2 id="plan-overview-title">Resumen de identidad</h2>
+            <p>{group?.name ?? 'Plan del grupo'} - Identidad estrategica</p>
           </div>
           <button className="btn-icon" type="button" onClick={onClose} title="Cerrar">
             <XCircle size={18} />
@@ -1078,76 +954,6 @@ function PlanOverviewModal({
         </header>
 
         <div className="gplan-preview-body">
-          <div className="gplan-dashboard-grid">
-            <DashboardMetric label="Grupo" value={group?.name ?? '-'} />
-            <DashboardMetric label="Plan" value={plan.id ? `#${plan.id}` : '-'} />
-            <DashboardMetric label="Avance" value={`${plan.totalProgress}%`} />
-            <DashboardMetric label="Fase activa" value={activePhase?.title ?? '-'} />
-          </div>
-
-          <div className="gplan-dashboard-layout">
-            <section className="gplan-dashboard-panel">
-              <h3>Fases del PETI</h3>
-              <div className="gplan-mini-phase-list">
-                {plan.phases.map((phase) => (
-                  <div
-                    className={`gplan-mini-phase ${phase.completed ? 'completed' : phase.locked ? 'locked' : phase.phase === plan.activePhase ? 'active' : ''}`}
-                    key={phase.phase}
-                  >
-                    <span>{phase.title}</span>
-                    <strong>{phase.completed ? 'Completada' : phase.locked ? 'Bloqueada' : `${phase.progress}%`}</strong>
-                  </div>
-                ))}
-              </div>
-            </section>
-
-            <section className="gplan-dashboard-panel">
-              <h3>Control de fase</h3>
-              <span className={`gplan-status gplan-status--${phaseStatus.toLowerCase()}`}>
-                {statusLabels[phaseStatus]}
-              </span>
-              {pendingRequest && (
-                <p className="gplan-dashboard-note">
-                  Solicitud pendiente: <strong>{pendingRequest.title}</strong>
-                </p>
-              )}
-              {!pendingRequest && draftRequest && (
-                <p className="gplan-dashboard-note">
-                  Borrador abierto: <strong>{draftRequest.title}</strong>
-                </p>
-              )}
-              {!pendingRequest && !draftRequest && (
-                <p className="gplan-muted">No hay solicitudes abiertas para identidad.</p>
-              )}
-            </section>
-
-            <section className="gplan-dashboard-panel">
-              <h3>Versiones de identidad</h3>
-              <div className="gplan-preview-version-list">
-                <button
-                  className={`gplan-preview-version ${selectedVersion ? '' : 'active'}`}
-                  type="button"
-                  onClick={() => onSelectVersion(null)}
-                >
-                  <span>Actual</span>
-                  <strong>{formatDate(plan.updatedAt)}</strong>
-                </button>
-                {versions.length === 0 && <p className="gplan-muted">Sin versiones aprobadas.</p>}
-                {versions.map((version) => (
-                  <button
-                    className={`gplan-preview-version ${selectedVersion?.id === version.id ? 'active' : ''}`}
-                    key={version.id}
-                    type="button"
-                    onClick={() => onSelectVersion(version)}
-                  >
-                    <span>v{version.versionNumber}</span>
-                    <strong>{formatDate(version.approvedAt)}</strong>
-                  </button>
-                ))}
-              </div>
-            </section>
-          </div>
-
           <section className="gplan-preview-focus">
             <div className="gplan-preview-focus-head">
               <div>
@@ -1160,25 +966,14 @@ function PlanOverviewModal({
                     : 'Identidad PETI actual'}
                 </h3>
               </div>
-              {selectedVersion && <strong>Aprobada {formatDate(selectedVersion.approvedAt)}</strong>}
+              {selectedVersion && (
+                <strong>
+                  Propuso {createdBy} / aprobo {approvedBy}
+                </strong>
+              )}
             </div>
             <IdentityPreviewContent payload={payload} />
           </section>
-
-          {selectedVersion && (
-            <section className="gplan-preview-diff">
-              <h3>Cambios contra version actual</h3>
-              {hasChanges ? (
-                <div className="gplan-diff-list">
-                  {comparisonEntries.map((entry) => (
-                    <span key={entry.fieldKey}>{fieldLabel(entry.fieldKey)}</span>
-                  ))}
-                </div>
-              ) : (
-                <p className="gplan-muted">Esta version coincide con el contenido actual.</p>
-              )}
-            </section>
-          )}
         </div>
 
         <footer className="gplan-preview-actions">
@@ -1206,6 +1001,12 @@ function DashboardMetric({ label, value }: { label: string; value: string }) {
       <strong>{value}</strong>
     </div>
   )
+}
+
+function userNameById(group: PlanningGroupSummary | null, userId?: number | null) {
+  if (!userId) return '-'
+  const member = group?.members.find((item) => item.userId === userId)
+  return member ? `${member.firstName} ${member.lastName}` : `Usuario #${userId}`
 }
 
 function IdentityPreviewContent({ payload }: { payload: UpdateIdentityPayload }) {
@@ -1258,19 +1059,6 @@ function PreviewItem({
       <p>{value || '-'}</p>
     </div>
   )
-}
-
-function fieldLabel(fieldKey: string) {
-  const labels: Record<string, string> = {
-    businessLine: 'Rubro',
-    companyName: 'Nombre',
-    description: 'Descripcion',
-    mission: 'Mision',
-    objectives: 'Objetivos',
-    valuesText: 'Valores',
-    vision: 'Vision',
-  }
-  return labels[fieldKey] ?? fieldKey
 }
 
 function canOpenPhase(snapshot: PhaseSnapshot, activePhase: PetiPhase) {
@@ -1344,7 +1132,6 @@ function StepperItem({
       </div>
       <div className="step-content">
         <strong>{snapshot.title}</strong>
-        <span>{snapshot.progress}% completado</span>
       </div>
     </button>
   )
