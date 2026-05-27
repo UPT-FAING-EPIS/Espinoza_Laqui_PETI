@@ -130,20 +130,20 @@ Environment: Docker
 Dockerfile Path: Dockerfile
 ```
 
-No es obligatorio crear MySQL para la demo inicial. El perfil `dev` usa H2 en memoria, por lo que la plantilla funciona sin base de datos externa. Si Render reinicia el servicio, los datos guardados en H2 se pierden.
+La version actual trabaja con MySQL. En Render configure `SPRING_PROFILES_ACTIVE=mysql` y las variables `MYSQL_URL`, `MYSQL_USER` y `MYSQL_PASSWORD` apuntando a una base de datos MySQL disponible.
 
-### Backend con perfil de desarrollo
+### Backend temporal con H2
 
-El perfil `dev` usa H2 en memoria para probar sin instalar MySQL.
+El perfil `dev` queda disponible solo para pruebas locales rapidas sin instalar MySQL. No carga datos iniciales.
 
 ```bash
-./mvnw spring-boot:run
+./mvnw spring-boot:run -Dspring-boot.run.profiles=dev
 ```
 
 En Windows PowerShell:
 
 ```powershell
-.\mvnw.cmd spring-boot:run
+.\mvnw.cmd spring-boot:run -Dspring-boot.run.profiles=dev
 ```
 
 La API quedará disponible en:
@@ -170,6 +170,30 @@ En Windows PowerShell:
 
 ```powershell
 .\mvnw.cmd spring-boot:run -Dspring-boot.run.profiles=mysql
+```
+
+Si no se indica un perfil, el proyecto usa `mysql` por defecto y se conecta a:
+
+```text
+jdbc:mysql://localhost:3306/peri_db
+```
+
+Los datos iniciales se cargan de forma idempotente al arrancar con MySQL. Se crean 5 usuarios y 3 proyectos PETI:
+
+```text
+admin@strategicti.test / Admin12345
+lider.peti@strategicti.test / Usuario12345
+analista.ti@strategicti.test / Usuario12345
+analista.negocio@strategicti.test / Usuario12345
+consultor.peti@strategicti.test / Usuario12345
+```
+
+Proyectos iniciales:
+
+```text
+PETI Comercial 2026
+PETI Operaciones 2026
+PETI Institucional 2026
 ```
 
 ### Frontend
