@@ -2,13 +2,19 @@ import { request } from './http'
 import type {
   CompanyProfile,
   CreatePhaseChangeRequestPayload,
+  BcgSummary,
   IdentitySectionSummary,
   PetiPhase,
   PhaseChangeRequestSummary,
   PhaseVersionSummary,
   PlanSummary,
   ReviewPhaseChangeRequestPayload,
+  SwotSummary,
+  UpdateBcgPayload,
   UpdateIdentityPayload,
+  UpdateSwotPayload,
+  UpdateValueChainPayload,
+  ValueChainSummary,
 } from '../types'
 
 export function getCurrentPlan() {
@@ -44,6 +50,39 @@ export function getGroupPlanIdentity(groupId: number) {
 
 export function saveGroupPlanIdentity(groupId: number, payload: UpdateIdentityPayload) {
   return request<IdentitySectionSummary>(`/groups/${groupId}/plan/identity`, {
+    method: 'PUT',
+    body: JSON.stringify(payload),
+  })
+}
+
+export function getGroupPlanSwot(groupId: number) {
+  return request<SwotSummary>(`/groups/${groupId}/plan/diagnostics/foda`)
+}
+
+export function saveGroupPlanSwot(groupId: number, payload: UpdateSwotPayload) {
+  return request<SwotSummary>(`/groups/${groupId}/plan/diagnostics/foda`, {
+    method: 'PUT',
+    body: JSON.stringify(payload),
+  })
+}
+
+export function getGroupPlanValueChain(groupId: number) {
+  return request<ValueChainSummary>(`/groups/${groupId}/plan/diagnostics/value-chain`)
+}
+
+export function saveGroupPlanValueChain(groupId: number, payload: UpdateValueChainPayload) {
+  return request<ValueChainSummary>(`/groups/${groupId}/plan/diagnostics/value-chain`, {
+    method: 'PUT',
+    body: JSON.stringify(payload),
+  })
+}
+
+export function getGroupPlanBcg(groupId: number) {
+  return request<BcgSummary>(`/groups/${groupId}/plan/diagnostics/bcg`)
+}
+
+export function saveGroupPlanBcg(groupId: number, payload: UpdateBcgPayload) {
+  return request<BcgSummary>(`/groups/${groupId}/plan/diagnostics/bcg`, {
     method: 'PUT',
     body: JSON.stringify(payload),
   })

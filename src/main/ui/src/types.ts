@@ -99,6 +99,21 @@ export type UpdateMemberRolePayload = {
 
 export type PetiPhase = 'IDENTITY' | 'DIAGNOSTICS' | 'FORMULATION' | 'CONSOLIDATION'
 export type PhaseChangeStatus = 'DRAFT' | 'PENDING_APPROVAL' | 'APPROVED' | 'REJECTED'
+export type DiagnosticPriority = 'BAJA' | 'MEDIA' | 'ALTA'
+export type SwotCategory = 'FORTALEZA' | 'OPORTUNIDAD' | 'DEBILIDAD' | 'AMENAZA'
+export type ValueChainActivityType = 'APOYO' | 'PRIMARIA'
+export type ValueChainActivity =
+  | 'INFRAESTRUCTURA_EMPRESARIAL'
+  | 'GESTION_RECURSOS_HUMANOS'
+  | 'COMPRAS'
+  | 'DESARROLLO_TECNOLOGICO'
+  | 'LOGISTICA_ENTRADA'
+  | 'OPERACIONES'
+  | 'LOGISTICA_SALIDA'
+  | 'MARKETING_VENTAS'
+  | 'SERVICIOS'
+export type BcgQuadrant = 'ESTRELLA' | 'INCOGNITA' | 'VACA' | 'PERRO'
+export type BcgStrategicDecision = 'POTENCIAR' | 'EVALUAR' | 'MANTENER' | 'REESTRUCTURAR_O_DESINVERTIR'
 
 export type CompanyProfile = {
   companyName: string
@@ -152,6 +167,138 @@ export type UpdateIdentityPayload = {
   vision: string
   valuesText: string
   objectives: StrategicObjective[]
+}
+
+export type SwotItemPayload = {
+  description: string
+  priority: DiagnosticPriority
+}
+
+export type UpdateSwotPayload = {
+  strengths: SwotItemPayload[]
+  opportunities: SwotItemPayload[]
+  weaknesses: SwotItemPayload[]
+  threats: SwotItemPayload[]
+}
+
+export type SwotItemSummary = {
+  id: number | null
+  category: SwotCategory
+  description: string
+  priority: DiagnosticPriority
+  position: number
+}
+
+export type SwotSummary = {
+  planId: number | null
+  strengths: SwotItemSummary[]
+  opportunities: SwotItemSummary[]
+  weaknesses: SwotItemSummary[]
+  threats: SwotItemSummary[]
+  updatedAt: string
+}
+
+export type ValueChainActivityPayload = {
+  activity: ValueChainActivity
+  description: string
+  priority: DiagnosticPriority
+}
+
+export type ValueChainAssessmentPayload = {
+  activity: ValueChainActivity
+  statement: string
+  score: number
+  notes: string
+}
+
+export type UpdateValueChainPayload = {
+  supportActivities: ValueChainActivityPayload[]
+  primaryActivities: ValueChainActivityPayload[]
+  assessments: ValueChainAssessmentPayload[]
+  observations: string
+  strengths: string[]
+  weaknesses: string[]
+}
+
+export type ValueChainActivitySummary = {
+  id: number | null
+  activity: ValueChainActivity
+  type: ValueChainActivityType
+  description: string
+  priority: DiagnosticPriority
+  position: number
+}
+
+export type ValueChainAssessmentSummary = {
+  id: number | null
+  activity: ValueChainActivity
+  statement: string
+  score: number
+  notes: string
+  position: number
+}
+
+export type ValueChainSummary = {
+  planId: number | null
+  supportActivities: ValueChainActivitySummary[]
+  primaryActivities: ValueChainActivitySummary[]
+  assessments: ValueChainAssessmentSummary[]
+  observations: string
+  strengths: string[]
+  weaknesses: string[]
+  totalScore: number
+  maxScore: number
+  scorePercentage: number
+  updatedAt: string
+}
+
+export type BcgPortfolioItemPayload = {
+  name: string
+  description: string
+  annualSales: number
+  marketGrowthRate: number
+  relativeMarketShare: number
+  notes: string
+}
+
+export type UpdateBcgPayload = {
+  products: BcgPortfolioItemPayload[]
+  marketGrowthThreshold: number
+  relativeMarketShareThreshold: number
+  observations: string
+  strengths: string[]
+  weaknesses: string[]
+}
+
+export type BcgPortfolioItemSummary = {
+  id: number | null
+  name: string
+  description: string
+  annualSales: number
+  salesPercentage: number
+  marketGrowthRate: number
+  relativeMarketShare: number
+  quadrant: BcgQuadrant
+  strategicDecision: BcgStrategicDecision
+  strategicDecisionLabel: string
+  notes: string
+  position: number
+}
+
+export type BcgSummary = {
+  planId: number | null
+  products: BcgPortfolioItemSummary[]
+  observations: string
+  strengths: string[]
+  weaknesses: string[]
+  marketGrowthThreshold: number
+  relativeMarketShareThreshold: number
+  totalSales: number
+  stars: number
+  questionMarks: number
+  cashCows: number
+  dogs: number
+  updatedAt: string
 }
 
 export type PhaseChangeEntry = {

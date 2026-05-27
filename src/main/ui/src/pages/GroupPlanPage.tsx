@@ -39,11 +39,13 @@ import {
 } from '../api/planApi'
 import { useAuth } from '../context/AuthContext'
 import { setActivePetiGroupId } from '../session'
+import { DiagnosticsWorkspace } from './DiagnosticsWorkspace'
 import '../App.css'
 import './GroupPlanPage.css'
 import type { ReactNode } from 'react'
 import type {
   IdentitySectionSummary,
+  PetiPhase,
   PhaseChangeEntry,
   PhaseChangeRequestSummary,
   PhaseChangeStatus,
@@ -103,6 +105,7 @@ export default function GroupPlanPage() {
   const [creating, setCreating] = useState(false)
   const [workflowAction, setWorkflowAction] = useState<string | null>(null)
   const [selectedVersion, setSelectedVersion] = useState<PhaseVersionSummary | null>(null)
+  const [selectedPhase, setSelectedPhase] = useState<PetiPhase | null>(null)
   const [overviewOpen, setOverviewOpen] = useState(false)
   const [planMissing, setPlanMissing] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -121,6 +124,11 @@ export default function GroupPlanPage() {
   const activePhase = useMemo(
     () => plan?.phases.find((phase) => phase.phase === plan.activePhase),
     [plan],
+  )
+  const selectedPhaseKey = selectedPhase ?? plan?.activePhase ?? 'IDENTITY'
+  const selectedPhaseSnapshot = useMemo(
+    () => plan?.phases.find((phase) => phase.phase === selectedPhaseKey) ?? activePhase,
+    [activePhase, plan, selectedPhaseKey],
   )
   const identityPhase = useMemo(
     () => plan?.phases.find((phase) => phase.phase === 'IDENTITY'),
@@ -211,6 +219,16 @@ export default function GroupPlanPage() {
   useEffect(() => {
     load()
   }, [load])
+
+  useEffect(() => {
+    if (!plan) return
+
+    setSelectedPhase((current) => {
+      if (!current) return plan.activePhase
+      const snapshot = plan.phases.find((phase) => phase.phase === current)
+      return snapshot && canOpenPhase(snapshot, plan.activePhase) ? current : plan.activePhase
+    })
+  }, [plan])
 
   async function handleCreatePlan() {
     if (!numericGroupId) return
@@ -447,6 +465,25 @@ export default function GroupPlanPage() {
 
   const totalProgress = plan?.totalProgress ?? 0
   const backTo = group ? (window.history.length > 1 ? -1 : 0) : 0
+  const viewingPreviousPhase = Boolean(
+    plan
+      && selectedPhaseSnapshot
+      && selectedPhaseSnapshot.phase !== plan.activePhase
+      && selectedPhaseSnapshot.completed,
+  )
+  const selectedPhaseTitle = selectedPhaseSnapshot?.title ?? activePhase?.title ?? 'Identidad estrategica'
+  const selectedPhaseSubtitle = viewingPreviousPhase
+    ? 'Etapa aprobada. Puedes revisarla y proponer ajustes mediante el flujo de revision.'
+    : group?.description || 'Plan estrategico de TI del grupo'
+  const showIdentityWorkspace = Boolean(!loading && plan && selectedPhaseKey === 'IDENTITY')
+  const showDiagnosticsWorkspace = Boolean(!loading && plan && identityCompleted && selectedPhaseKey === 'DIAGNOSTICS')
+  const showUnavailablePhase = Boolean(
+    !loading
+      && plan
+      && !planMissing
+      && !showIdentityWorkspace
+      && !showDiagnosticsWorkspace,
+  )
 
   return (
     <div className="peti-page gplan-page">
@@ -458,7 +495,10 @@ export default function GroupPlanPage() {
               key={phase.phase}
               snapshot={phase}
               active={phase.phase === plan.activePhase}
+              selected={phase.phase === selectedPhaseKey}
+              canOpen={canOpenPhase(phase, plan.activePhase)}
               last={index === plan.phases.length - 1}
+              onSelect={() => setSelectedPhase(phase.phase)}
             />
           ))}
           {!loading && !plan && <EmptyStepper />}
@@ -500,8 +540,11 @@ export default function GroupPlanPage() {
               <span>/</span>
               <span>{group?.name ?? 'Grupo'}</span>
             </div>
-            <h1>{activePhase?.title ?? 'Identidad estrategica'}</h1>
-            <p className="page-subtitle">{group?.description || 'Plan estrategico de TI del grupo'}</p>
+            <div className="gplan-title-row">
+              <h1>{selectedPhaseTitle}</h1>
+              {viewingPreviousPhase && <span className="gplan-phase-pill">Etapa anterior</span>}
+            </div>
+            <p className="page-subtitle">{selectedPhaseSubtitle}</p>
           </div>
           <div className="page-header-right">
             <button className="btn-icon" type="button" onClick={load} title="Actualizar">
@@ -537,7 +580,19 @@ export default function GroupPlanPage() {
           </section>
         )}
 
-        {!loading && plan && (
+        {showDiagnosticsWorkspace && plan && (
+          <DiagnosticsWorkspace
+            group={group}
+            groupId={numericGroupId}
+            isLeader={isLeader}
+            onError={setError}
+            onNotice={setNotice}
+            onPlanRefresh={load}
+            plan={plan}
+          />
+        )}
+
+        {showIdentityWorkspace && (
           <div className="content-grid">
             <form className="form-area" onSubmit={handleSubmit(onSubmit)}>
               <section className="card">
@@ -782,6 +837,13 @@ export default function GroupPlanPage() {
               </div>
             </aside>
           </div>
+        )}
+
+        {showUnavailablePhase && (
+          <PhasePlaceholder
+            phase={selectedPhaseSnapshot}
+            activePhase={activePhase}
+          />
         )}
 
         {overviewOpen && plan && (
@@ -1211,18 +1273,69 @@ function fieldLabel(fieldKey: string) {
   return labels[fieldKey] ?? fieldKey
 }
 
-function StepperItem({
-  snapshot,
-  active,
-  last,
+function canOpenPhase(snapshot: PhaseSnapshot, activePhase: PetiPhase) {
+  return snapshot.completed || snapshot.phase === activePhase || !snapshot.locked
+}
+
+function PhasePlaceholder({
+  activePhase,
+  phase,
 }: {
-  snapshot: PhaseSnapshot
-  active: boolean
-  last: boolean
+  activePhase?: PhaseSnapshot
+  phase?: PhaseSnapshot
 }) {
-  const state = snapshot.completed ? 'completed' : snapshot.locked ? 'locked' : active ? 'active' : ''
+  const locked = phase?.locked && !phase.completed && phase.phase !== activePhase?.phase
+
   return (
-    <div className={`step ${state}`}>
+    <section className="gplan-empty-card gplan-phase-placeholder">
+      <div className="gplan-empty-icon">
+        <FileText size={42} />
+      </div>
+      <h2>{phase?.title ?? 'Etapa PETI'}</h2>
+      <p>
+        {locked
+          ? 'Esta etapa todavia depende de aprobar las fases anteriores.'
+          : 'Esta etapa ya esta disponible en el flujo, pero su pantalla se implementara en una siguiente iteracion.'}
+      </p>
+      {activePhase && (
+        <span className="gplan-phase-helper">
+          Fase activa actual: {activePhase.title}
+        </span>
+      )}
+    </section>
+  )
+}
+
+function StepperItem({
+  active,
+  canOpen,
+  last,
+  onSelect,
+  selected,
+  snapshot,
+}: {
+  active: boolean
+  canOpen: boolean
+  last: boolean
+  onSelect: () => void
+  selected: boolean
+  snapshot: PhaseSnapshot
+}) {
+  const state = [
+    snapshot.completed ? 'completed' : '',
+    active ? 'active' : '',
+    selected ? 'selected' : '',
+    canOpen ? '' : 'locked',
+  ].filter(Boolean).join(' ')
+
+  return (
+    <button
+      className={`step ${state}`}
+      type="button"
+      disabled={!canOpen}
+      onClick={onSelect}
+      title={canOpen ? `Abrir ${snapshot.title}` : `${snapshot.title} bloqueada`}
+    >
       <div className="step-indicator">
         <div className="step-dot">
           {snapshot.completed ? <ListChecks size={16} /> : <FileText size={16} />}
@@ -1233,7 +1346,7 @@ function StepperItem({
         <strong>{snapshot.title}</strong>
         <span>{snapshot.progress}% completado</span>
       </div>
-    </div>
+    </button>
   )
 }
 

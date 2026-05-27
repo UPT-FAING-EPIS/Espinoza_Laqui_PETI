@@ -1,5 +1,7 @@
 import {
   ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
   FileText,
   LayoutDashboard,
   LogOut,
@@ -8,6 +10,7 @@ import {
   Users,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
+import { useEffect, useState } from 'react'
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import type { SystemRole } from '../types'
@@ -32,24 +35,38 @@ const navItems: NavItem[] = [
 export default function AppShell() {
   const { user, logout } = useAuth()
   const location = useLocation()
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
+    return window.localStorage.getItem('strategicti.sidebar.collapsed') === 'true'
+  })
+
+  useEffect(() => {
+    window.localStorage.setItem('strategicti.sidebar.collapsed', String(isSidebarCollapsed))
+  }, [isSidebarCollapsed])
+
   if (!user) return null
 
   const initials = `${user.firstName.charAt(0)}${user.lastName.charAt(0)}`.toUpperCase()
   const visibleItems = navItems.filter((item) => item.roles.includes(user.role))
 
   return (
-    <div className="shell">
+    <div className={`shell ${isSidebarCollapsed ? 'is-sidebar-collapsed' : ''}`}>
       {/* ---- SIDEBAR ---- */}
       <aside className="shell-sidebar">
         <div className="shell-brand">
           <div className="shell-brand-card">
-            <div className="shell-brand-mark">
-              <FileText size={22} strokeWidth={2} />
-            </div>
             <div className="shell-brand-text">
               <strong>StrategicTI</strong>
               <span>Plan Estrategico de TI</span>
             </div>
+            <button
+              type="button"
+              className="shell-sidebar-toggle"
+              onClick={() => setIsSidebarCollapsed((current) => !current)}
+              aria-label={isSidebarCollapsed ? 'Expandir panel lateral' : 'Compactar panel lateral'}
+              title={isSidebarCollapsed ? 'Expandir panel lateral' : 'Compactar panel lateral'}
+            >
+              {isSidebarCollapsed ? <ChevronsRight size={18} /> : <ChevronsLeft size={18} />}
+            </button>
           </div>
           <div className="shell-brand-divider" />
         </div>
@@ -60,6 +77,8 @@ export default function AppShell() {
               key={item.to}
               to={item.to}
               end={item.to === '/'}
+              title={isSidebarCollapsed ? item.label : undefined}
+              aria-label={item.label}
               className={({ isActive }) =>
                 `shell-nav-item ${isNavItemActive(item.to, isActive, location.pathname) ? 'active' : ''}`
               }
@@ -79,7 +98,7 @@ export default function AppShell() {
               <span>{user.role === 'ADMINISTRADOR' ? 'Administrador' : 'Usuario'}</span>
             </div>
           </div>
-          <button className="shell-logout" type="button" onClick={logout} title="Cerrar sesion">
+          <button className="shell-logout" type="button" onClick={logout} title="Cerrar sesion" aria-label="Cerrar sesion">
             <LogOut size={18} />
           </button>
         </div>

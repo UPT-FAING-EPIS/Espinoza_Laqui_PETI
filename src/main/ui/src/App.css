@@ -38,9 +38,27 @@
 }
 
 .step {
+  background: transparent;
+  border: 0;
+  color: inherit;
+  cursor: pointer;
   display: flex;
+  font: inherit;
   gap: 14px;
+  padding: 0;
   position: relative;
+  text-align: left;
+  transition: opacity 0.2s ease;
+  width: 100%;
+}
+
+.step:not(:disabled):hover .step-dot {
+  border-color: var(--blue);
+  color: var(--blue);
+}
+
+.step:disabled {
+  cursor: not-allowed;
 }
 
 .step-indicator {
@@ -110,10 +128,27 @@
   background: linear-gradient(to bottom, var(--blue), var(--border));
 }
 
+.step.selected .step-dot {
+  background: rgba(59, 130, 246, 0.15);
+  border-color: var(--blue);
+  color: var(--blue);
+  box-shadow: 0 0 12px rgba(59, 130, 246, 0.2);
+}
+
+.step.selected .step-content strong {
+  color: var(--ink);
+}
+
 .step.completed .step-dot {
   background: rgba(34, 197, 94, 0.15);
   border-color: var(--green);
   color: var(--green);
+}
+
+.step.completed.selected .step-dot {
+  background: rgba(59, 130, 246, 0.15);
+  border-color: var(--blue);
+  color: var(--blue);
 }
 
 .step.completed .step-content strong {
