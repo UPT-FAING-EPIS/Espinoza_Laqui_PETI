@@ -11,6 +11,7 @@ import LoginPage from './pages/LoginPage'
 import MyGroupsPage from './pages/MyGroupsPage'
 import PlanGatewayPage from './pages/PlanGatewayPage'
 import ProfilePage from './pages/ProfilePage'
+import ReviewRequestsPage from './pages/ReviewRequestsPage'
 import UsersPage from './pages/UsersPage'
 import type { ReactNode } from 'react'
 
@@ -89,6 +90,7 @@ createRoot(document.getElementById('root')!).render(
             <Route path="dashboard" element={<DashboardPage />} />
             <Route path="plan" element={<PlanGatewayPage />} />
             <Route path="groups/:groupId/plan" element={<GroupPlanPage />} />
+            <Route path="requests" element={<ReviewRequestsPage />} />
             <Route path="profile" element={<ProfilePage />} />
             <Route path="my-groups" element={<MyGroupsPage />} />
             <Route

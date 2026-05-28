@@ -4,6 +4,7 @@ import {
   FileText,
   GitPullRequest,
   History,
+  PencilLine,
   PieChart,
   Plus,
   Send,
@@ -14,18 +15,12 @@ import {
 } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
-  approvePhaseChangeRequest,
   createPhaseChangeRequest,
-  discardPhaseChangeRequest,
   getGroupPlanBcg,
   getGroupPlanSwot,
   getGroupPlanValueChain,
   listPhaseChangeRequests,
   listPhaseVersions,
-  rejectPhaseChangeRequest,
-  saveGroupPlanBcg,
-  saveGroupPlanSwot,
-  saveGroupPlanValueChain,
   submitPhaseChangeRequest,
   updatePhaseChangeRequest,
 } from '../api/planApi'
@@ -38,7 +33,6 @@ import type {
   DiagnosticPriority,
   PhaseChangeEntry,
   PhaseChangeRequestSummary,
-  PhaseChangeStatus,
   PhaseVersionSummary,
   PlanningGroupSummary,
   PlanSummary,
@@ -56,15 +50,12 @@ import './DiagnosticsWorkspace.css'
 
 type DiagnosticToolKey = 'foda' | 'valueChain' | 'bcg'
 type SwotKey = keyof UpdateSwotPayload
+type DiagnosticPreviewPayload =
+  | { tool: 'foda'; swot: UpdateSwotPayload }
+  | { tool: 'valueChain'; valueChain: UpdateValueChainPayload }
+  | { tool: 'bcg'; bcg: UpdateBcgPayload }
 
 const priorities: DiagnosticPriority[] = ['BAJA', 'MEDIA', 'ALTA']
-
-const statusLabels: Record<PhaseChangeStatus, string> = {
-  DRAFT: 'Borrador',
-  PENDING_APPROVAL: 'Pendiente',
-  APPROVED: 'Aprobada',
-  REJECTED: 'Rechazada',
-}
 
 const diagnosticTools: Array<{
   key: DiagnosticToolKey
@@ -141,18 +132,14 @@ const emptyBcg: UpdateBcgPayload = {
 export function DiagnosticsWorkspace({
   group,
   groupId,
-  isLeader,
   onError,
   onNotice,
-  onPlanRefresh,
   plan,
 }: {
   group: PlanningGroupSummary | null
   groupId: number
-  isLeader: boolean
   onError: (message: string | null) => void
   onNotice: (message: string | null) => void
-  onPlanRefresh: () => Promise<void> | void
   plan: PlanSummary
 }) {
   const { user } = useAuth()
@@ -165,6 +152,8 @@ export function DiagnosticsWorkspace({
   const [bcgSummary, setBcgSummary] = useState<BcgSummary | null>(null)
   const [changes, setChanges] = useState<PhaseChangeRequestSummary[]>([])
   const [versions, setVersions] = useState<PhaseVersionSummary[]>([])
+  const [previewVersion, setPreviewVersion] = useState<PhaseVersionSummary | null>(null)
+  const [previewOpen, setPreviewOpen] = useState(false)
   const [loading, setLoading] = useState(true)
   const [workflowAction, setWorkflowAction] = useState<string | null>(null)
 
@@ -181,11 +170,6 @@ export function DiagnosticsWorkspace({
     ) ?? null,
     [activeTool, changes, user?.id],
   )
-  const phaseStatus: PhaseChangeStatus = pendingRequest
-    ? 'PENDING_APPROVAL'
-    : activeDraft
-      ? 'DRAFT'
-      : versions.length > 0 ? 'APPROVED' : 'DRAFT'
   const workflowBusy = workflowAction !== null
 
   const loadDiagnostics = useCallback(async () => {
@@ -233,24 +217,23 @@ export function DiagnosticsWorkspace({
     onError(null)
     onNotice(null)
     try {
-      if (activeTool === 'foda') {
-        const next = await saveGroupPlanSwot(groupId, cleanSwot(swot))
-        setSwotSummary(next)
-      }
-      if (activeTool === 'valueChain') {
-        const next = await saveGroupPlanValueChain(groupId, cleanValueChain(valueChain))
-        setValueChainSummary(next)
-      }
-      if (activeTool === 'bcg') {
-        const next = await saveGroupPlanBcg(groupId, cleanBcg(bcg))
-        setBcgSummary(next)
-      }
-      const payload = diagnosticChangeRequestPayload(activeTool, swot, valueChain, bcg)
+      const payload = diagnosticChangeRequestPayload(
+        activeTool,
+        swot,
+        valueChain,
+        bcg,
+        swotSummary,
+        valueChainSummary,
+        bcgSummary,
+      )
       const request = activeDraft
         ? await updatePhaseChangeRequest(groupId, 'DIAGNOSTICS', activeDraft.id, payload)
         : await createPhaseChangeRequest(groupId, 'DIAGNOSTICS', payload)
-      await submitPhaseChangeRequest(groupId, 'DIAGNOSTICS', request.id)
-      await loadDiagnostics()
+      const submitted = await submitPhaseChangeRequest(groupId, 'DIAGNOSTICS', request.id)
+      setChanges((current) => [
+        submitted,
+        ...current.filter((change) => change.id !== submitted.id && change.id !== request.id),
+      ])
       onNotice(`${activeToolMeta.title} enviado a revision del lider.`)
     } catch (exception) {
       onError(exception instanceof Error ? exception.message : 'No se pudo enviar el diagnostico a revision.')
@@ -259,41 +242,29 @@ export function DiagnosticsWorkspace({
     }
   }
 
-  async function handleReview(approved: boolean) {
-    if (!pendingRequest) return
-    setWorkflowAction(approved ? 'approve-diagnostics' : 'reject-diagnostics')
-    onError(null)
-    onNotice(null)
-    try {
-      if (approved) {
-        await approvePhaseChangeRequest(groupId, 'DIAGNOSTICS', pendingRequest.id, { comment: '' })
-      } else {
-        await rejectPhaseChangeRequest(groupId, 'DIAGNOSTICS', pendingRequest.id, { comment: '' })
-      }
-      await loadDiagnostics()
-      await onPlanRefresh()
-      onNotice(approved ? 'Solicitud de diagnostico aprobada.' : 'Solicitud de diagnostico rechazada.')
-    } catch (exception) {
-      onError(exception instanceof Error ? exception.message : 'No se pudo revisar el diagnostico.')
-    } finally {
-      setWorkflowAction(null)
-    }
+  function openDiagnosticPreview(version: PhaseVersionSummary | null) {
+    setPreviewVersion(version)
+    setPreviewOpen(true)
   }
 
-  async function handleDiscardDraft() {
-    if (!activeDraft) return
-    setWorkflowAction('discard-diagnostics')
-    onError(null)
-    onNotice(null)
-    try {
-      await discardPhaseChangeRequest(groupId, 'DIAGNOSTICS', activeDraft.id)
-      setChanges((current) => current.filter((change) => change.id !== activeDraft.id))
-      onNotice(`Borrador de ${activeToolMeta.title} descartado.`)
-    } catch (exception) {
-      onError(exception instanceof Error ? exception.message : 'No se pudo descartar el borrador.')
-    } finally {
-      setWorkflowAction(null)
+  function handleLoadDiagnosticContent(payload: DiagnosticPreviewPayload, sourceLabel: string) {
+    setActiveTool(payload.tool)
+    if (payload.tool === 'foda') {
+      setSwot(editorSwotPayload(payload.swot))
     }
+    if (payload.tool === 'valueChain') {
+      setValueChain(editorValueChainPayload(payload.valueChain))
+    }
+    if (payload.tool === 'bcg') {
+      setBcg(editorBcgPayload(payload.bcg))
+    }
+    setPreviewOpen(false)
+    onError(null)
+    onNotice(
+      pendingRequest
+        ? `Contenido de ${sourceLabel} cargado en el editor. Hay una solicitud pendiente antes de enviar nuevos cambios.`
+        : `Contenido de ${sourceLabel} cargado en el editor. Envielo a revision cuando este listo.`,
+    )
   }
 
   return (
@@ -354,17 +325,6 @@ export function DiagnosticsWorkspace({
         </section>
 
         <div className="form-actions">
-          {activeDraft && (
-            <button
-              className="btn btn-secondary"
-              type="button"
-              disabled={workflowBusy}
-              onClick={handleDiscardDraft}
-            >
-              <Trash2 size={16} />
-              Descartar cambio
-            </button>
-          )}
           <button
             className="btn btn-primary"
             type="button"
@@ -394,35 +354,11 @@ export function DiagnosticsWorkspace({
               <GitPullRequest size={16} />
               <span>Revision diagnostico</span>
             </div>
-            <span className={`gplan-status gplan-status--${phaseStatus.toLowerCase()}`}>
-              {statusLabels[phaseStatus]}
-            </span>
             {pendingRequest && (
               <div className="gplan-request-card">
                 <strong>{pendingRequest.title}</strong>
                 <span>Enviada {formatDate(pendingRequest.submittedAt ?? pendingRequest.updatedAt)}</span>
-                {isLeader && (
-                  <div className="gplan-review-actions">
-                    <button
-                      className="gplan-review-btn approve"
-                      type="button"
-                      disabled={workflowBusy}
-                      onClick={() => handleReview(true)}
-                    >
-                      <ShieldCheck size={14} />
-                      Aprobar
-                    </button>
-                    <button
-                      className="gplan-review-btn reject"
-                      type="button"
-                      disabled={workflowBusy}
-                      onClick={() => handleReview(false)}
-                    >
-                      <XCircle size={14} />
-                      Rechazar
-                    </button>
-                  </div>
-                )}
+                <span>Disponible para revision en Solicitudes.</span>
               </div>
             )}
             {!pendingRequest && activeDraft && (
@@ -439,19 +375,262 @@ export function DiagnosticsWorkspace({
           <div className="gplan-history-block">
             <div className="gplan-workflow-title">
               <History size={16} />
-              <span>Versiones</span>
+              <span>Versiones de diagnostico</span>
             </div>
+            <button className="gplan-overview-card" type="button" onClick={() => openDiagnosticPreview(null)}>
+              <FileText size={16} />
+              <span>
+                <strong>Actual</strong>
+                <small>
+                  {activeToolMeta.title} actual - {formatDate(activeUpdatedAt(activeTool, swotSummary, valueChainSummary, bcgSummary))}
+                </small>
+              </span>
+            </button>
             {versions.length === 0 && <p className="gplan-muted">Sin versiones aprobadas en diagnosticos.</p>}
-            {versions.slice(0, 4).map((version) => (
-              <div className="diag-version-row" key={version.id}>
-                <span>v{version.versionNumber}</span>
-                <strong>{formatDate(version.approvedAt)}</strong>
-              </div>
-            ))}
+            {versions.map((version) => {
+              const tool = diagnosticToolFromContent(version.content)
+              return (
+                <button
+                  className="gplan-overview-card"
+                  key={version.id}
+                  type="button"
+                  onClick={() => openDiagnosticPreview(version)}
+                >
+                  <FileText size={16} />
+                  <span>
+                    <strong>v{version.versionNumber} - {diagnosticToolLabel(tool)}</strong>
+                    <small>
+                      {formatDate(version.approvedAt)} - {userNameById(group, version.createdByUserId)}
+                    </small>
+                  </span>
+                </button>
+              )
+            })}
           </div>
 
         </div>
       </aside>
+      {previewOpen && (
+        <DiagnosticPreviewModal
+          activeTool={activeTool}
+          bcgSummary={bcgSummary}
+          group={group}
+          onClose={() => setPreviewOpen(false)}
+          onLoadContent={handleLoadDiagnosticContent}
+          selectedVersion={previewVersion}
+          swotSummary={swotSummary}
+          valueChainSummary={valueChainSummary}
+        />
+      )}
+    </div>
+  )
+}
+
+function DiagnosticPreviewModal({
+  activeTool,
+  bcgSummary,
+  group,
+  onClose,
+  onLoadContent,
+  selectedVersion,
+  swotSummary,
+  valueChainSummary,
+}: {
+  activeTool: DiagnosticToolKey
+  bcgSummary: BcgSummary | null
+  group: PlanningGroupSummary | null
+  onClose: () => void
+  onLoadContent: (payload: DiagnosticPreviewPayload, sourceLabel: string) => void
+  selectedVersion: PhaseVersionSummary | null
+  swotSummary: SwotSummary | null
+  valueChainSummary: ValueChainSummary | null
+}) {
+  const payload = selectedVersion
+    ? diagnosticPayloadFromContent(selectedVersion.content, activeTool)
+    : diagnosticPayloadFromCurrent(activeTool, swotSummary, valueChainSummary, bcgSummary)
+  const title = diagnosticToolLabel(payload.tool)
+  const createdBy = selectedVersion ? userNameById(group, selectedVersion.createdByUserId) : '-'
+  const approvedBy = selectedVersion ? userNameById(group, selectedVersion.approvedByUserId) : '-'
+
+  return (
+    <div className="gplan-preview-overlay" role="dialog" aria-modal="true" aria-labelledby="diagnostic-overview-title">
+      <section className="gplan-preview-modal">
+        <header className="gplan-preview-header">
+          <div>
+            <span className="gplan-preview-kicker">Mini dashboard</span>
+            <h2 id="diagnostic-overview-title">Resumen de diagnostico</h2>
+            <p>{group?.name ?? 'Plan del grupo'} - {title}</p>
+          </div>
+          <button className="btn-icon" type="button" onClick={onClose} title="Cerrar">
+            <XCircle size={18} />
+          </button>
+        </header>
+
+        <div className="gplan-preview-body">
+          <section className="gplan-preview-focus">
+            <div className="gplan-preview-focus-head">
+              <div>
+                <span className="gplan-preview-kicker">
+                  {selectedVersion ? 'Version oficial' : 'Contenido actual'}
+                </span>
+                <h3>
+                  {selectedVersion
+                    ? `${title} v${selectedVersion.versionNumber}`
+                    : `${title} actual`}
+                </h3>
+              </div>
+              {selectedVersion && (
+                <strong>
+                  Propuso {createdBy} / aprobo {approvedBy}
+                </strong>
+              )}
+            </div>
+            <DiagnosticPreviewContent payload={payload} />
+          </section>
+        </div>
+
+        <footer className="gplan-preview-actions">
+          <button className="btn btn-secondary" type="button" onClick={onClose}>
+            Cerrar
+          </button>
+          <button
+            className="btn btn-primary"
+            type="button"
+            onClick={() => onLoadContent(payload, selectedVersion ? `v${selectedVersion.versionNumber}` : 'la version actual')}
+          >
+            <PencilLine size={16} />
+            Cargar en editor
+          </button>
+        </footer>
+      </section>
+    </div>
+  )
+}
+
+function DiagnosticPreviewContent({ payload }: { payload: DiagnosticPreviewPayload }) {
+  if (payload.tool === 'foda') {
+    const swot = cleanSwot(payload.swot)
+    return (
+      <div className="gplan-preview-sections">
+        <DiagnosticListSection title="Fortalezas" items={swot.strengths.map((item) => `${item.description} (${item.priority})`)} />
+        <DiagnosticListSection title="Oportunidades" items={swot.opportunities.map((item) => `${item.description} (${item.priority})`)} />
+        <DiagnosticListSection title="Debilidades" items={swot.weaknesses.map((item) => `${item.description} (${item.priority})`)} />
+        <DiagnosticListSection title="Amenazas" items={swot.threats.map((item) => `${item.description} (${item.priority})`)} />
+      </div>
+    )
+  }
+
+  if (payload.tool === 'valueChain') {
+    const valueChain = cleanValueChain(payload.valueChain)
+    const totalScore = valueChain.assessments.reduce((total, assessment) => total + clamp(assessment.score, 0, 4), 0)
+    const maxScore = valueChain.assessments.length * 4
+    const score = maxScore === 0 ? 0 : Math.round((totalScore * 100) / maxScore)
+    return (
+      <div className="gplan-preview-sections">
+        <section>
+          <h3>Indicadores</h3>
+          <DiagnosticPreviewItem label="Puntaje" value={`${score}% (${totalScore}/${maxScore || 0})`} />
+          <DiagnosticPreviewItem label="Valoraciones" value={String(valueChain.assessments.length)} />
+        </section>
+        <DiagnosticListSection
+          title="Actividades de apoyo"
+          items={valueChain.supportActivities.map((item) => `${activityLabels[item.activity]}: ${item.description} (${item.priority})`)}
+        />
+        <DiagnosticListSection
+          title="Actividades primarias"
+          items={valueChain.primaryActivities.map((item) => `${activityLabels[item.activity]}: ${item.description} (${item.priority})`)}
+        />
+        <DiagnosticListSection
+          title="Valoraciones"
+          items={valueChain.assessments.map((item) => `${activityLabels[item.activity]}: ${item.statement} (${item.score}/4)`)}
+        />
+        <DiagnosticSynthesisSection
+          observations={valueChain.observations}
+          strengths={valueChain.strengths}
+          weaknesses={valueChain.weaknesses}
+        />
+      </div>
+    )
+  }
+
+  const bcg = cleanBcg(payload.bcg)
+  const totalSales = bcg.products.reduce((total, product) => total + product.annualSales, 0)
+  return (
+    <div className="gplan-preview-sections">
+      <section>
+        <h3>Indicadores</h3>
+        <DiagnosticPreviewItem label="Productos" value={String(bcg.products.length)} />
+        <DiagnosticPreviewItem label="Ventas" value={formatNumber(totalSales)} />
+        <DiagnosticPreviewItem label="Crecimiento alto" value={`${bcg.marketGrowthThreshold}%`} />
+        <DiagnosticPreviewItem label="Participacion alta" value={String(bcg.relativeMarketShareThreshold)} />
+      </section>
+      <DiagnosticListSection
+        title="Cartera"
+        items={bcg.products.map((product) => {
+          const quadrant = classifyBcg(
+            product.marketGrowthRate,
+            product.relativeMarketShare,
+            bcg.marketGrowthThreshold,
+            bcg.relativeMarketShareThreshold,
+          )
+          return `${product.name}: ${quadrant} - ventas ${formatNumber(product.annualSales)}`
+        })}
+      />
+      <DiagnosticSynthesisSection
+        observations={bcg.observations}
+        strengths={bcg.strengths}
+        weaknesses={bcg.weaknesses}
+      />
+    </div>
+  )
+}
+
+function DiagnosticListSection({ items, title }: { items: string[]; title: string }) {
+  return (
+    <section className="gplan-preview-objectives">
+      <h3>{title}</h3>
+      {items.length === 0 && <p className="gplan-muted">Sin registros.</p>}
+      {items.map((item, index) => (
+        <article key={`${title}-${item}-${index}`}>
+          <strong>{item}</strong>
+        </article>
+      ))}
+    </section>
+  )
+}
+
+function DiagnosticSynthesisSection({
+  observations,
+  strengths,
+  weaknesses,
+}: {
+  observations: string
+  strengths: string[]
+  weaknesses: string[]
+}) {
+  return (
+    <section>
+      <h3>Sintesis</h3>
+      <DiagnosticPreviewItem label="Observaciones" value={observations || '-'} multiline />
+      <DiagnosticPreviewItem label="Fortalezas" value={strengths.length ? strengths.join('\n') : '-'} multiline />
+      <DiagnosticPreviewItem label="Debilidades" value={weaknesses.length ? weaknesses.join('\n') : '-'} multiline />
+    </section>
+  )
+}
+
+function DiagnosticPreviewItem({
+  label,
+  multiline,
+  value,
+}: {
+  label: string
+  multiline?: boolean
+  value: string
+}) {
+  return (
+    <div className={`gplan-preview-item ${multiline ? 'multiline' : ''}`}>
+      <span>{label}</span>
+      <p>{value || '-'}</p>
     </div>
   )
 }
@@ -1256,6 +1435,9 @@ function diagnosticChangeRequestPayload(
   swot: UpdateSwotPayload,
   valueChain: UpdateValueChainPayload,
   bcg: UpdateBcgPayload,
+  swotSummary: SwotSummary | null,
+  valueChainSummary: ValueChainSummary | null,
+  bcgSummary: BcgSummary | null,
 ): CreatePhaseChangeRequestPayload {
   const title = activeTool === 'foda'
     ? 'Aprobar FODA'
@@ -1271,13 +1453,264 @@ function diagnosticChangeRequestPayload(
     title,
     description: 'Solicitud para aprobar una herramienta del bloque diagnostico.',
     proposedContent: content,
-    entries: diagnosticEntries(activeTool),
+    entries: diagnosticEntries(activeTool, swot, valueChain, bcg, swotSummary, valueChainSummary, bcgSummary),
   }
 }
 
-function diagnosticEntries(activeTool: DiagnosticToolKey): PhaseChangeEntry[] {
-  const label = activeTool === 'foda' ? 'FODA' : activeTool === 'valueChain' ? 'Cadena de valor' : 'BCG'
-  return [{ fieldKey: activeTool, previousValue: '', proposedValue: `${label} validado` }]
+function diagnosticEntries(
+  activeTool: DiagnosticToolKey,
+  swot: UpdateSwotPayload,
+  valueChain: UpdateValueChainPayload,
+  bcg: UpdateBcgPayload,
+  swotSummary: SwotSummary | null,
+  valueChainSummary: ValueChainSummary | null,
+  bcgSummary: BcgSummary | null,
+): PhaseChangeEntry[] {
+  if (activeTool === 'foda') {
+    const current = cleanSwot(swotSummary ? swotPayloadFromSummary(swotSummary) : emptySwot)
+    const next = cleanSwot(swot)
+    return [
+      diagnosticEntry('strengths', current.strengths, next.strengths),
+      diagnosticEntry('opportunities', current.opportunities, next.opportunities),
+      diagnosticEntry('weaknesses', current.weaknesses, next.weaknesses),
+      diagnosticEntry('threats', current.threats, next.threats),
+    ].filter((entry) => entry.previousValue !== entry.proposedValue)
+  }
+
+  if (activeTool === 'valueChain') {
+    const current = cleanValueChain(valueChainSummary ? valueChainPayloadFromSummary(valueChainSummary) : emptyValueChain)
+    const next = cleanValueChain(valueChain)
+    return [
+      diagnosticEntry('supportActivities', current.supportActivities, next.supportActivities),
+      diagnosticEntry('primaryActivities', current.primaryActivities, next.primaryActivities),
+      diagnosticEntry('assessments', current.assessments, next.assessments),
+      diagnosticEntry('observations', current.observations, next.observations),
+      diagnosticEntry('strengths', current.strengths, next.strengths),
+      diagnosticEntry('weaknesses', current.weaknesses, next.weaknesses),
+    ].filter((entry) => entry.previousValue !== entry.proposedValue)
+  }
+
+  const current = cleanBcg(bcgSummary ? bcgPayloadFromSummary(bcgSummary) : emptyBcg)
+  const next = cleanBcg(bcg)
+  return [
+    diagnosticEntry('products', current.products, next.products),
+    diagnosticEntry('marketGrowthThreshold', current.marketGrowthThreshold, next.marketGrowthThreshold),
+    diagnosticEntry('relativeMarketShareThreshold', current.relativeMarketShareThreshold, next.relativeMarketShareThreshold),
+    diagnosticEntry('observations', current.observations, next.observations),
+    diagnosticEntry('strengths', current.strengths, next.strengths),
+    diagnosticEntry('weaknesses', current.weaknesses, next.weaknesses),
+  ].filter((entry) => entry.previousValue !== entry.proposedValue)
+}
+
+function diagnosticEntry(fieldKey: string, previousValue: unknown, proposedValue: unknown): PhaseChangeEntry {
+  return {
+    fieldKey,
+    previousValue: stringifyDiagnosticValue(previousValue),
+    proposedValue: stringifyDiagnosticValue(proposedValue),
+  }
+}
+
+function stringifyDiagnosticValue(value: unknown) {
+  return typeof value === 'string' ? value : JSON.stringify(value, null, 2)
+}
+
+function diagnosticPayloadFromCurrent(
+  activeTool: DiagnosticToolKey,
+  swotSummary: SwotSummary | null,
+  valueChainSummary: ValueChainSummary | null,
+  bcgSummary: BcgSummary | null,
+): DiagnosticPreviewPayload {
+  if (activeTool === 'foda') {
+    return { tool: 'foda', swot: swotSummary ? swotPayloadFromSummary(swotSummary) : emptySwot }
+  }
+  if (activeTool === 'valueChain') {
+    return {
+      tool: 'valueChain',
+      valueChain: valueChainSummary ? valueChainPayloadFromSummary(valueChainSummary) : emptyValueChain,
+    }
+  }
+  return { tool: 'bcg', bcg: bcgSummary ? bcgPayloadFromSummary(bcgSummary) : emptyBcg }
+}
+
+function diagnosticPayloadFromContent(
+  content: Record<string, unknown>,
+  fallbackTool: DiagnosticToolKey,
+): DiagnosticPreviewPayload {
+  const tool = diagnosticToolFromContent(content, fallbackTool)
+  if (tool === 'foda') {
+    return { tool, swot: swotPayloadFromContent(content.swot) }
+  }
+  if (tool === 'valueChain') {
+    return { tool, valueChain: valueChainPayloadFromContent(content.valueChain) }
+  }
+  return { tool, bcg: bcgPayloadFromContent(content.bcg) }
+}
+
+function diagnosticToolFromContent(
+  content: Record<string, unknown>,
+  fallbackTool: DiagnosticToolKey = 'foda',
+): DiagnosticToolKey {
+  if (contentHasTool(content, 'foda')) return 'foda'
+  if (contentHasTool(content, 'valueChain')) return 'valueChain'
+  if (contentHasTool(content, 'bcg')) return 'bcg'
+  return fallbackTool
+}
+
+function diagnosticToolLabel(tool: DiagnosticToolKey) {
+  return diagnosticTools.find((item) => item.key === tool)?.title ?? 'Diagnostico'
+}
+
+function userNameById(group: PlanningGroupSummary | null, userId?: number | null) {
+  if (!userId) return '-'
+  const member = group?.members.find((item) => item.userId === userId)
+  return member ? `${member.firstName} ${member.lastName}` : `Usuario #${userId}`
+}
+
+function editorSwotPayload(value: UpdateSwotPayload): UpdateSwotPayload {
+  const cleaned = cleanSwot(value)
+  return {
+    strengths: cleaned.strengths.length > 0 ? cleaned.strengths : [{ description: '', priority: 'MEDIA' }],
+    opportunities: cleaned.opportunities.length > 0 ? cleaned.opportunities : [{ description: '', priority: 'MEDIA' }],
+    weaknesses: cleaned.weaknesses.length > 0 ? cleaned.weaknesses : [{ description: '', priority: 'MEDIA' }],
+    threats: cleaned.threats.length > 0 ? cleaned.threats : [{ description: '', priority: 'MEDIA' }],
+  }
+}
+
+function editorValueChainPayload(value: UpdateValueChainPayload): UpdateValueChainPayload {
+  const cleaned = cleanValueChain(value)
+  return {
+    supportActivities: cleaned.supportActivities.length > 0
+      ? cleaned.supportActivities
+      : [{ activity: 'DESARROLLO_TECNOLOGICO', description: '', priority: 'MEDIA' }],
+    primaryActivities: cleaned.primaryActivities.length > 0
+      ? cleaned.primaryActivities
+      : [{ activity: 'OPERACIONES', description: '', priority: 'MEDIA' }],
+    assessments: cleaned.assessments.length > 0
+      ? cleaned.assessments
+      : [{ activity: 'OPERACIONES', statement: '', score: 2, notes: '' }],
+    observations: cleaned.observations,
+    strengths: cleaned.strengths,
+    weaknesses: cleaned.weaknesses,
+  }
+}
+
+function editorBcgPayload(value: UpdateBcgPayload): UpdateBcgPayload {
+  const cleaned = cleanBcg(value)
+  return {
+    products: cleaned.products.length > 0
+      ? cleaned.products
+      : [{ name: '', description: '', annualSales: 0, marketGrowthRate: 0, relativeMarketShare: 0, notes: '' }],
+    marketGrowthThreshold: cleaned.marketGrowthThreshold > 0 ? cleaned.marketGrowthThreshold : 10,
+    relativeMarketShareThreshold: cleaned.relativeMarketShareThreshold > 0 ? cleaned.relativeMarketShareThreshold : 1,
+    observations: cleaned.observations,
+    strengths: cleaned.strengths,
+    weaknesses: cleaned.weaknesses,
+  }
+}
+
+function swotPayloadFromContent(value: unknown): UpdateSwotPayload {
+  const content = recordValue(value)
+  return {
+    strengths: swotItemsFromContent(content.strengths),
+    opportunities: swotItemsFromContent(content.opportunities),
+    weaknesses: swotItemsFromContent(content.weaknesses),
+    threats: swotItemsFromContent(content.threats),
+  }
+}
+
+function swotItemsFromContent(value: unknown): SwotItemPayload[] {
+  return recordsFromValue(value)
+    .map((item) => ({
+      description: textValue(item.description).trim(),
+      priority: priorityValue(item.priority),
+    }))
+    .filter((item) => item.description)
+}
+
+function valueChainPayloadFromContent(value: unknown): UpdateValueChainPayload {
+  const content = recordValue(value)
+  return {
+    supportActivities: activityItemsFromContent(content.supportActivities, 'DESARROLLO_TECNOLOGICO'),
+    primaryActivities: activityItemsFromContent(content.primaryActivities, 'OPERACIONES'),
+    assessments: assessmentItemsFromContent(content.assessments),
+    observations: textValue(content.observations),
+    strengths: stringListFromValue(content.strengths),
+    weaknesses: stringListFromValue(content.weaknesses),
+  }
+}
+
+function activityItemsFromContent(value: unknown, fallback: ValueChainActivity): ValueChainActivityPayload[] {
+  return recordsFromValue(value)
+    .map((item) => ({
+      activity: activityValue(item.activity, fallback),
+      description: textValue(item.description).trim(),
+      priority: priorityValue(item.priority),
+    }))
+    .filter((item) => item.description)
+}
+
+function assessmentItemsFromContent(value: unknown): ValueChainAssessmentPayload[] {
+  return recordsFromValue(value)
+    .map((item) => ({
+      activity: activityValue(item.activity, 'OPERACIONES'),
+      statement: textValue(item.statement).trim(),
+      score: clamp(numberFromValue(item.score), 0, 4),
+      notes: textValue(item.notes).trim(),
+    }))
+    .filter((item) => item.statement)
+}
+
+function bcgPayloadFromContent(value: unknown): UpdateBcgPayload {
+  const content = recordValue(value)
+  return {
+    products: recordsFromValue(content.products)
+      .map((product) => ({
+        name: textValue(product.name).trim(),
+        description: textValue(product.description).trim(),
+        annualSales: Math.max(0, numberFromValue(product.annualSales)),
+        marketGrowthRate: numberFromValue(product.marketGrowthRate),
+        relativeMarketShare: Math.max(0, numberFromValue(product.relativeMarketShare)),
+        notes: textValue(product.notes).trim(),
+      }))
+      .filter((product) => product.name),
+    marketGrowthThreshold: numberFromValue(content.marketGrowthThreshold, 10),
+    relativeMarketShareThreshold: numberFromValue(content.relativeMarketShareThreshold, 1),
+    observations: textValue(content.observations),
+    strengths: stringListFromValue(content.strengths),
+    weaknesses: stringListFromValue(content.weaknesses),
+  }
+}
+
+function recordValue(value: unknown): Record<string, unknown> {
+  return value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : {}
+}
+
+function recordsFromValue(value: unknown): Array<Record<string, unknown>> {
+  return Array.isArray(value)
+    ? value
+        .filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === 'object' && !Array.isArray(item))
+    : []
+}
+
+function textValue(value: unknown) {
+  return typeof value === 'string' ? value : ''
+}
+
+function stringListFromValue(value: unknown) {
+  return Array.isArray(value) ? value.map(textValue).map((item) => item.trim()).filter(Boolean) : []
+}
+
+function priorityValue(value: unknown): DiagnosticPriority {
+  return priorities.includes(value as DiagnosticPriority) ? value as DiagnosticPriority : 'MEDIA'
+}
+
+function activityValue(value: unknown, fallback: ValueChainActivity): ValueChainActivity {
+  return allActivities.includes(value as ValueChainActivity) ? value as ValueChainActivity : fallback
+}
+
+function numberFromValue(value: unknown, fallback = 0) {
+  const parsed = typeof value === 'number' ? value : Number(value)
+  return Number.isFinite(parsed) ? parsed : fallback
 }
 
 function contentHasTool(content: Record<string, unknown>, tool: DiagnosticToolKey) {

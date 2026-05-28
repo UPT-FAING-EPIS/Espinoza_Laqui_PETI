@@ -1,5 +1,7 @@
 package com.strategicti.domain.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+
 import java.util.List;
 
 public record StrategicObjective(
@@ -10,6 +12,7 @@ public record StrategicObjective(
         specificObjectives = specificObjectives == null ? List.of() : List.copyOf(specificObjectives);
     }
 
+    @JsonIgnore
     public boolean isComplete() {
         return hasText(generalObjective) && specificObjectives.stream().anyMatch(this::hasText);
     }

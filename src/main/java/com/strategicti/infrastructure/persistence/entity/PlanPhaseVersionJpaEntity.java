@@ -36,7 +36,7 @@ public class PlanPhaseVersionJpaEntity {
     private Long sourceChangeRequestId;
 
     @Lob
-    @Column(nullable = false)
+    @Column(nullable = false, columnDefinition = "LONGTEXT")
     private String contentJson;
 
     @Column(nullable = false)

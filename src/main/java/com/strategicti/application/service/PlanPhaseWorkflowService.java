@@ -239,10 +239,10 @@ public class PlanPhaseWorkflowService {
     }
 
     private void assertLeader(PlanningGroup group, AuthenticatedUser viewer) {
-        if (group.isLeader(viewer.id())) {
+        if (viewer.role() == SystemRole.ADMINISTRADOR || group.isLeader(viewer.id())) {
             return;
         }
-        throw new ForbiddenOperationException("Solo el lider del grupo puede revisar esta solicitud.");
+        throw new ForbiddenOperationException("Solo el lider del grupo o un administrador puede revisar esta solicitud.");
     }
 
     private void assertNoPendingRequest(StrategicPlan plan, PetiPhase phase) {

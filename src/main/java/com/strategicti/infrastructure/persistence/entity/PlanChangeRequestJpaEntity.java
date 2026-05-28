@@ -46,7 +46,7 @@ public class PlanChangeRequestJpaEntity {
     private String description;
 
     @Lob
-    @Column(nullable = false)
+    @Column(nullable = false, columnDefinition = "LONGTEXT")
     private String proposedContentJson;
 
     @OneToMany(mappedBy = "request", cascade = CascadeType.ALL, orphanRemoval = true)

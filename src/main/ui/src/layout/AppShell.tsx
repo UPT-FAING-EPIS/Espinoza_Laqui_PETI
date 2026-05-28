@@ -3,6 +3,7 @@ import {
   ChevronsLeft,
   ChevronsRight,
   FileText,
+  GitPullRequest,
   LayoutDashboard,
   LogOut,
   Network,
@@ -26,6 +27,7 @@ type NavItem = {
 const navItems: NavItem[] = [
   { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard', roles: ['ADMINISTRADOR', 'USUARIO'] },
   { to: '/plan', icon: FileText, label: 'Plan PETI', roles: ['ADMINISTRADOR', 'USUARIO'] },
+  { to: '/requests', icon: GitPullRequest, label: 'Solicitudes', roles: ['ADMINISTRADOR', 'USUARIO'] },
   { to: '/my-groups', icon: Network, label: 'Mis grupos', roles: ['USUARIO'] },
   { to: '/admin/users', icon: Users, label: 'Usuarios', roles: ['ADMINISTRADOR'] },
   { to: '/admin/groups', icon: Network, label: 'Grupos', roles: ['ADMINISTRADOR'] },

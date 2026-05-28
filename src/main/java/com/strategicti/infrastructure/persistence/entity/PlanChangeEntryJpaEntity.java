@@ -29,9 +29,11 @@ public class PlanChangeEntryJpaEntity {
     private String fieldKey;
 
     @Lob
+    @Column(columnDefinition = "LONGTEXT")
     private String previousValue;
 
     @Lob
+    @Column(columnDefinition = "LONGTEXT")
     private String proposedValue;
 
     public Long getId() {
