@@ -2,7 +2,7 @@ FROM node:24-alpine AS ui-build
 WORKDIR /app
 
 COPY src/main/ui/package*.json ./
-RUN npm ci
+RUN npm install
 
 COPY src/main/ui/ ./
 RUN npm run build
