@@ -7,11 +7,15 @@ import type {
   PetiPhase,
   PhaseChangeRequestSummary,
   PhaseVersionSummary,
+  PestSummary,
+  PorterSummary,
   PlanSummary,
   ReviewPhaseChangeRequestPayload,
   SwotSummary,
   UpdateBcgPayload,
   UpdateIdentityPayload,
+  UpdatePestPayload,
+  UpdatePorterPayload,
   UpdateSwotPayload,
   UpdateValueChainPayload,
   ValueChainSummary,
@@ -57,6 +61,28 @@ export function saveGroupPlanIdentity(groupId: number, payload: UpdateIdentityPa
 
 export function getGroupPlanSwot(groupId: number) {
   return request<SwotSummary>(`/groups/${groupId}/plan/diagnostics/foda`)
+}
+
+export function getGroupPlanPest(groupId: number) {
+  return request<PestSummary>(`/groups/${groupId}/plan/diagnostics/pest`)
+}
+
+export function saveGroupPlanPest(groupId: number, payload: UpdatePestPayload) {
+  return request<PestSummary>(`/groups/${groupId}/plan/diagnostics/pest`, {
+    method: 'PUT',
+    body: JSON.stringify(payload),
+  })
+}
+
+export function getGroupPlanPorter(groupId: number) {
+  return request<PorterSummary>(`/groups/${groupId}/plan/diagnostics/porter`)
+}
+
+export function saveGroupPlanPorter(groupId: number, payload: UpdatePorterPayload) {
+  return request<PorterSummary>(`/groups/${groupId}/plan/diagnostics/porter`, {
+    method: 'PUT',
+    body: JSON.stringify(payload),
+  })
 }
 
 export function saveGroupPlanSwot(groupId: number, payload: UpdateSwotPayload) {

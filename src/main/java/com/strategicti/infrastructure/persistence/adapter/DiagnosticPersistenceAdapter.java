@@ -3,11 +3,13 @@ package com.strategicti.infrastructure.persistence.adapter;
 import com.strategicti.application.ports.out.IDiagnosticRepositoryPort;
 import com.strategicti.domain.model.BcgPortfolioItem;
 import com.strategicti.domain.model.DiagnosticAssessment;
+import com.strategicti.domain.model.DiagnosticFinding;
 import com.strategicti.domain.model.DiagnosticItem;
 import com.strategicti.domain.model.DiagnosticTool;
 import com.strategicti.infrastructure.persistence.factory.DiagnosticPersistenceFactory;
 import com.strategicti.infrastructure.persistence.repository.SpringDataBcgPortfolioItemRepository;
 import com.strategicti.infrastructure.persistence.repository.SpringDataDiagnosticAssessmentRepository;
+import com.strategicti.infrastructure.persistence.repository.SpringDataDiagnosticFindingRepository;
 import com.strategicti.infrastructure.persistence.repository.SpringDataDiagnosticItemRepository;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
@@ -19,17 +21,20 @@ public class DiagnosticPersistenceAdapter implements IDiagnosticRepositoryPort {
     private final SpringDataDiagnosticItemRepository itemRepository;
     private final SpringDataDiagnosticAssessmentRepository assessmentRepository;
     private final SpringDataBcgPortfolioItemRepository bcgPortfolioItemRepository;
+    private final SpringDataDiagnosticFindingRepository findingRepository;
     private final DiagnosticPersistenceFactory factory;
 
     public DiagnosticPersistenceAdapter(
             SpringDataDiagnosticItemRepository itemRepository,
             SpringDataDiagnosticAssessmentRepository assessmentRepository,
             SpringDataBcgPortfolioItemRepository bcgPortfolioItemRepository,
+            SpringDataDiagnosticFindingRepository findingRepository,
             DiagnosticPersistenceFactory factory
     ) {
         this.itemRepository = itemRepository;
         this.assessmentRepository = assessmentRepository;
         this.bcgPortfolioItemRepository = bcgPortfolioItemRepository;
+        this.findingRepository = findingRepository;
         this.factory = factory;
     }
 
@@ -81,6 +86,33 @@ public class DiagnosticPersistenceAdapter implements IDiagnosticRepositoryPort {
     public List<BcgPortfolioItem> replaceBcgPortfolioItems(Long planId, List<BcgPortfolioItem> products) {
         bcgPortfolioItemRepository.deleteByPlanId(planId);
         return bcgPortfolioItemRepository.saveAll(products.stream().map(factory::toEntity).toList()).stream()
+                .map(factory::toDomain)
+                .toList();
+    }
+
+    @Override
+    public List<DiagnosticFinding> findFindings(Long planId) {
+        return findingRepository.findByPlanIdOrderByPositionAsc(planId).stream()
+                .map(factory::toDomain)
+                .toList();
+    }
+
+    @Override
+    public List<DiagnosticFinding> findFindings(Long planId, DiagnosticTool source) {
+        return findingRepository.findByPlanIdAndSourceOrderByPositionAsc(planId, source).stream()
+                .map(factory::toDomain)
+                .toList();
+    }
+
+    @Override
+    @Transactional
+    public List<DiagnosticFinding> replaceFindings(
+            Long planId,
+            DiagnosticTool source,
+            List<DiagnosticFinding> findings
+    ) {
+        findingRepository.deleteByPlanIdAndSource(planId, source);
+        return findingRepository.saveAll(findings.stream().map(factory::toEntity).toList()).stream()
                 .map(factory::toDomain)
                 .toList();
     }

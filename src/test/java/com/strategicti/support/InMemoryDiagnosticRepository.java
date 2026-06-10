@@ -3,6 +3,7 @@ package com.strategicti.support;
 import com.strategicti.application.ports.out.IDiagnosticRepositoryPort;
 import com.strategicti.domain.model.BcgPortfolioItem;
 import com.strategicti.domain.model.DiagnosticAssessment;
+import com.strategicti.domain.model.DiagnosticFinding;
 import com.strategicti.domain.model.DiagnosticItem;
 import com.strategicti.domain.model.DiagnosticTool;
 
@@ -15,9 +16,11 @@ public class InMemoryDiagnosticRepository implements IDiagnosticRepositoryPort {
     private final Map<Long, DiagnosticItem> items = new LinkedHashMap<>();
     private final Map<Long, DiagnosticAssessment> assessments = new LinkedHashMap<>();
     private final Map<Long, BcgPortfolioItem> bcgPortfolioItems = new LinkedHashMap<>();
+    private final Map<Long, DiagnosticFinding> findings = new LinkedHashMap<>();
     private long itemSequence;
     private long assessmentSequence;
     private long bcgPortfolioSequence;
+    private long findingSequence;
 
     @Override
     public List<DiagnosticItem> findItems(Long planId, DiagnosticTool tool) {
@@ -111,5 +114,51 @@ public class InMemoryDiagnosticRepository implements IDiagnosticRepositoryPort {
             ));
         }
         return findBcgPortfolioItems(planId);
+    }
+
+    @Override
+    public List<DiagnosticFinding> findFindings(Long planId) {
+        return findings.values().stream()
+                .filter(finding -> finding.planId().equals(planId))
+                .sorted(Comparator.comparingInt(DiagnosticFinding::position))
+                .toList();
+    }
+
+    @Override
+    public List<DiagnosticFinding> findFindings(Long planId, DiagnosticTool source) {
+        return findings.values().stream()
+                .filter(finding -> finding.planId().equals(planId) && finding.source() == source)
+                .sorted(Comparator.comparingInt(DiagnosticFinding::position))
+                .toList();
+    }
+
+    @Override
+    public List<DiagnosticFinding> replaceFindings(
+            Long planId,
+            DiagnosticTool source,
+            List<DiagnosticFinding> nextFindings
+    ) {
+        findings.entrySet().removeIf(entry -> entry.getValue().planId().equals(planId)
+                && entry.getValue().source() == source);
+        for (DiagnosticFinding finding : nextFindings) {
+            Long id = finding.id() == null ? ++findingSequence : finding.id();
+            findings.put(id, new DiagnosticFinding(
+                    id,
+                    finding.planId(),
+                    finding.source(),
+                    finding.sourceDimension(),
+                    finding.category(),
+                    finding.description(),
+                    finding.evidence(),
+                    finding.impact(),
+                    finding.priority(),
+                    finding.selectedForFoda(),
+                    finding.createdByUserId(),
+                    finding.position(),
+                    finding.createdAt(),
+                    finding.updatedAt()
+            ));
+        }
+        return findFindings(planId, source);
     }
 }

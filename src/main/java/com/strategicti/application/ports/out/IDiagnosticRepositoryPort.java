@@ -1,8 +1,9 @@
 package com.strategicti.application.ports.out;
 
 import com.strategicti.domain.model.BcgPortfolioItem;
-import com.strategicti.domain.model.DiagnosticItem;
 import com.strategicti.domain.model.DiagnosticAssessment;
+import com.strategicti.domain.model.DiagnosticFinding;
+import com.strategicti.domain.model.DiagnosticItem;
 import com.strategicti.domain.model.DiagnosticTool;
 
 import java.util.List;
@@ -23,4 +24,10 @@ public interface IDiagnosticRepositoryPort {
     List<BcgPortfolioItem> findBcgPortfolioItems(Long planId);
 
     List<BcgPortfolioItem> replaceBcgPortfolioItems(Long planId, List<BcgPortfolioItem> products);
+
+    List<DiagnosticFinding> findFindings(Long planId);
+
+    List<DiagnosticFinding> findFindings(Long planId, DiagnosticTool source);
+
+    List<DiagnosticFinding> replaceFindings(Long planId, DiagnosticTool source, List<DiagnosticFinding> findings);
 }

@@ -6,14 +6,19 @@ import com.strategicti.application.ports.out.IStrategicPlanRepositoryPort;
 import com.strategicti.application.usecase.AuthenticatedUser;
 import com.strategicti.application.usecase.BcgSummary;
 import com.strategicti.application.usecase.ForbiddenOperationException;
+import com.strategicti.application.usecase.PestSummary;
+import com.strategicti.application.usecase.PorterSummary;
 import com.strategicti.application.usecase.ResourceNotFoundException;
 import com.strategicti.application.usecase.SwotSummary;
 import com.strategicti.application.usecase.UpdateBcgCommand;
+import com.strategicti.application.usecase.UpdatePestCommand;
+import com.strategicti.application.usecase.UpdatePorterCommand;
 import com.strategicti.application.usecase.UpdateSwotCommand;
 import com.strategicti.application.usecase.UpdateValueChainCommand;
 import com.strategicti.application.usecase.ValueChainSummary;
 import com.strategicti.domain.model.BcgPortfolioItem;
 import com.strategicti.domain.model.DiagnosticAssessment;
+import com.strategicti.domain.model.DiagnosticFinding;
 import com.strategicti.domain.model.DiagnosticItem;
 import com.strategicti.domain.model.DiagnosticTool;
 import com.strategicti.domain.model.PetiPhase;
@@ -52,6 +57,50 @@ public class DiagnosticService {
         return toSwotSummary(plan);
     }
 
+    @Transactional(readOnly = true)
+    public PestSummary getPestForGroup(Long groupId, AuthenticatedUser viewer) {
+        StrategicPlan plan = findPlanForAccessibleGroup(groupId, viewer);
+        return toPestSummary(plan);
+    }
+
+    @Transactional(readOnly = true)
+    public PorterSummary getPorterForGroup(Long groupId, AuthenticatedUser viewer) {
+        StrategicPlan plan = findPlanForAccessibleGroup(groupId, viewer);
+        return toPorterSummary(plan);
+    }
+
+    @Transactional
+    public PestSummary updatePestForGroup(Long groupId, UpdatePestCommand command, AuthenticatedUser viewer) {
+        StrategicPlan plan = findPlanForAccessibleGroup(groupId, viewer);
+        assertDiagnosticsEditable(plan);
+        List<DiagnosticAssessment> assessments = diagnosticContentMapper.normalizePestAssessments(plan.id(), command, false);
+        List<DiagnosticFinding> findings = diagnosticContentMapper.normalizePestFindings(
+                plan.id(),
+                command,
+                viewer.id(),
+                false
+        );
+        diagnosticRepository.replaceAssessments(plan.id(), DiagnosticTool.PEST, assessments);
+        diagnosticRepository.replaceFindings(plan.id(), DiagnosticTool.PEST, findings);
+        return toPestSummary(plan);
+    }
+
+    @Transactional
+    public PorterSummary updatePorterForGroup(Long groupId, UpdatePorterCommand command, AuthenticatedUser viewer) {
+        StrategicPlan plan = findPlanForAccessibleGroup(groupId, viewer);
+        assertDiagnosticsEditable(plan);
+        List<DiagnosticAssessment> assessments = diagnosticContentMapper.normalizePorterAssessments(plan.id(), command, false);
+        List<DiagnosticFinding> findings = diagnosticContentMapper.normalizePorterFindings(
+                plan.id(),
+                command,
+                viewer.id(),
+                false
+        );
+        diagnosticRepository.replaceAssessments(plan.id(), DiagnosticTool.PORTER, assessments);
+        diagnosticRepository.replaceFindings(plan.id(), DiagnosticTool.PORTER, findings);
+        return toPorterSummary(plan);
+    }
+
     @Transactional
     public SwotSummary updateSwotForGroup(Long groupId, UpdateSwotCommand command, AuthenticatedUser viewer) {
         StrategicPlan plan = findPlanForAccessibleGroup(groupId, viewer);
@@ -81,8 +130,15 @@ public class DiagnosticService {
                 command,
                 false
         );
+        List<DiagnosticFinding> findings = diagnosticContentMapper.normalizeValueChainFindings(
+                plan.id(),
+                command,
+                viewer.id(),
+                false
+        );
         diagnosticRepository.replaceItems(plan.id(), DiagnosticTool.VALUE_CHAIN, items);
         diagnosticRepository.replaceAssessments(plan.id(), DiagnosticTool.VALUE_CHAIN, assessments);
+        diagnosticRepository.replaceFindings(plan.id(), DiagnosticTool.VALUE_CHAIN, findings);
         return toValueChainSummary(plan);
     }
 
@@ -108,10 +164,23 @@ public class DiagnosticService {
         return diagnosticContentMapper.toSwotSummary(plan.id(), items, plan.updatedAt());
     }
 
+    private PestSummary toPestSummary(StrategicPlan plan) {
+        List<DiagnosticAssessment> assessments = diagnosticRepository.findAssessments(plan.id(), DiagnosticTool.PEST);
+        List<DiagnosticFinding> findings = diagnosticRepository.findFindings(plan.id(), DiagnosticTool.PEST);
+        return diagnosticContentMapper.toPestSummary(plan.id(), assessments, findings, plan.updatedAt());
+    }
+
+    private PorterSummary toPorterSummary(StrategicPlan plan) {
+        List<DiagnosticAssessment> assessments = diagnosticRepository.findAssessments(plan.id(), DiagnosticTool.PORTER);
+        List<DiagnosticFinding> findings = diagnosticRepository.findFindings(plan.id(), DiagnosticTool.PORTER);
+        return diagnosticContentMapper.toPorterSummary(plan.id(), assessments, findings, plan.updatedAt());
+    }
+
     private ValueChainSummary toValueChainSummary(StrategicPlan plan) {
         List<DiagnosticItem> items = diagnosticRepository.findItems(plan.id(), DiagnosticTool.VALUE_CHAIN);
         List<DiagnosticAssessment> assessments = diagnosticRepository.findAssessments(plan.id(), DiagnosticTool.VALUE_CHAIN);
-        return diagnosticContentMapper.toValueChainSummary(plan.id(), items, assessments, plan.updatedAt());
+        List<DiagnosticFinding> findings = diagnosticRepository.findFindings(plan.id(), DiagnosticTool.VALUE_CHAIN);
+        return diagnosticContentMapper.toValueChainSummary(plan.id(), items, assessments, findings, plan.updatedAt());
     }
 
     private BcgSummary toBcgSummary(StrategicPlan plan) {

@@ -20,6 +20,7 @@ import com.strategicti.domain.model.SwotCategory;
 import com.strategicti.domain.model.SystemRole;
 import com.strategicti.domain.model.UserAccount;
 import com.strategicti.domain.model.ValueChainActivity;
+import com.strategicti.domain.model.ValueChainQuestion;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
@@ -278,11 +279,7 @@ public class SampleDataSeeder {
                         diagnostic(DiagnosticTool.VALUE_CHAIN, VALUE_CHAIN_STRENGTH, "Conocimiento operativo acumulado en los equipos."),
                         diagnostic(DiagnosticTool.VALUE_CHAIN, VALUE_CHAIN_WEAKNESS, "Dependencia de hojas de calculo para seguimiento diario.")
                 ),
-                List.of(
-                        assessment(ValueChainActivity.INFRAESTRUCTURA_EMPRESARIAL, "Existen responsables definidos por proceso.", 3, "Falta tablero consolidado."),
-                        assessment(ValueChainActivity.OPERACIONES, "Las tareas criticas cuentan con seguimiento periodico.", 3, "Persisten registros manuales."),
-                        assessment(ValueChainActivity.DESARROLLO_TECNOLOGICO, "La tecnologia soporta parcialmente la mejora continua.", 2, "Priorizar integraciones.")
-                ),
+                valueChainAssessments(3, Set.of(6, 10, 11, 20), Set.of(2, 14, 18, 23)),
                 List.of(
                         bcg("Mesa de ayuda operativa", "Servicio interno de soporte y continuidad.", 120000, 8.0, 1.3, "Mantener y mejorar tiempos de atencion."),
                         bcg("Monitoreo de procesos", "Servicio de alertas y seguimiento operativo.", 80000, 13.0, 0.8, "Evaluar inversion para aumentar adopcion."),
@@ -328,11 +325,7 @@ public class SampleDataSeeder {
                         diagnostic(DiagnosticTool.VALUE_CHAIN, VALUE_CHAIN_STRENGTH, "Alta disposicion para ordenar procesos."),
                         diagnostic(DiagnosticTool.VALUE_CHAIN, VALUE_CHAIN_WEAKNESS, "Documentacion tecnica insuficiente.")
                 ),
-                List.of(
-                        assessment(ValueChainActivity.INFRAESTRUCTURA_EMPRESARIAL, "La direccion apoya iniciativas de mejora TI.", 4, "Convertir apoyo en politicas."),
-                        assessment(ValueChainActivity.GESTION_RECURSOS_HUMANOS, "El personal requiere refuerzo en seguridad digital.", 2, "Plan de capacitacion trimestral."),
-                        assessment(ValueChainActivity.SERVICIOS, "La atencion a usuarios tiene responsables definidos.", 3, "Formalizar SLA.")
-                ),
+                valueChainAssessments(3, Set.of(1, 4, 8, 21), Set.of(2, 5, 11, 24, 25)),
                 List.of(
                         bcg("Mesa de servicios TI", "Canal central de atencion y soporte institucional.", 95000, 7.0, 1.1, "Mantener y profesionalizar el servicio."),
                         bcg("Portal de tramites", "Servicio digital de atencion institucional.", 70000, 15.0, 0.7, "Invertir para elevar adopcion."),
@@ -358,8 +351,19 @@ public class SampleDataSeeder {
         return new ValueChainSeed(category, description);
     }
 
-    private AssessmentSeed assessment(ValueChainActivity activity, String statement, int score, String notes) {
-        return new AssessmentSeed(activity, statement, score, notes);
+    private static List<AssessmentSeed> valueChainAssessments(int baselineScore, Set<Integer> highScoreQuestions, Set<Integer> lowScoreQuestions) {
+        List<AssessmentSeed> assessments = new java.util.ArrayList<>();
+        for (ValueChainQuestion question : ValueChainQuestion.values()) {
+            int score = baselineScore;
+            if (highScoreQuestions.contains(question.number())) {
+                score = 4;
+            }
+            if (lowScoreQuestions.contains(question.number())) {
+                score = 2;
+            }
+            assessments.add(new AssessmentSeed(question.number(), score, ""));
+        }
+        return assessments;
     }
 
     private BcgSeed bcg(
@@ -417,20 +421,7 @@ public class SampleDataSeeder {
                             new ValueChainSeed(VALUE_CHAIN_STRENGTH, "Equipo con apertura al cambio digital."),
                             new ValueChainSeed(VALUE_CHAIN_WEAKNESS, "Indicadores aun dispersos.")
                     ),
-                    List.of(
-                            new AssessmentSeed(
-                                    ValueChainActivity.INFRAESTRUCTURA_EMPRESARIAL,
-                                    "La gestion cuenta con responsables funcionales.",
-                                    3,
-                                    "Formalizar seguimiento."
-                            ),
-                            new AssessmentSeed(
-                                    ValueChainActivity.MARKETING_VENTAS,
-                                    "Los canales digitales generan informacion accionable.",
-                                    2,
-                                    "Mejorar integracion."
-                            )
-                    ),
+                    valueChainAssessments(3, Set.of(1, 6, 10, 17, 21), Set.of(4, 12, 18, 24)),
                     List.of(
                             new BcgSeed("Canal e-commerce", "Canal digital de ventas.", 150000, 14.0, 1.2, "Potenciar inversion."),
                             new BcgSeed("App de fidelizacion", "Servicio de retencion de clientes.", 65000, 16.0, 0.6, "Evaluar crecimiento."),
@@ -469,16 +460,14 @@ public class SampleDataSeeder {
         }
 
         private List<DiagnosticAssessment> valueChainAssessments(Long planId) {
-            int position = 0;
             List<DiagnosticAssessment> values = new java.util.ArrayList<>();
             for (AssessmentSeed seed : assessments) {
+                ValueChainQuestion question = ValueChainQuestion.fromNumber(seed.questionNumber());
                 values.add(DiagnosticAssessment.valueChain(
                         planId,
-                        seed.activity(),
-                        seed.statement(),
+                        question,
                         seed.score(),
-                        seed.notes(),
-                        position++
+                        seed.notes()
                 ));
             }
             return values;
@@ -529,7 +518,7 @@ public class SampleDataSeeder {
     private record ValueChainSeed(String category, String description) {
     }
 
-    private record AssessmentSeed(ValueChainActivity activity, String statement, int score, String notes) {
+    private record AssessmentSeed(int questionNumber, int score, String notes) {
     }
 
     private record BcgSeed(

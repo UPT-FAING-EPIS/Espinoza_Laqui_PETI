@@ -3,8 +3,12 @@ package com.strategicti.infrastructure.ui.controller;
 import com.strategicti.application.service.DiagnosticService;
 import com.strategicti.application.usecase.AuthenticatedUser;
 import com.strategicti.application.usecase.BcgSummary;
+import com.strategicti.application.usecase.PestSummary;
+import com.strategicti.application.usecase.PorterSummary;
 import com.strategicti.application.usecase.SwotSummary;
 import com.strategicti.application.usecase.UpdateBcgCommand;
+import com.strategicti.application.usecase.UpdatePestCommand;
+import com.strategicti.application.usecase.UpdatePorterCommand;
 import com.strategicti.application.usecase.UpdateSwotCommand;
 import com.strategicti.application.usecase.UpdateValueChainCommand;
 import com.strategicti.application.usecase.ValueChainSummary;
@@ -32,6 +36,38 @@ public class GroupDiagnosticsController {
     public SwotSummary swot(@PathVariable Long groupId, Authentication authentication) {
         AuthenticatedUser user = (AuthenticatedUser) authentication.getPrincipal();
         return service.getSwotForGroup(groupId, user);
+    }
+
+    @GetMapping("/pest")
+    public PestSummary pest(@PathVariable Long groupId, Authentication authentication) {
+        AuthenticatedUser user = (AuthenticatedUser) authentication.getPrincipal();
+        return service.getPestForGroup(groupId, user);
+    }
+
+    @PutMapping("/pest")
+    public PestSummary updatePest(
+            @PathVariable Long groupId,
+            @Valid @RequestBody UpdatePestCommand command,
+            Authentication authentication
+    ) {
+        AuthenticatedUser user = (AuthenticatedUser) authentication.getPrincipal();
+        return service.updatePestForGroup(groupId, command, user);
+    }
+
+    @GetMapping("/porter")
+    public PorterSummary porter(@PathVariable Long groupId, Authentication authentication) {
+        AuthenticatedUser user = (AuthenticatedUser) authentication.getPrincipal();
+        return service.getPorterForGroup(groupId, user);
+    }
+
+    @PutMapping("/porter")
+    public PorterSummary updatePorter(
+            @PathVariable Long groupId,
+            @Valid @RequestBody UpdatePorterCommand command,
+            Authentication authentication
+    ) {
+        AuthenticatedUser user = (AuthenticatedUser) authentication.getPrincipal();
+        return service.updatePorterForGroup(groupId, command, user);
     }
 
     @PutMapping("/foda")

@@ -4,9 +4,16 @@ import com.strategicti.application.usecase.AuthenticatedUser;
 import com.strategicti.application.usecase.BcgPortfolioItemCommand;
 import com.strategicti.application.usecase.BcgSummary;
 import com.strategicti.application.usecase.ForbiddenOperationException;
+import com.strategicti.application.usecase.DiagnosticFindingCommand;
+import com.strategicti.application.usecase.PestResponseCommand;
+import com.strategicti.application.usecase.PestSummary;
+import com.strategicti.application.usecase.PorterResponseCommand;
+import com.strategicti.application.usecase.PorterSummary;
 import com.strategicti.application.usecase.SwotItemCommand;
 import com.strategicti.application.usecase.SwotSummary;
 import com.strategicti.application.usecase.UpdateBcgCommand;
+import com.strategicti.application.usecase.UpdatePestCommand;
+import com.strategicti.application.usecase.UpdatePorterCommand;
 import com.strategicti.application.usecase.UpdateSwotCommand;
 import com.strategicti.application.usecase.UpdateValueChainCommand;
 import com.strategicti.application.usecase.ValueChainActivityCommand;
@@ -17,6 +24,8 @@ import com.strategicti.domain.model.BcgStrategicDecision;
 import com.strategicti.domain.model.DiagnosticPriority;
 import com.strategicti.domain.model.GroupRole;
 import com.strategicti.domain.model.PetiPhase;
+import com.strategicti.domain.model.PestFactor;
+import com.strategicti.domain.model.PorterForce;
 import com.strategicti.domain.model.PlanningGroup;
 import com.strategicti.domain.model.StrategicPlan;
 import com.strategicti.domain.model.SystemRole;
@@ -30,6 +39,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
+import java.util.stream.IntStream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -82,11 +92,13 @@ class DiagnosticServiceTest {
         assertEquals(1, summary.supportActivities().size());
         assertEquals(ValueChainActivity.DESARROLLO_TECNOLOGICO, summary.supportActivities().getFirst().activity());
         assertEquals(1, summary.primaryActivities().size());
-        assertEquals(2, summary.assessments().size());
-        assertEquals(7, summary.totalScore());
-        assertEquals(8, summary.maxScore());
-        assertEquals(88, summary.scorePercentage());
-        assertEquals("Procesos TI con alta dependencia manual", summary.weaknesses().getFirst());
+        assertEquals(25, summary.answeredQuestions());
+        assertEquals(25, summary.assessments().size());
+        assertEquals(90, summary.totalScore());
+        assertEquals(100, summary.maxScore());
+        assertEquals(90, summary.scorePercentage());
+        assertEquals(10, summary.improvementPercentage());
+        assertEquals(2, summary.findings().size());
     }
 
     @Test
@@ -103,6 +115,38 @@ class DiagnosticServiceTest {
         assertEquals(BcgStrategicDecision.POTENCIAR, summary.products().get(0).strategicDecision());
         assertEquals(40.0, summary.products().get(0).salesPercentage(), 0.01);
         assertEquals("Dependencia de servicios con baja participacion", summary.weaknesses().getFirst());
+    }
+
+    @Test
+    void updatePestStoresQuestionnaireAndCalculatesImpactByFactor() {
+        PestSummary summary = service.updatePestForGroup(group.id(), pestCommand(), authenticated(member));
+
+        assertEquals(25, summary.answeredQuestions());
+        assertEquals(5, summary.factors().size());
+        assertEquals(1.0, summary.factors().stream()
+                .filter(factor -> factor.factor() == PestFactor.SOCIAL_DEMOGRAPHIC)
+                .findFirst()
+                .orElseThrow()
+                .impactLevel());
+        assertEquals(2, summary.findings().size());
+        assertEquals(PestFactor.TECHNOLOGICAL.name(), summary.findings().getFirst().sourceDimension());
+    }
+
+    @Test
+    void updatePorterStoresBalancedQuestionnaireAndCalculatesPressureByForce() {
+        PorterSummary summary = service.updatePorterForGroup(group.id(), porterCommand(), authenticated(member));
+
+        assertEquals(25, summary.answeredQuestions());
+        assertEquals(5, summary.forces().size());
+        assertEquals(100, summary.maxOverallScore());
+        assertEquals(60, summary.pressurePercentage());
+        assertEquals(1.0, summary.forces().stream()
+                .filter(force -> force.force() == PorterForce.INDUSTRY_RIVALRY)
+                .findFirst()
+                .orElseThrow()
+                .pressureLevel());
+        assertEquals(2, summary.findings().size());
+        assertEquals(PorterForce.SUPPLIER_POWER.name(), summary.findings().getFirst().sourceDimension());
     }
 
     @Test
@@ -167,23 +211,38 @@ class DiagnosticServiceTest {
                         "Ejecucion y soporte de procesos academicos clave",
                         DiagnosticPriority.MEDIA
                 )),
-                List.of(
-                        new ValueChainAssessmentCommand(
-                                ValueChainActivity.DESARROLLO_TECNOLOGICO,
-                                "La tecnologia soporta ventajas competitivas internas.",
-                                4,
-                                "Buen avance"
-                        ),
-                        new ValueChainAssessmentCommand(
-                                ValueChainActivity.OPERACIONES,
-                                "Los procesos operativos estan documentados.",
-                                3,
-                                "Debe reforzarse"
-                        )
-                ),
+                IntStream.rangeClosed(1, 25)
+                        .mapToObj(question -> new ValueChainAssessmentCommand(
+                                question,
+                                null,
+                                null,
+                                question <= 20 ? 4 : 2,
+                                ""
+                        ))
+                        .toList(),
                 "Se observa potencial de mejora en automatizacion.",
                 List.of("Capacidad tecnica interna"),
-                List.of("Procesos TI con alta dependencia manual")
+                List.of("Procesos TI con alta dependencia manual"),
+                List.of(
+                        new DiagnosticFindingCommand(
+                                ValueChainActivity.DESARROLLO_TECNOLOGICO.name(),
+                                com.strategicti.domain.model.SwotCategory.FORTALEZA,
+                                "Capacidad tecnica interna",
+                                "Cuestionario interno",
+                                "Acelera la automatizacion",
+                                DiagnosticPriority.ALTA,
+                                true
+                        ),
+                        new DiagnosticFindingCommand(
+                                ValueChainActivity.OPERACIONES.name(),
+                                com.strategicti.domain.model.SwotCategory.DEBILIDAD,
+                                "Procesos TI con alta dependencia manual",
+                                "Cuestionario interno",
+                                "Reduce eficiencia operativa",
+                                DiagnosticPriority.MEDIA,
+                                true
+                        )
+                )
         );
     }
 
@@ -228,6 +287,62 @@ class DiagnosticServiceTest {
                 "La cartera combina servicios maduros y servicios con potencial.",
                 List.of("Portafolio con servicios estrella"),
                 List.of("Dependencia de servicios con baja participacion")
+        );
+    }
+
+    private UpdatePestCommand pestCommand() {
+        return new UpdatePestCommand(
+                IntStream.rangeClosed(1, 25)
+                        .mapToObj(number -> new PestResponseCommand(number, number <= 5 ? 4 : 2))
+                        .toList(),
+                List.of(
+                        new DiagnosticFindingCommand(
+                                PestFactor.TECHNOLOGICAL.name(),
+                                com.strategicti.domain.model.SwotCategory.OPORTUNIDAD,
+                                "Mayor adopcion de servicios digitales",
+                                "Resultados del cuestionario PEST",
+                                "Permite ampliar los canales de servicio",
+                                DiagnosticPriority.ALTA,
+                                true
+                        ),
+                        new DiagnosticFindingCommand(
+                                PestFactor.POLITICAL.name(),
+                                com.strategicti.domain.model.SwotCategory.AMENAZA,
+                                "Nuevas exigencias regulatorias",
+                                "Cambios normativos",
+                                "Incrementa los costos de cumplimiento",
+                                DiagnosticPriority.MEDIA,
+                                true
+                        )
+                )
+        );
+    }
+
+    private UpdatePorterCommand porterCommand() {
+        return new UpdatePorterCommand(
+                IntStream.rangeClosed(1, 25)
+                        .mapToObj(number -> new PorterResponseCommand(number, number <= 5 ? 4 : 2))
+                        .toList(),
+                List.of(
+                        new DiagnosticFindingCommand(
+                                PorterForce.SUPPLIER_POWER.name(),
+                                com.strategicti.domain.model.SwotCategory.OPORTUNIDAD,
+                                "Diversificacion posible de proveedores",
+                                "Resultados del cuestionario Porter",
+                                "Reduce la dependencia de insumos clave",
+                                DiagnosticPriority.ALTA,
+                                true
+                        ),
+                        new DiagnosticFindingCommand(
+                                PorterForce.INDUSTRY_RIVALRY.name(),
+                                com.strategicti.domain.model.SwotCategory.AMENAZA,
+                                "Competidores con capacidades similares",
+                                "Resultados del cuestionario Porter",
+                                "Incrementa la presion sobre precios",
+                                DiagnosticPriority.MEDIA,
+                                true
+                        )
+                )
         );
     }
 

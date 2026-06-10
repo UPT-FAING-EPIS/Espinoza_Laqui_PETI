@@ -2,9 +2,11 @@ package com.strategicti.infrastructure.persistence.factory;
 
 import com.strategicti.domain.model.BcgPortfolioItem;
 import com.strategicti.domain.model.DiagnosticAssessment;
+import com.strategicti.domain.model.DiagnosticFinding;
 import com.strategicti.domain.model.DiagnosticItem;
 import com.strategicti.infrastructure.persistence.entity.BcgPortfolioItemJpaEntity;
 import com.strategicti.infrastructure.persistence.entity.DiagnosticAssessmentJpaEntity;
+import com.strategicti.infrastructure.persistence.entity.DiagnosticFindingJpaEntity;
 import com.strategicti.infrastructure.persistence.entity.DiagnosticItemJpaEntity;
 import org.springframework.stereotype.Component;
 
@@ -97,6 +99,43 @@ public class DiagnosticPersistenceFactory {
                 entity.getStrategicDecision(),
                 emptyIfNull(entity.getNotes()),
                 entity.getPosition(),
+                entity.getUpdatedAt()
+        );
+    }
+
+    public DiagnosticFindingJpaEntity toEntity(DiagnosticFinding finding) {
+        DiagnosticFindingJpaEntity entity = new DiagnosticFindingJpaEntity();
+        entity.setPlanId(finding.planId());
+        entity.setSource(finding.source());
+        entity.setSourceDimension(finding.sourceDimension());
+        entity.setCategory(finding.category());
+        entity.setDescription(finding.description());
+        entity.setEvidence(finding.evidence());
+        entity.setImpact(finding.impact());
+        entity.setPriority(finding.priority());
+        entity.setSelectedForFoda(finding.selectedForFoda());
+        entity.setCreatedByUserId(finding.createdByUserId());
+        entity.setPosition(finding.position());
+        entity.setCreatedAt(finding.createdAt());
+        entity.setUpdatedAt(finding.updatedAt());
+        return entity;
+    }
+
+    public DiagnosticFinding toDomain(DiagnosticFindingJpaEntity entity) {
+        return new DiagnosticFinding(
+                entity.getId(),
+                entity.getPlanId(),
+                entity.getSource(),
+                emptyIfNull(entity.getSourceDimension()),
+                entity.getCategory(),
+                entity.getDescription(),
+                emptyIfNull(entity.getEvidence()),
+                emptyIfNull(entity.getImpact()),
+                entity.getPriority(),
+                entity.isSelectedForFoda(),
+                entity.getCreatedByUserId(),
+                entity.getPosition(),
+                entity.getCreatedAt(),
                 entity.getUpdatedAt()
         );
     }

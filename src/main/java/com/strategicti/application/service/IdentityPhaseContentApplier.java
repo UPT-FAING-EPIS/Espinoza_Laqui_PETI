@@ -26,7 +26,7 @@ public class IdentityPhaseContentApplier implements PhaseContentApplier {
     }
 
     @Override
-    public StrategicPlan apply(StrategicPlan plan, String contentJson) {
+    public StrategicPlan apply(StrategicPlan plan, String contentJson, Long createdByUserId) {
         try {
             IdentityPhaseContent content = objectMapper.readValue(contentJson, IdentityPhaseContent.class);
             CompanyProfile current = plan.profile();

@@ -1,8 +1,10 @@
 import {
   BarChart3,
+  CheckCircle2,
   Database,
   FileText,
   GitPullRequest,
+  Globe2,
   History,
   PencilLine,
   PieChart,
@@ -17,6 +19,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   createPhaseChangeRequest,
   getGroupPlanBcg,
+  getGroupPlanPest,
+  getGroupPlanPorter,
   getGroupPlanSwot,
   getGroupPlanValueChain,
   listPhaseChangeRequests,
@@ -30,27 +34,40 @@ import type {
   BcgQuadrant,
   BcgSummary,
   CreatePhaseChangeRequestPayload,
+  DiagnosticFindingPayload,
   DiagnosticPriority,
   PhaseChangeEntry,
   PhaseChangeRequestSummary,
   PhaseVersionSummary,
+  PestSummary,
+  PorterSummary,
   PlanningGroupSummary,
   PlanSummary,
   SwotItemPayload,
   SwotSummary,
   UpdateBcgPayload,
+  UpdatePestPayload,
+  UpdatePorterPayload,
   UpdateSwotPayload,
   UpdateValueChainPayload,
   ValueChainActivity,
   ValueChainActivityPayload,
   ValueChainAssessmentPayload,
+  ValueChainDimension,
+  ValueChainQuestionSummary,
   ValueChainSummary,
 } from '../types'
 import './DiagnosticsWorkspace.css'
+import { PestEditor, pestFactorScores } from './PestEditor'
+import { PorterEditor } from './PorterEditor'
+import { porterForceScores, porterOverallPressure } from './porterMetrics'
 
-type DiagnosticToolKey = 'foda' | 'valueChain' | 'bcg'
+type DiagnosticToolKey = 'pest' | 'porter' | 'valueChain' | 'bcg' | 'foda'
+type DiagnosticAreaKey = 'external' | 'internal' | 'foda'
 type SwotKey = keyof UpdateSwotPayload
 type DiagnosticPreviewPayload =
+  | { tool: 'pest'; pest: UpdatePestPayload }
+  | { tool: 'porter'; porter: UpdatePorterPayload }
   | { tool: 'foda'; swot: UpdateSwotPayload }
   | { tool: 'valueChain'; valueChain: UpdateValueChainPayload }
   | { tool: 'bcg'; bcg: UpdateBcgPayload }
@@ -63,10 +80,40 @@ const diagnosticTools: Array<{
   title: string
   subtitle: string
 }> = [
-  { key: 'foda', icon: ShieldCheck, title: 'FODA', subtitle: 'Base estrategica' },
+  { key: 'pest', icon: Globe2, title: 'PEST', subtitle: 'Analisis externo global' },
+  { key: 'porter', icon: ShieldCheck, title: 'Porter', subtitle: 'Microentorno sectorial' },
   { key: 'valueChain', icon: Workflow, title: 'Cadena de valor', subtitle: 'Diagnostico interno' },
   { key: 'bcg', icon: PieChart, title: 'BCG', subtitle: 'Cartera de productos' },
+  { key: 'foda', icon: ShieldCheck, title: 'FODA', subtitle: 'Resultado consolidado' },
 ]
+
+const diagnosticAreas: Array<{
+  key: DiagnosticAreaKey
+  defaultTool: DiagnosticToolKey
+  icon: typeof ShieldCheck
+  title: string
+  subtitle: string
+}> = [
+  { key: 'external', defaultTool: 'pest', icon: Globe2, title: 'Analisis externo', subtitle: 'Macroentorno y sector' },
+  { key: 'internal', defaultTool: 'valueChain', icon: Workflow, title: 'Analisis interno', subtitle: 'Capacidades y cartera' },
+  { key: 'foda', defaultTool: 'foda', icon: ShieldCheck, title: 'Matriz FODA', subtitle: 'Resultado del diagnostico' },
+]
+
+const diagnosticAreaTools: Record<Exclude<DiagnosticAreaKey, 'foda'>, Array<{
+  key: DiagnosticToolKey
+  icon: typeof ShieldCheck
+  title: string
+  subtitle: string
+}>> = {
+  external: [
+    { key: 'pest', icon: Globe2, title: 'PEST', subtitle: 'Macroentorno global' },
+    { key: 'porter', icon: ShieldCheck, title: 'Cinco fuerzas de Porter', subtitle: 'Microentorno sectorial' },
+  ],
+  internal: [
+    { key: 'valueChain', icon: Workflow, title: 'Cadena de valor', subtitle: 'Procesos y capacidades' },
+    { key: 'bcg', icon: PieChart, title: 'Matriz BCG', subtitle: 'Cartera de productos' },
+  ],
+}
 
 const supportActivities: ValueChainActivity[] = [
   'INFRAESTRUCTURA_EMPRESARIAL',
@@ -97,6 +144,192 @@ const activityLabels: Record<ValueChainActivity, string> = {
   SERVICIOS: 'Servicios',
 }
 
+const valueChainScoreLabels = [
+  'En total desacuerdo',
+  'No esta de acuerdo',
+  'Esta de acuerdo',
+  'Esta bastante de acuerdo',
+  'En total acuerdo',
+]
+
+const valueChainQuestionCatalog: ValueChainQuestionSummary[] = [
+  {
+    questionNumber: 1,
+    activity: 'OPERACIONES',
+    dimensions: ['ORGANIZATION_STRATEGY'],
+    statement: 'La empresa tiene una politica sistematizada de cero defectos en la produccion de productos/servicios.',
+    score: null,
+  },
+  {
+    questionNumber: 2,
+    activity: 'OPERACIONES',
+    dimensions: ['CUSTOMER_DISTRIBUTION'],
+    statement: 'La empresa emplea los medios productivos tecnologicamente mas avanzados de su sector.',
+    score: null,
+  },
+  {
+    questionNumber: 3,
+    activity: 'INFRAESTRUCTURA_EMPRESARIAL',
+    dimensions: ['ORGANIZATION_STRATEGY'],
+    statement: 'La empresa dispone de un sistema de informacion y control de gestion eficiente y eficaz.',
+    score: null,
+  },
+  {
+    questionNumber: 4,
+    activity: 'DESARROLLO_TECNOLOGICO',
+    dimensions: ['TECHNOLOGY_IMPROVEMENT'],
+    statement: 'Los medios tecnicos y tecnologicos de la empresa estan preparados para competir en un futuro a corto, medio y largo plazo.',
+    score: null,
+  },
+  {
+    questionNumber: 5,
+    activity: 'DESARROLLO_TECNOLOGICO',
+    dimensions: ['TECHNOLOGY_IMPROVEMENT'],
+    statement: 'La empresa es un referente en su sector en I+D+i.',
+    score: null,
+  },
+  {
+    questionNumber: 6,
+    activity: 'INFRAESTRUCTURA_EMPRESARIAL',
+    dimensions: ['PROCESS_NORMALIZATION'],
+    statement: 'La excelencia de los procedimientos de la empresa, por ejemplo ISO, es una principal fuente de ventaja competitiva.',
+    score: null,
+  },
+  {
+    questionNumber: 7,
+    activity: 'MARKETING_VENTAS',
+    dimensions: ['ORGANIZATION_STRATEGY'],
+    statement: 'La empresa dispone de pagina web y la emplea no solo como escaparate virtual, sino tambien para establecer relaciones con clientes y proveedores.',
+    score: null,
+  },
+  {
+    questionNumber: 8,
+    activity: 'DESARROLLO_TECNOLOGICO',
+    dimensions: ['PRODUCT_PRODUCTIVITY'],
+    statement: 'Los productos/servicios que desarrolla la empresa llevan incorporada una tecnologia dificil de imitar.',
+    score: null,
+  },
+  {
+    questionNumber: 9,
+    activity: 'OPERACIONES',
+    dimensions: ['PRODUCT_PRODUCTIVITY'],
+    statement: 'La empresa es referente en su sector en la optimizacion, en terminos de coste, de su cadena de produccion.',
+    score: null,
+  },
+  {
+    questionNumber: 10,
+    activity: 'DESARROLLO_TECNOLOGICO',
+    dimensions: ['PROCESS_NORMALIZATION', 'TECHNOLOGY_IMPROVEMENT', 'PRODUCT_PRODUCTIVITY', 'ORGANIZATION_STRATEGY', 'CUSTOMER_DISTRIBUTION'],
+    statement: 'La informatizacion de la empresa es una fuente de ventaja competitiva clara respecto a sus competidores.',
+    score: null,
+  },
+  {
+    questionNumber: 11,
+    activity: 'LOGISTICA_SALIDA',
+    dimensions: ['PROCESS_NORMALIZATION', 'TECHNOLOGY_IMPROVEMENT', 'PRODUCT_PRODUCTIVITY', 'CUSTOMER_DISTRIBUTION'],
+    statement: 'Los canales de distribucion de la empresa son una importante fuente de ventajas competitivas.',
+    score: null,
+  },
+  {
+    questionNumber: 12,
+    activity: 'MARKETING_VENTAS',
+    dimensions: ['PRODUCT_PRODUCTIVITY'],
+    statement: 'Los productos/servicios de la empresa son altamente y diferencialmente valorados por el cliente respecto a los competidores.',
+    score: null,
+  },
+  {
+    questionNumber: 13,
+    activity: 'MARKETING_VENTAS',
+    dimensions: ['PROCESS_NORMALIZATION', 'TECHNOLOGY_IMPROVEMENT', 'PRODUCT_PRODUCTIVITY', 'ORGANIZATION_STRATEGY', 'CUSTOMER_DISTRIBUTION'],
+    statement: 'La empresa dispone y ejecuta un sistematico plan de marketing y ventas.',
+    score: null,
+  },
+  {
+    questionNumber: 14,
+    activity: 'INFRAESTRUCTURA_EMPRESARIAL',
+    dimensions: ['PRODUCT_PRODUCTIVITY', 'ORGANIZATION_STRATEGY', 'CUSTOMER_DISTRIBUTION'],
+    statement: 'La empresa tiene optimizada su gestion financiera.',
+    score: null,
+  },
+  {
+    questionNumber: 15,
+    activity: 'SERVICIOS',
+    dimensions: ['PROCESS_NORMALIZATION', 'TECHNOLOGY_IMPROVEMENT', 'PRODUCT_PRODUCTIVITY', 'ORGANIZATION_STRATEGY', 'CUSTOMER_DISTRIBUTION'],
+    statement: 'La empresa busca continuamente mejorar la relacion con sus clientes reduciendo plazos, personalizando la oferta o mejorando las condiciones de entrega.',
+    score: null,
+  },
+  {
+    questionNumber: 16,
+    activity: 'DESARROLLO_TECNOLOGICO',
+    dimensions: ['PRODUCT_PRODUCTIVITY', 'ORGANIZATION_STRATEGY'],
+    statement: 'La empresa es referente en su sector en el lanzamiento de innovadores productos y servicios de exito demostrado en el mercado.',
+    score: null,
+  },
+  {
+    questionNumber: 17,
+    activity: 'GESTION_RECURSOS_HUMANOS',
+    dimensions: ['TECHNOLOGY_IMPROVEMENT', 'PRODUCT_PRODUCTIVITY'],
+    statement: 'Los recursos humanos son especialmente responsables del exito de la empresa y se consideran un activo estrategico.',
+    score: null,
+  },
+  {
+    questionNumber: 18,
+    activity: 'GESTION_RECURSOS_HUMANOS',
+    dimensions: ['TECHNOLOGY_IMPROVEMENT', 'PRODUCT_PRODUCTIVITY', 'ORGANIZATION_STRATEGY'],
+    statement: 'Se tiene una plantilla altamente motivada, que conoce con claridad las metas, objetivos y estrategias de la organizacion.',
+    score: null,
+  },
+  {
+    questionNumber: 19,
+    activity: 'INFRAESTRUCTURA_EMPRESARIAL',
+    dimensions: ['TECHNOLOGY_IMPROVEMENT', 'PRODUCT_PRODUCTIVITY', 'ORGANIZATION_STRATEGY'],
+    statement: 'La empresa siempre trabaja conforme a una estrategia y objetivos claros.',
+    score: null,
+  },
+  {
+    questionNumber: 20,
+    activity: 'INFRAESTRUCTURA_EMPRESARIAL',
+    dimensions: ['PROCESS_NORMALIZATION', 'TECHNOLOGY_IMPROVEMENT', 'PRODUCT_PRODUCTIVITY', 'ORGANIZATION_STRATEGY', 'CUSTOMER_DISTRIBUTION'],
+    statement: 'La gestion del circulante esta optimizada.',
+    score: null,
+  },
+  {
+    questionNumber: 21,
+    activity: 'MARKETING_VENTAS',
+    dimensions: ['PROCESS_NORMALIZATION', 'TECHNOLOGY_IMPROVEMENT', 'PRODUCT_PRODUCTIVITY', 'ORGANIZATION_STRATEGY', 'CUSTOMER_DISTRIBUTION'],
+    statement: 'Se tiene definido claramente el posicionamiento estrategico de todos los productos de la empresa.',
+    score: null,
+  },
+  {
+    questionNumber: 22,
+    activity: 'MARKETING_VENTAS',
+    dimensions: ['PROCESS_NORMALIZATION', 'TECHNOLOGY_IMPROVEMENT', 'PRODUCT_PRODUCTIVITY'],
+    statement: 'Se dispone de una politica de marca basada en reputacion, relacion con el cliente y posicionamiento estrategico.',
+    score: null,
+  },
+  {
+    questionNumber: 23,
+    activity: 'SERVICIOS',
+    dimensions: ['ORGANIZATION_STRATEGY'],
+    statement: 'La cartera de clientes de la empresa esta altamente fidelizada porque su principal proposito es deleitarlos dia a dia.',
+    score: null,
+  },
+  {
+    questionNumber: 24,
+    activity: 'MARKETING_VENTAS',
+    dimensions: ['PROCESS_NORMALIZATION', 'TECHNOLOGY_IMPROVEMENT', 'PRODUCT_PRODUCTIVITY', 'ORGANIZATION_STRATEGY', 'CUSTOMER_DISTRIBUTION'],
+    statement: 'La politica y equipo de ventas y marketing es una importante ventaja competitiva de la empresa respecto al sector.',
+    score: null,
+  },
+  {
+    questionNumber: 25,
+    activity: 'SERVICIOS',
+    dimensions: ['ORGANIZATION_STRATEGY', 'CUSTOMER_DISTRIBUTION'],
+    statement: 'El servicio al cliente que presta la empresa es una de sus principales ventajas competitivas respecto a sus competidores.',
+    score: null,
+  },
+]
+
 const emptySwot: UpdateSwotPayload = {
   strengths: [{ description: '', priority: 'MEDIA' }],
   opportunities: [{ description: '', priority: 'MEDIA' }],
@@ -107,10 +340,11 @@ const emptySwot: UpdateSwotPayload = {
 const emptyValueChain: UpdateValueChainPayload = {
   supportActivities: [{ activity: 'DESARROLLO_TECNOLOGICO', description: '', priority: 'MEDIA' }],
   primaryActivities: [{ activity: 'OPERACIONES', description: '', priority: 'MEDIA' }],
-  assessments: [{ activity: 'DESARROLLO_TECNOLOGICO', statement: '', score: 2, notes: '' }],
+  assessments: [],
   observations: '',
   strengths: [],
   weaknesses: [],
+  findings: [],
 }
 
 const emptyBcg: UpdateBcgPayload = {
@@ -129,6 +363,16 @@ const emptyBcg: UpdateBcgPayload = {
   weaknesses: [],
 }
 
+const emptyPest: UpdatePestPayload = {
+  responses: [],
+  findings: [],
+}
+
+const emptyPorter: UpdatePorterPayload = {
+  responses: [],
+  findings: [],
+}
+
 export function DiagnosticsWorkspace({
   group,
   groupId,
@@ -143,13 +387,17 @@ export function DiagnosticsWorkspace({
   plan: PlanSummary
 }) {
   const { user } = useAuth()
-  const [activeTool, setActiveTool] = useState<DiagnosticToolKey>('foda')
+  const [activeTool, setActiveTool] = useState<DiagnosticToolKey>('pest')
+  const [pest, setPest] = useState<UpdatePestPayload>(emptyPest)
+  const [porter, setPorter] = useState<UpdatePorterPayload>(emptyPorter)
   const [swot, setSwot] = useState<UpdateSwotPayload>(emptySwot)
   const [valueChain, setValueChain] = useState<UpdateValueChainPayload>(emptyValueChain)
   const [bcg, setBcg] = useState<UpdateBcgPayload>(emptyBcg)
   const [swotSummary, setSwotSummary] = useState<SwotSummary | null>(null)
   const [valueChainSummary, setValueChainSummary] = useState<ValueChainSummary | null>(null)
   const [bcgSummary, setBcgSummary] = useState<BcgSummary | null>(null)
+  const [pestSummary, setPestSummary] = useState<PestSummary | null>(null)
+  const [porterSummary, setPorterSummary] = useState<PorterSummary | null>(null)
   const [changes, setChanges] = useState<PhaseChangeRequestSummary[]>([])
   const [versions, setVersions] = useState<PhaseVersionSummary[]>([])
   const [previewVersion, setPreviewVersion] = useState<PhaseVersionSummary | null>(null)
@@ -158,6 +406,7 @@ export function DiagnosticsWorkspace({
   const [workflowAction, setWorkflowAction] = useState<string | null>(null)
 
   const activeToolMeta = diagnosticTools.find((tool) => tool.key === activeTool) ?? diagnosticTools[0]
+  const activeArea = diagnosticAreaForTool(activeTool)
   const pendingRequest = useMemo(
     () => changes.find((change) => change.status === 'PENDING_APPROVAL') ?? null,
     [changes],
@@ -176,16 +425,22 @@ export function DiagnosticsWorkspace({
     setLoading(true)
     onError(null)
     try {
-      const [nextSwot, nextValueChain, nextBcg, nextChanges, nextVersions] = await Promise.all([
+      const [nextPest, nextPorter, nextSwot, nextValueChain, nextBcg, nextChanges, nextVersions] = await Promise.all([
+        getGroupPlanPest(groupId),
+        getGroupPlanPorter(groupId),
         getGroupPlanSwot(groupId),
         getGroupPlanValueChain(groupId),
         getGroupPlanBcg(groupId),
         listPhaseChangeRequests(groupId, 'DIAGNOSTICS'),
         listPhaseVersions(groupId, 'DIAGNOSTICS'),
       ])
+      setPestSummary(nextPest)
+      setPorterSummary(nextPorter)
       setSwotSummary(nextSwot)
       setValueChainSummary(nextValueChain)
       setBcgSummary(nextBcg)
+      setPest(pestPayloadFromSummary(nextPest))
+      setPorter(porterPayloadFromSummary(nextPorter))
       setSwot(swotPayloadFromSummary(nextSwot))
       setValueChain(valueChainPayloadFromSummary(nextValueChain))
       setBcg(bcgPayloadFromSummary(nextBcg))
@@ -207,7 +462,7 @@ export function DiagnosticsWorkspace({
       onError('Ya existe una solicitud pendiente para diagnosticos. Espere la revision del lider.')
       return
     }
-    const validation = validateActiveTool(activeTool, swot, valueChain, bcg)
+    const validation = validateActiveTool(activeTool, pest, porter, swot, valueChain, bcg)
     if (validation) {
       onError(validation)
       return
@@ -219,12 +474,16 @@ export function DiagnosticsWorkspace({
     try {
       const payload = diagnosticChangeRequestPayload(
         activeTool,
+        pest,
+        porter,
         swot,
         valueChain,
         bcg,
         swotSummary,
         valueChainSummary,
         bcgSummary,
+        pestSummary,
+        porterSummary,
       )
       const request = activeDraft
         ? await updatePhaseChangeRequest(groupId, 'DIAGNOSTICS', activeDraft.id, payload)
@@ -249,6 +508,12 @@ export function DiagnosticsWorkspace({
 
   function handleLoadDiagnosticContent(payload: DiagnosticPreviewPayload, sourceLabel: string) {
     setActiveTool(payload.tool)
+    if (payload.tool === 'pest') {
+      setPest(editorPestPayload(payload.pest))
+    }
+    if (payload.tool === 'porter') {
+      setPorter(editorPorterPayload(payload.porter))
+    }
     if (payload.tool === 'foda') {
       setSwot(editorSwotPayload(payload.swot))
     }
@@ -288,22 +553,24 @@ export function DiagnosticsWorkspace({
               <Database size={18} />
               <h2>Bloque diagnostico</h2>
             </div>
-            <span className="diag-updated">Actualizado {formatDate(activeUpdatedAt(activeTool, swotSummary, valueChainSummary, bcgSummary))}</span>
+            <span className="diag-updated">Actualizado {formatDate(activeUpdatedAt(activeTool, pestSummary, porterSummary, swotSummary, valueChainSummary, bcgSummary))}</span>
           </div>
-          <div className="diag-tabs" role="tablist" aria-label="Herramientas de diagnostico">
-            {diagnosticTools.map((tool) => {
-              const Icon = tool.icon
+          <div className="diag-tabs" role="tablist" aria-label="Submodulos del diagnostico estrategico">
+            {diagnosticAreas.map((area) => {
+              const Icon = area.icon
               return (
                 <button
-                  className={`diag-tab ${activeTool === tool.key ? 'active' : ''}`}
-                  key={tool.key}
+                  aria-selected={activeArea === area.key}
+                  className={`diag-tab ${activeArea === area.key ? 'active' : ''}`}
+                  key={area.key}
+                  role="tab"
                   type="button"
-                  onClick={() => setActiveTool(tool.key)}
+                  onClick={() => setActiveTool(area.defaultTool)}
                 >
                   <Icon size={17} />
                   <span>
-                    <strong>{tool.title}</strong>
-                    <small>{tool.subtitle}</small>
+                    <strong>{area.title}</strong>
+                    <small>{area.subtitle}</small>
                   </span>
                 </button>
               )
@@ -311,12 +578,42 @@ export function DiagnosticsWorkspace({
           </div>
 
           <div className="card-body diag-body">
+            {activeArea !== 'foda' && (
+              <div className="diag-subtabs" role="tablist" aria-label={`Herramientas de ${diagnosticAreas.find((area) => area.key === activeArea)?.title}`}>
+                {diagnosticAreaTools[activeArea].map((tool) => {
+                  const Icon = tool.icon
+                  return (
+                    <button
+                      aria-selected={activeTool === tool.key}
+                      className={`diag-subtab ${activeTool === tool.key ? 'active' : ''}`}
+                      key={tool.key}
+                      role="tab"
+                      title={tool.title}
+                      type="button"
+                      onClick={() => setActiveTool(tool.key)}
+                    >
+                      <Icon size={16} />
+                      <span>
+                        <strong>{tool.title}</strong>
+                        <small>{tool.subtitle}</small>
+                      </span>
+                    </button>
+                  )
+                })}
+              </div>
+            )}
             {loading && <p className="gplan-muted">Cargando diagnosticos...</p>}
+            {!loading && activeTool === 'pest' && (
+              <PestEditor summary={pestSummary} value={pest} onChange={setPest} />
+            )}
+            {!loading && activeTool === 'porter' && (
+              <PorterEditor summary={porterSummary} value={porter} onChange={setPorter} />
+            )}
             {!loading && activeTool === 'foda' && (
               <SwotEditor swot={swot} onChange={setSwot} />
             )}
             {!loading && activeTool === 'valueChain' && (
-              <ValueChainEditor value={valueChain} onChange={setValueChain} />
+              <ValueChainEditor summary={valueChainSummary} value={valueChain} onChange={setValueChain} />
             )}
             {!loading && activeTool === 'bcg' && (
               <BcgEditor summary={bcgSummary} value={bcg} onChange={setBcg} />
@@ -344,9 +641,11 @@ export function DiagnosticsWorkspace({
         </div>
         <div className="gplan-side-body">
           <div className="diag-score-grid">
+            <DiagnosticMetric label="PEST" value={`${pestSummary?.answeredQuestions ?? 0}/25`} />
+            <DiagnosticMetric label="Porter" value={`${porterSummary?.pressurePercentage ?? 0}%`} />
             <DiagnosticMetric label="FODA" value={String(swotCount(swotSummary))} />
-            <DiagnosticMetric label="Cadena" value={`${valueChainSummary?.scorePercentage ?? 0}%`} />
-            <DiagnosticMetric label="BCG" value={String(bcgSummary?.products.length ?? 0)} />
+            <DiagnosticMetric label="Cadena" value={`${valueChainSummary?.improvementPercentage ?? 0}%`} />
+            <DiagnosticMetric label="BCG" value={String(arrayValue(bcgSummary?.products).length)} />
           </div>
 
           <div className="gplan-workflow-summary">
@@ -382,7 +681,7 @@ export function DiagnosticsWorkspace({
               <span>
                 <strong>Actual</strong>
                 <small>
-                  {activeToolMeta.title} actual - {formatDate(activeUpdatedAt(activeTool, swotSummary, valueChainSummary, bcgSummary))}
+                  {activeToolMeta.title} actual - {formatDate(activeUpdatedAt(activeTool, pestSummary, porterSummary, swotSummary, valueChainSummary, bcgSummary))}
                 </small>
               </span>
             </button>
@@ -418,6 +717,8 @@ export function DiagnosticsWorkspace({
           onClose={() => setPreviewOpen(false)}
           onLoadContent={handleLoadDiagnosticContent}
           selectedVersion={previewVersion}
+          pestSummary={pestSummary}
+          porterSummary={porterSummary}
           swotSummary={swotSummary}
           valueChainSummary={valueChainSummary}
         />
@@ -432,6 +733,8 @@ function DiagnosticPreviewModal({
   group,
   onClose,
   onLoadContent,
+  pestSummary,
+  porterSummary,
   selectedVersion,
   swotSummary,
   valueChainSummary,
@@ -441,13 +744,15 @@ function DiagnosticPreviewModal({
   group: PlanningGroupSummary | null
   onClose: () => void
   onLoadContent: (payload: DiagnosticPreviewPayload, sourceLabel: string) => void
+  pestSummary: PestSummary | null
+  porterSummary: PorterSummary | null
   selectedVersion: PhaseVersionSummary | null
   swotSummary: SwotSummary | null
   valueChainSummary: ValueChainSummary | null
 }) {
   const payload = selectedVersion
     ? diagnosticPayloadFromContent(selectedVersion.content, activeTool)
-    : diagnosticPayloadFromCurrent(activeTool, swotSummary, valueChainSummary, bcgSummary)
+    : diagnosticPayloadFromCurrent(activeTool, pestSummary, porterSummary, swotSummary, valueChainSummary, bcgSummary)
   const title = diagnosticToolLabel(payload.tool)
   const createdBy = selectedVersion ? userNameById(group, selectedVersion.createdByUserId) : '-'
   const approvedBy = selectedVersion ? userNameById(group, selectedVersion.approvedByUserId) : '-'
@@ -508,6 +813,59 @@ function DiagnosticPreviewModal({
 }
 
 function DiagnosticPreviewContent({ payload }: { payload: DiagnosticPreviewPayload }) {
+  if (payload.tool === 'pest') {
+    const pest = cleanPest(payload.pest)
+    const scores = pestFactorScores(pest)
+    return (
+      <div className="gplan-preview-sections">
+        <section>
+          <h3>Indicadores</h3>
+          <DiagnosticPreviewItem label="Preguntas respondidas" value={`${pest.responses.length}/25`} />
+          <DiagnosticPreviewItem label="Hallazgos" value={String(pest.findings.length)} />
+        </section>
+        <DiagnosticListSection
+          title="Impacto por factor"
+          items={Object.entries(scores).map(([factor, score]) => `${factor}: ${score.level.toFixed(2)} (${score.score}/20)`)}
+        />
+        <DiagnosticListSection
+          title="Oportunidades"
+          items={pest.findings.filter((finding) => finding.category === 'OPORTUNIDAD').map((finding) => finding.description)}
+        />
+        <DiagnosticListSection
+          title="Amenazas"
+          items={pest.findings.filter((finding) => finding.category === 'AMENAZA').map((finding) => finding.description)}
+        />
+      </div>
+    )
+  }
+
+  if (payload.tool === 'porter') {
+    const porter = cleanPorter(payload.porter)
+    const scores = porterForceScores(porter)
+    return (
+      <div className="gplan-preview-sections">
+        <section>
+          <h3>Indicadores</h3>
+          <DiagnosticPreviewItem label="Preguntas respondidas" value={`${porter.responses.length}/25`} />
+          <DiagnosticPreviewItem label="Presion global" value={`${porterOverallPressure(porter)}%`} />
+          <DiagnosticPreviewItem label="Hallazgos" value={String(porter.findings.length)} />
+        </section>
+        <DiagnosticListSection
+          title="Presion por fuerza"
+          items={Object.entries(scores).map(([force, score]) => `${force}: ${score.level.toFixed(2)} (${score.score}/20)`)}
+        />
+        <DiagnosticListSection
+          title="Oportunidades"
+          items={porter.findings.filter((finding) => finding.category === 'OPORTUNIDAD').map((finding) => finding.description)}
+        />
+        <DiagnosticListSection
+          title="Amenazas"
+          items={porter.findings.filter((finding) => finding.category === 'AMENAZA').map((finding) => finding.description)}
+        />
+      </div>
+    )
+  }
+
   if (payload.tool === 'foda') {
     const swot = cleanSwot(payload.swot)
     return (
@@ -523,14 +881,17 @@ function DiagnosticPreviewContent({ payload }: { payload: DiagnosticPreviewPaylo
   if (payload.tool === 'valueChain') {
     const valueChain = cleanValueChain(payload.valueChain)
     const totalScore = valueChain.assessments.reduce((total, assessment) => total + clamp(assessment.score, 0, 4), 0)
-    const maxScore = valueChain.assessments.length * 4
-    const score = maxScore === 0 ? 0 : Math.round((totalScore * 100) / maxScore)
+    const maxScore = 100
+    const score = Math.round((totalScore * 100) / maxScore)
+    const improvement = Math.max(0, 100 - score)
     return (
       <div className="gplan-preview-sections">
         <section>
           <h3>Indicadores</h3>
-          <DiagnosticPreviewItem label="Puntaje" value={`${score}% (${totalScore}/${maxScore || 0})`} />
-          <DiagnosticPreviewItem label="Valoraciones" value={String(valueChain.assessments.length)} />
+          <DiagnosticPreviewItem label="Madurez" value={`${score}% (${totalScore}/${maxScore})`} />
+          <DiagnosticPreviewItem label="Potencial de mejora" value={`${improvement}%`} />
+          <DiagnosticPreviewItem label="Preguntas respondidas" value={`${valueChain.assessments.length}/25`} />
+          <DiagnosticPreviewItem label="Hallazgos" value={String(valueChain.findings.length)} />
         </section>
         <DiagnosticListSection
           title="Actividades de apoyo"
@@ -541,13 +902,17 @@ function DiagnosticPreviewContent({ payload }: { payload: DiagnosticPreviewPaylo
           items={valueChain.primaryActivities.map((item) => `${activityLabels[item.activity]}: ${item.description} (${item.priority})`)}
         />
         <DiagnosticListSection
-          title="Valoraciones"
-          items={valueChain.assessments.map((item) => `${activityLabels[item.activity]}: ${item.statement} (${item.score}/4)`)}
+          title="Fortalezas"
+          items={valueChain.findings.filter((finding) => finding.category === 'FORTALEZA').map((finding) => finding.description)}
+        />
+        <DiagnosticListSection
+          title="Debilidades"
+          items={valueChain.findings.filter((finding) => finding.category === 'DEBILIDAD').map((finding) => finding.description)}
         />
         <DiagnosticSynthesisSection
           observations={valueChain.observations}
-          strengths={valueChain.strengths}
-          weaknesses={valueChain.weaknesses}
+          strengths={valueChain.findings.filter((finding) => finding.category === 'FORTALEZA').map((finding) => finding.description)}
+          weaknesses={valueChain.findings.filter((finding) => finding.category === 'DEBILIDAD').map((finding) => finding.description)}
         />
       </div>
     )
@@ -685,7 +1050,7 @@ function SwotEditor({
                     rows={2}
                     value={item.description}
                     onChange={(event) => updateItem(section.key, index, { description: event.target.value })}
-                    placeholder={`${section.title.slice(0, )} ${index + 1}`}
+                    placeholder={`${section.title} ${index + 1}`}
                   />
                   <div className="diag-row-actions">
                     <PrioritySelect
@@ -708,66 +1073,143 @@ function SwotEditor({
 
 function ValueChainEditor({
   onChange,
+  summary,
   value,
 }: {
   onChange: (value: UpdateValueChainPayload) => void
+  summary: ValueChainSummary | null
   value: UpdateValueChainPayload
 }) {
+  const current = valueChainFormValue(value)
+  const questions = valueChainQuestions(summary, current)
+
   function updateActivity(
     listKey: 'supportActivities' | 'primaryActivities',
     index: number,
     patch: Partial<ValueChainActivityPayload>,
   ) {
     onChange({
-      ...value,
-      [listKey]: value[listKey].map((item, i) => (i === index ? { ...item, ...patch } : item)),
+      ...current,
+      [listKey]: current[listKey].map((item, i) => (i === index ? { ...item, ...patch } : item)),
     })
   }
 
   function addActivity(listKey: 'supportActivities' | 'primaryActivities') {
     const activity = listKey === 'supportActivities' ? 'DESARROLLO_TECNOLOGICO' : 'OPERACIONES'
     onChange({
-      ...value,
-      [listKey]: [...value[listKey], { activity, description: '', priority: 'MEDIA' }],
+      ...current,
+      [listKey]: [...current[listKey], { activity, description: '', priority: 'MEDIA' }],
     })
   }
 
   function removeActivity(listKey: 'supportActivities' | 'primaryActivities', index: number) {
     const activity = listKey === 'supportActivities' ? 'DESARROLLO_TECNOLOGICO' : 'OPERACIONES'
-    const next = value[listKey].filter((_, i) => i !== index)
+    const next = current[listKey].filter((_, i) => i !== index)
     onChange({
-      ...value,
+      ...current,
       [listKey]: next.length > 0 ? next : [{ activity, description: '', priority: 'MEDIA' }],
     })
   }
 
-  function updateAssessment(index: number, patch: Partial<ValueChainAssessmentPayload>) {
+  function updateResponse(question: ValueChainQuestionSummary, score: number) {
+    const exists = current.assessments.some((assessment) => assessment.questionNumber === question.questionNumber)
+    const nextAssessment: ValueChainAssessmentPayload = {
+      questionNumber: question.questionNumber,
+      activity: question.activity,
+      statement: question.statement,
+      score,
+      notes: current.assessments.find((assessment) => assessment.questionNumber === question.questionNumber)?.notes ?? '',
+    }
     onChange({
-      ...value,
-      assessments: value.assessments.map((item, i) => (i === index ? { ...item, ...patch } : item)),
+      ...current,
+      assessments: exists
+        ? current.assessments.map((assessment) =>
+            assessment.questionNumber === question.questionNumber ? nextAssessment : assessment,
+          )
+        : [...current.assessments, nextAssessment].sort((a, b) => (a.questionNumber ?? 99) - (b.questionNumber ?? 99)),
     })
   }
 
-  function addAssessment() {
+  function updateObservation(observations: string) {
+    onChange({ ...current, observations })
+  }
+
+  function addFinding(category: 'FORTALEZA' | 'DEBILIDAD') {
+    onChange({ ...current, findings: [...current.findings, emptyValueChainFinding(category)] })
+  }
+
+  function updateFinding(index: number, patch: Partial<DiagnosticFindingPayload>) {
     onChange({
-      ...value,
-      assessments: [...value.assessments, { activity: 'DESARROLLO_TECNOLOGICO', statement: '', score: 2, notes: '' }],
+      ...current,
+      findings: current.findings.map((finding, itemIndex) => itemIndex === index ? { ...finding, ...patch } : finding),
     })
   }
 
-  function removeAssessment(index: number) {
-    const next = value.assessments.filter((_, i) => i !== index)
+  function removeFinding(index: number) {
     onChange({
-      ...value,
-      assessments: next.length > 0 ? next : [{ activity: 'DESARROLLO_TECNOLOGICO', statement: '', score: 2, notes: '' }],
+      ...current,
+      findings: current.findings.filter((_, itemIndex) => itemIndex !== index),
     })
   }
 
   return (
     <div className="diag-chain-layout">
-      <ValueChainChart value={value} />
+      <ValueChainChart summary={summary} value={current} />
+      <section className="diag-panel wide">
+        <div className="diag-panel-head">
+          <div>
+            <h3>Autodiagnostico interno</h3>
+            <p className="diag-panel-copy">
+              Responda las 25 afirmaciones del Excel. Una puntuacion mayor indica mayor madurez interna y menor potencial de mejora.
+            </p>
+          </div>
+          <span className="diag-pest-progress">{valueChainAnsweredCount(current)}/25 respondidas</span>
+        </div>
+        <div className="diag-pest-questionnaire">
+          {allActivities.map((activity) => {
+            const activityQuestions = questions.filter((question) => question.activity === activity)
+            if (activityQuestions.length === 0) return null
+            return (
+              <article className="diag-pest-factor" key={activity}>
+                <header>
+                  <strong>{activityLabels[activity]}</strong>
+                  <span>{activityQuestions.filter((question) => valueChainResponseScore(current, question.questionNumber) !== null).length}/{activityQuestions.length}</span>
+                </header>
+                <div className="diag-pest-questions">
+                  {activityQuestions.map((question) => {
+                    const selected = valueChainResponseScore(current, question.questionNumber)
+                    return (
+                      <div className="diag-pest-question" key={question.questionNumber}>
+                        <div className="diag-pest-question-copy">
+                          <span>{question.questionNumber}</span>
+                          <p>{question.statement}</p>
+                        </div>
+                        <div className="diag-pest-scale" role="group" aria-label={`Valoracion de pregunta ${question.questionNumber}`}>
+                          {valueChainScoreLabels.map((label, score) => (
+                            <button
+                              aria-label={`${score}: ${label}`}
+                              aria-pressed={selected === score}
+                              className={selected === score ? 'active' : ''}
+                              key={score}
+                              title={label}
+                              type="button"
+                              onClick={() => updateResponse(question, score)}
+                            >
+                              {score}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </article>
+            )
+          })}
+        </div>
+      </section>
       <ActivityPanel
-        activities={value.supportActivities}
+        activities={current.supportActivities}
         options={supportActivities}
         title="Actividades de apoyo"
         onAdd={() => addActivity('supportActivities')}
@@ -775,7 +1217,7 @@ function ValueChainEditor({
         onUpdate={(index, patch) => updateActivity('supportActivities', index, patch)}
       />
       <ActivityPanel
-        activities={value.primaryActivities}
+        activities={current.primaryActivities}
         options={primaryActivities}
         title="Actividades primarias"
         onAdd={() => addActivity('primaryActivities')}
@@ -784,54 +1226,106 @@ function ValueChainEditor({
       />
       <section className="diag-panel wide">
         <div className="diag-panel-head">
-          <h3>Autodiagnostico</h3>
-          <button className="gplan-inline-btn" type="button" onClick={addAssessment}>
-            <Plus size={14} />
-            Agregar
-          </button>
+          <div>
+            <h3>Hallazgos del analisis interno</h3>
+            <p className="diag-panel-copy">
+              Registre todas las fortalezas y debilidades relevantes para llevarlas a la matriz FODA.
+            </p>
+          </div>
+          <div className="diag-pest-finding-actions">
+            <button className="gplan-inline-btn" type="button" onClick={() => addFinding('FORTALEZA')}>
+              <Plus size={14} />
+              Fortaleza
+            </button>
+            <button className="gplan-inline-btn" type="button" onClick={() => addFinding('DEBILIDAD')}>
+              <Plus size={14} />
+              Debilidad
+            </button>
+          </div>
         </div>
-        <div className="diag-list">
-          {value.assessments.map((assessment, index) => (
-            <div className="diag-assessment" key={index}>
-              <select
-                value={assessment.activity}
-                onChange={(event) => updateAssessment(index, { activity: event.target.value as ValueChainActivity })}
-              >
-                {allActivities.map((activity) => (
-                  <option key={activity} value={activity}>{activityLabels[activity]}</option>
-                ))}
-              </select>
-              <input
-                value={assessment.statement}
-                onChange={(event) => updateAssessment(index, { statement: event.target.value })}
-                placeholder="Criterio o afirmacion"
-              />
-              <input
-                min={0}
-                max={4}
-                type="number"
-                value={assessment.score}
-                onChange={(event) => updateAssessment(index, { score: numberValue(event.target.value) })}
-                aria-label="Puntaje"
-              />
-              <input
-                value={assessment.notes}
-                onChange={(event) => updateAssessment(index, { notes: event.target.value })}
-                placeholder="Notas"
-              />
-              <button className="gplan-remove-btn" type="button" onClick={() => removeAssessment(index)}>
-                <Trash2 size={14} />
-              </button>
-            </div>
+        <label className="field diag-chain-observation">
+          <span className="field-label">Observaciones</span>
+          <textarea
+            rows={3}
+            value={current.observations}
+            onChange={(event) => updateObservation(event.target.value)}
+            placeholder="Lectura general del potencial de mejora de la cadena"
+          />
+        </label>
+        {current.findings.length === 0 && (
+          <p className="gplan-muted">Todavia no se registraron fortalezas o debilidades de cadena de valor.</p>
+        )}
+        <div className="diag-pest-findings">
+          {current.findings.map((finding, index) => (
+            <article className="diag-pest-finding" key={index}>
+              <div className="diag-pest-finding-head">
+                <span className={`diag-pest-kind ${finding.category.toLowerCase()}`}>{finding.category}</span>
+                <button className="gplan-remove-btn" title="Eliminar hallazgo" type="button" onClick={() => removeFinding(index)}>
+                  <Trash2 size={14} />
+                </button>
+              </div>
+              <div className="diag-pest-finding-grid">
+                <label>
+                  <span>Actividad de origen</span>
+                  <select
+                    value={finding.sourceDimension}
+                    onChange={(event) => updateFinding(index, { sourceDimension: event.target.value as ValueChainActivity })}
+                  >
+                    {allActivities.map((activity) => (
+                      <option key={activity} value={activity}>{activityLabels[activity]}</option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  <span>Prioridad</span>
+                  <select
+                    value={finding.priority}
+                    onChange={(event) => updateFinding(index, { priority: event.target.value as DiagnosticPriority })}
+                  >
+                    {priorities.map((priority) => <option key={priority} value={priority}>{priority}</option>)}
+                  </select>
+                </label>
+                <label className="wide">
+                  <span>Descripcion</span>
+                  <textarea
+                    rows={2}
+                    value={finding.description}
+                    onChange={(event) => updateFinding(index, { description: event.target.value })}
+                    placeholder="Explique la fortaleza o debilidad identificada"
+                  />
+                </label>
+                <label>
+                  <span>Evidencia</span>
+                  <textarea
+                    rows={2}
+                    value={finding.evidence}
+                    onChange={(event) => updateFinding(index, { evidence: event.target.value })}
+                    placeholder="Dato o respuesta que sustenta el hallazgo"
+                  />
+                </label>
+                <label>
+                  <span>Impacto esperado</span>
+                  <textarea
+                    rows={2}
+                    value={finding.impact}
+                    onChange={(event) => updateFinding(index, { impact: event.target.value })}
+                    placeholder="Como afecta a la organizacion"
+                  />
+                </label>
+              </div>
+              <label className="diag-pest-foda-check">
+                <input
+                  checked={finding.selectedForFoda}
+                  type="checkbox"
+                  onChange={(event) => updateFinding(index, { selectedForFoda: event.target.checked })}
+                />
+                <CheckCircle2 size={15} />
+                Seleccionar para la matriz FODA
+              </label>
+            </article>
           ))}
         </div>
       </section>
-      <TextBlocks
-        observations={value.observations}
-        strengths={value.strengths}
-        weaknesses={value.weaknesses}
-        onChange={(patch) => onChange({ ...value, ...patch })}
-      />
     </div>
   )
 }
@@ -899,20 +1393,22 @@ function BcgEditor({
   summary: BcgSummary | null
   value: UpdateBcgPayload
 }) {
+  const current = bcgFormValue(value)
+
   function updateProduct(index: number, patch: Partial<BcgPortfolioItemPayload>) {
     onChange({
-      ...value,
-      products: value.products.map((product, i) => (i === index ? { ...product, ...patch } : product)),
+      ...current,
+      products: current.products.map((product, i) => (i === index ? { ...product, ...patch } : product)),
     })
   }
 
   function addProduct() {
-    onChange({ ...value, products: [...value.products, emptyBcg.products[0]] })
+    onChange({ ...current, products: [...current.products, emptyBcg.products[0]] })
   }
 
   function removeProduct(index: number) {
-    const next = value.products.filter((_, i) => i !== index)
-    onChange({ ...value, products: next.length > 0 ? next : emptyBcg.products })
+    const next = current.products.filter((_, i) => i !== index)
+    onChange({ ...current, products: next.length > 0 ? next : emptyBcg.products })
   }
 
   return (
@@ -930,8 +1426,8 @@ function BcgEditor({
             <span>Crecimiento alto desde</span>
             <input
               type="number"
-              value={value.marketGrowthThreshold}
-              onChange={(event) => onChange({ ...value, marketGrowthThreshold: numberValue(event.target.value) })}
+              value={current.marketGrowthThreshold}
+              onChange={(event) => onChange({ ...current, marketGrowthThreshold: numberValue(event.target.value) })}
             />
           </label>
           <label>
@@ -940,13 +1436,13 @@ function BcgEditor({
               min={0.01}
               step="0.01"
               type="number"
-              value={value.relativeMarketShareThreshold}
-              onChange={(event) => onChange({ ...value, relativeMarketShareThreshold: numberValue(event.target.value) })}
+              value={current.relativeMarketShareThreshold}
+              onChange={(event) => onChange({ ...current, relativeMarketShareThreshold: numberValue(event.target.value) })}
             />
           </label>
         </div>
         <div className="diag-bcg-products">
-          {value.products.map((product, index) => (
+          {current.products.map((product, index) => (
             <article className="diag-bcg-product" key={index}>
               <div className="diag-bcg-product-head">
                 <strong>Producto {index + 1}</strong>
@@ -1005,7 +1501,7 @@ function BcgEditor({
             <h3>Resultado BCG</h3>
             <span className="diag-total">Ventas {formatNumber(summary.totalSales)}</span>
           </div>
-          <BcgMatrix value={value} />
+          <BcgMatrix value={current} />
           <div className="diag-bcg-result">
             <DiagnosticMetric label="Estrellas" value={String(summary.stars)} />
             <DiagnosticMetric label="Incognitas" value={String(summary.questionMarks)} />
@@ -1013,7 +1509,7 @@ function BcgEditor({
             <DiagnosticMetric label="Perros" value={String(summary.dogs)} />
           </div>
           <div className="diag-version-list">
-            {summary.products.map((product) => (
+            {arrayValue(summary.products).map((product) => (
               <div className="diag-version-row" key={`${product.name}-${product.position}`}>
                 <span>{product.name}</span>
                 <strong>{product.quadrant}</strong>
@@ -1024,10 +1520,10 @@ function BcgEditor({
       )}
 
       <TextBlocks
-        observations={value.observations}
-        strengths={value.strengths}
-        weaknesses={value.weaknesses}
-        onChange={(patch) => onChange({ ...value, ...patch })}
+        observations={current.observations}
+        strengths={current.strengths}
+        weaknesses={current.weaknesses}
+        onChange={(patch) => onChange({ ...current, ...patch })}
       />
     </div>
   )
@@ -1085,48 +1581,47 @@ function SwotChart({ swot }: { swot: UpdateSwotPayload }) {
   )
 }
 
-function ValueChainChart({ value }: { value: UpdateValueChainPayload }) {
-  const assessments = value.assessments.filter((assessment) => assessment.statement.trim())
-  const totalScore = assessments.reduce((total, assessment) => total + clamp(assessment.score, 0, 4), 0)
-  const maxScore = assessments.length * 4
-  const percentage = maxScore === 0 ? 0 : Math.round((totalScore * 100) / maxScore)
-  const activityScores = allActivities
-    .map((activity) => {
-      const items = assessments.filter((assessment) => assessment.activity === activity)
-      const total = items.reduce((sum, item) => sum + clamp(item.score, 0, 4), 0)
-      return {
-        activity,
-        count: items.length,
-        percentage: items.length === 0 ? 0 : Math.round((total * 100) / (items.length * 4)),
-      }
-    })
-    .filter((item) => item.count > 0)
+function ValueChainChart({
+  summary,
+  value,
+}: {
+  summary: ValueChainSummary | null
+  value: UpdateValueChainPayload
+}) {
+  const current = valueChainFormValue(value)
+  const questions = valueChainQuestions(summary, current)
+  const dimensions = valueChainDimensionScores(current, questions, arrayValue(summary?.dimensions))
+  const answered = valueChainAnsweredCount(value)
+  const totalScore = current.assessments.reduce((total, assessment) => total + clamp(assessment.score, 0, 4), 0)
+  const maxScore = 100
+  const maturity = Math.round((totalScore * 100) / maxScore)
+  const improvement = Math.max(0, 100 - maturity)
 
   return (
     <section className="diag-chart-card wide">
       <div className="diag-chart-head">
         <div>
           <span>Grafico cadena de valor</span>
-          <h3>Puntaje por actividad</h3>
+          <h3>Potencial de mejora interno</h3>
         </div>
-        <strong>{percentage}%</strong>
+        <strong>{answered === 25 ? `${improvement}% mejora` : `${answered}/25 respondidas`}</strong>
       </div>
       <div className="diag-score-visual">
-        <div className="diag-score-ring" style={{ background: `conic-gradient(var(--blue) ${percentage}%, var(--surface-3) 0)` }}>
+        <div className="diag-score-ring" style={{ background: `conic-gradient(var(--amber) ${improvement}%, var(--surface-3) 0)` }}>
           <div>
-            <strong>{totalScore}</strong>
-            <span>/{maxScore || 0}</span>
+            <strong>{improvement}%</strong>
+            <span>mejora</span>
           </div>
         </div>
         <div className="diag-score-bars">
-          {activityScores.length === 0 && <p className="gplan-muted">Registre valoraciones para visualizar el puntaje.</p>}
-          {activityScores.map((item) => (
-            <div className="diag-score-bar-row" key={item.activity}>
-              <span>{activityLabels[item.activity]}</span>
+          <p className="diag-panel-copy">{summary?.conclusion ?? 'Complete las 25 preguntas para obtener el potencial de mejora interno.'}</p>
+          {dimensions.map((item) => (
+            <div className="diag-score-bar-row" key={item.dimension}>
+              <span>{item.code} - {item.label}</span>
               <div className="diag-bar-track">
-                <div className="diag-bar-fill" style={{ width: `${item.percentage}%` }} />
+                <div className="diag-bar-fill amber" style={{ width: `${item.improvementPercentage}%` }} />
               </div>
-              <strong>{item.percentage}%</strong>
+              <strong>{item.improvementPercentage}%</strong>
             </div>
           ))}
         </div>
@@ -1135,12 +1630,123 @@ function ValueChainChart({ value }: { value: UpdateValueChainPayload }) {
   )
 }
 
+const valueChainDimensionLabels: Record<ValueChainDimension, { code: string; label: string }> = {
+  CUSTOMER_DISTRIBUTION: { code: 'ICD', label: 'Cliente y distribucion' },
+  ORGANIZATION_STRATEGY: { code: 'IOE', label: 'Organizacion y estrategia' },
+  PROCESS_NORMALIZATION: { code: 'IPTN', label: 'Procesos y normalizacion' },
+  PRODUCT_PRODUCTIVITY: { code: 'IPP', label: 'Producto y productividad' },
+  TECHNOLOGY_IMPROVEMENT: { code: 'ITPM', label: 'Tecnologia y mejora' },
+}
+
+function valueChainFormValue(value: UpdateValueChainPayload): UpdateValueChainPayload {
+  const source = value ?? emptyValueChain
+  const support = arrayValue(source.supportActivities)
+  const primary = arrayValue(source.primaryActivities)
+  return {
+    supportActivities: support.length > 0
+      ? support
+      : [{ activity: 'DESARROLLO_TECNOLOGICO', description: '', priority: 'MEDIA' }],
+    primaryActivities: primary.length > 0
+      ? primary
+      : [{ activity: 'OPERACIONES', description: '', priority: 'MEDIA' }],
+    assessments: arrayValue(source.assessments),
+    observations: textValue(source.observations),
+    strengths: arrayValue(source.strengths),
+    weaknesses: arrayValue(source.weaknesses),
+    findings: arrayValue(source.findings),
+  }
+}
+
+function valueChainQuestions(
+  summary: ValueChainSummary | null,
+  value: UpdateValueChainPayload,
+): ValueChainQuestionSummary[] {
+  const savedQuestions = arrayValue(summary?.questions)
+  const sourceQuestions = savedQuestions.length > 0 ? savedQuestions : valueChainQuestionCatalog
+  return sourceQuestions.map((question) => ({
+    ...question,
+    score: valueChainResponseScore(value, question.questionNumber) ?? question.score ?? null,
+  }))
+}
+
+function valueChainDimensionScores(
+  value: UpdateValueChainPayload,
+  questions: ValueChainQuestionSummary[],
+  fallbackDimensions: ValueChainSummary['dimensions'],
+) {
+  if (questions.length === 0) {
+    return fallbackDimensions.length > 0
+      ? fallbackDimensions
+      : (Object.keys(valueChainDimensionLabels) as ValueChainDimension[]).map((dimension) => ({
+          dimension,
+          ...valueChainDimensionLabels[dimension],
+          answeredQuestions: 0,
+          score: 0,
+          maxScore: 0,
+          maturityPercentage: 0,
+          improvementPercentage: 0,
+        }))
+  }
+  return (Object.keys(valueChainDimensionLabels) as ValueChainDimension[]).map((dimension) => {
+    const dimensionQuestions = questions.filter((question) => question.dimensions.includes(dimension))
+    const scored = dimensionQuestions
+      .map((question) => value.assessments.find((assessment) => assessment.questionNumber === question.questionNumber))
+      .filter((assessment): assessment is ValueChainAssessmentPayload => Boolean(assessment))
+    const score = scored.reduce((total, assessment) => total + clamp(assessment.score, 0, 4), 0)
+    const maxScore = dimensionQuestions.length * 4
+    const maturityPercentage = maxScore === 0 ? 0 : Math.round((score * 100) / maxScore)
+    return {
+      dimension,
+      ...valueChainDimensionLabels[dimension],
+      answeredQuestions: scored.length,
+      score,
+      maxScore,
+      maturityPercentage,
+      improvementPercentage: Math.max(0, 100 - maturityPercentage),
+    }
+  })
+}
+
+function valueChainResponseScore(value: UpdateValueChainPayload, questionNumber: number) {
+  return arrayValue(value.assessments).find((assessment) => assessment.questionNumber === questionNumber)?.score ?? null
+}
+
+function valueChainAnsweredCount(value: UpdateValueChainPayload) {
+  return arrayValue(value.assessments).filter((assessment) => assessment.questionNumber !== null).length
+}
+
+function bcgFormValue(value: UpdateBcgPayload): UpdateBcgPayload {
+  const source = value ?? emptyBcg
+  const products = arrayValue(source.products)
+  return {
+    products: products.length > 0 ? products : emptyBcg.products,
+    marketGrowthThreshold: numberFromValue(source.marketGrowthThreshold, 10),
+    relativeMarketShareThreshold: numberFromValue(source.relativeMarketShareThreshold, 1),
+    observations: textValue(source.observations),
+    strengths: arrayValue(source.strengths),
+    weaknesses: arrayValue(source.weaknesses),
+  }
+}
+
+function emptyValueChainFinding(category: 'FORTALEZA' | 'DEBILIDAD'): DiagnosticFindingPayload {
+  return {
+    sourceDimension: 'OPERACIONES',
+    category,
+    description: '',
+    evidence: '',
+    impact: '',
+    priority: 'MEDIA',
+    selectedForFoda: true,
+  }
+}
+
 function BcgMatrix({ value }: { value: UpdateBcgPayload }) {
-  const products = value.products
+  const current = bcgFormValue(value)
+  const products = current.products
     .filter((product) => product.name.trim())
     .map((product, index) => ({ ...product, name: product.name.trim() || `Producto ${index + 1}` }))
-  const growthThreshold = value.marketGrowthThreshold || 10
-  const shareThreshold = value.relativeMarketShareThreshold > 0 ? value.relativeMarketShareThreshold : 1
+  const growthThreshold = current.marketGrowthThreshold || 10
+  const shareThreshold = current.relativeMarketShareThreshold > 0 ? current.relativeMarketShareThreshold : 1
   const maxSales = Math.max(1, ...products.map((product) => product.annualSales))
   const bubbles = products.map((product) => {
     const quadrant = classifyBcg(product.marketGrowthRate, product.relativeMarketShare, growthThreshold, shareThreshold)
@@ -1275,10 +1881,27 @@ function PrioritySelect({
 
 function swotPayloadFromSummary(summary: SwotSummary): UpdateSwotPayload {
   return {
-    strengths: swotItems(summary.strengths),
-    opportunities: swotItems(summary.opportunities),
-    weaknesses: swotItems(summary.weaknesses),
-    threats: swotItems(summary.threats),
+    strengths: swotItems(arrayValue(summary.strengths)),
+    opportunities: swotItems(arrayValue(summary.opportunities)),
+    weaknesses: swotItems(arrayValue(summary.weaknesses)),
+    threats: swotItems(arrayValue(summary.threats)),
+  }
+}
+
+function pestPayloadFromSummary(summary: PestSummary): UpdatePestPayload {
+  return {
+    responses: arrayValue(summary.questions)
+      .filter((question) => question.score !== null)
+      .map((question) => ({ questionNumber: question.questionNumber, score: question.score })),
+    findings: arrayValue(summary.findings).map((finding) => ({
+      sourceDimension: finding.sourceDimension,
+      category: finding.category,
+      description: finding.description,
+      evidence: finding.evidence,
+      impact: finding.impact,
+      priority: finding.priority,
+      selectedForFoda: finding.selectedForFoda,
+    })),
   }
 }
 
@@ -1288,20 +1911,53 @@ function swotItems(items: Array<{ description: string; priority: DiagnosticPrior
 }
 
 function valueChainPayloadFromSummary(summary: ValueChainSummary): UpdateValueChainPayload {
+  const summaryAssessments = arrayValue(summary.assessments)
+  const summaryFindings = arrayValue(summary.findings)
+  const summaryStrengths = arrayValue(summary.strengths)
+  const summaryWeaknesses = arrayValue(summary.weaknesses)
+  const questions = arrayValue(summary.questions).length > 0
+    ? arrayValue(summary.questions)
+    : valueChainQuestionCatalog
   return {
-    supportActivities: activityItems(summary.supportActivities, 'DESARROLLO_TECNOLOGICO'),
-    primaryActivities: activityItems(summary.primaryActivities, 'OPERACIONES'),
-    assessments: summary.assessments.length > 0
-      ? summary.assessments.map((item) => ({
-          activity: item.activity,
-          statement: item.statement,
-          score: item.score,
-          notes: item.notes,
+    supportActivities: activityItems(arrayValue(summary.supportActivities), 'DESARROLLO_TECNOLOGICO'),
+    primaryActivities: activityItems(arrayValue(summary.primaryActivities), 'OPERACIONES'),
+    assessments: questions
+      .map<ValueChainAssessmentPayload | null>((question) => {
+        const saved = summaryAssessments.find((assessment) => assessment.questionNumber === question.questionNumber)
+        const score = question.score ?? saved?.score ?? null
+        if (score === null) return null
+        return {
+          questionNumber: question.questionNumber,
+          activity: question.activity,
+          statement: question.statement,
+          score,
+          notes: saved?.notes ?? '',
+        }
+      })
+      .filter((assessment): assessment is ValueChainAssessmentPayload => Boolean(assessment)),
+    observations: textValue(summary.observations),
+    strengths: summaryStrengths,
+    weaknesses: summaryWeaknesses,
+    findings: summaryFindings.length > 0
+      ? summaryFindings.map((finding) => ({
+          sourceDimension: finding.sourceDimension,
+          category: finding.category,
+          description: finding.description,
+          evidence: finding.evidence,
+          impact: finding.impact,
+          priority: finding.priority,
+          selectedForFoda: finding.selectedForFoda,
         }))
-      : emptyValueChain.assessments,
-    observations: summary.observations,
-    strengths: summary.strengths,
-    weaknesses: summary.weaknesses,
+      : [
+          ...summaryStrengths.map((description) => ({
+            ...emptyValueChainFinding('FORTALEZA'),
+            description,
+          })),
+          ...summaryWeaknesses.map((description) => ({
+            ...emptyValueChainFinding('DEBILIDAD'),
+            description,
+          })),
+        ],
   }
 }
 
@@ -1309,7 +1965,7 @@ function activityItems(
   items: Array<{ activity: ValueChainActivity; description: string; priority: DiagnosticPriority }>,
   fallback: ValueChainActivity,
 ) {
-  const next = items.map((item) => ({
+  const next = arrayValue(items).map((item) => ({
     activity: item.activity,
     description: item.description,
     priority: item.priority,
@@ -1318,9 +1974,10 @@ function activityItems(
 }
 
 function bcgPayloadFromSummary(summary: BcgSummary): UpdateBcgPayload {
+  const products = arrayValue(summary.products)
   return {
-    products: summary.products.length > 0
-      ? summary.products.map((product) => ({
+    products: products.length > 0
+      ? products.map((product) => ({
           name: product.name,
           description: product.description,
           annualSales: product.annualSales,
@@ -1353,25 +2010,35 @@ function cleanSwotItems(items: SwotItemPayload[]) {
 }
 
 function cleanValueChain(value: UpdateValueChainPayload): UpdateValueChainPayload {
+  const current = valueChainFormValue(value)
   return {
-    supportActivities: cleanActivities(value.supportActivities),
-    primaryActivities: cleanActivities(value.primaryActivities),
-    assessments: value.assessments
+    supportActivities: cleanActivities(current.supportActivities),
+    primaryActivities: cleanActivities(current.primaryActivities),
+    assessments: current.assessments
       .map((item) => ({
+        questionNumber: item.questionNumber,
         activity: item.activity,
         statement: item.statement.trim(),
         score: clamp(item.score, 0, 4),
         notes: item.notes.trim(),
       }))
-      .filter((item) => item.statement),
-    observations: value.observations.trim(),
-    strengths: cleanLines(value.strengths),
-    weaknesses: cleanLines(value.weaknesses),
+      .filter((item) => item.questionNumber !== null || item.statement),
+    observations: current.observations.trim(),
+    strengths: cleanLines(current.strengths),
+    weaknesses: cleanLines(current.weaknesses),
+    findings: current.findings
+      .map((finding) => ({
+        ...finding,
+        description: finding.description.trim(),
+        evidence: finding.evidence.trim(),
+        impact: finding.impact.trim(),
+      }))
+      .filter((finding) => finding.description),
   }
 }
 
 function cleanActivities(items: ValueChainActivityPayload[]) {
-  return items
+  return arrayValue(items)
     .map((item) => ({
       activity: item.activity,
       description: item.description.trim(),
@@ -1381,8 +2048,9 @@ function cleanActivities(items: ValueChainActivityPayload[]) {
 }
 
 function cleanBcg(value: UpdateBcgPayload): UpdateBcgPayload {
+  const current = bcgFormValue(value)
   return {
-    products: value.products
+    products: current.products
       .map((product) => ({
         name: product.name.trim(),
         description: product.description.trim(),
@@ -1392,20 +2060,99 @@ function cleanBcg(value: UpdateBcgPayload): UpdateBcgPayload {
         notes: product.notes.trim(),
       }))
       .filter((product) => product.name),
-    marketGrowthThreshold: value.marketGrowthThreshold,
-    relativeMarketShareThreshold: value.relativeMarketShareThreshold,
-    observations: value.observations.trim(),
-    strengths: cleanLines(value.strengths),
-    weaknesses: cleanLines(value.weaknesses),
+    marketGrowthThreshold: current.marketGrowthThreshold,
+    relativeMarketShareThreshold: current.relativeMarketShareThreshold,
+    observations: current.observations.trim(),
+    strengths: cleanLines(current.strengths),
+    weaknesses: cleanLines(current.weaknesses),
+  }
+}
+
+function cleanPest(value: UpdatePestPayload): UpdatePestPayload {
+  return {
+    responses: arrayValue(value.responses)
+      .filter((response) => response.score !== null)
+      .map((response) => ({
+        questionNumber: response.questionNumber,
+        score: response.score === null ? null : clamp(response.score, 0, 4),
+      }))
+      .sort((a, b) => a.questionNumber - b.questionNumber),
+    findings: arrayValue(value.findings)
+      .map((finding) => ({
+        ...finding,
+        description: finding.description.trim(),
+        evidence: finding.evidence.trim(),
+        impact: finding.impact.trim(),
+      }))
+      .filter((finding) => finding.description),
+  }
+}
+
+function porterPayloadFromSummary(summary: PorterSummary): UpdatePorterPayload {
+  return {
+    responses: arrayValue(summary.questions)
+      .filter((question) => question.score !== null)
+      .map((question) => ({ questionNumber: question.questionNumber, score: question.score })),
+    findings: arrayValue(summary.findings).map((finding) => ({
+      sourceDimension: finding.sourceDimension,
+      category: finding.category,
+      description: finding.description,
+      evidence: finding.evidence,
+      impact: finding.impact,
+      priority: finding.priority,
+      selectedForFoda: finding.selectedForFoda,
+    })),
+  }
+}
+
+function cleanPorter(value: UpdatePorterPayload): UpdatePorterPayload {
+  return {
+    responses: arrayValue(value.responses)
+      .filter((response) => response.score !== null)
+      .map((response) => ({
+        questionNumber: response.questionNumber,
+        score: response.score === null ? null : clamp(response.score, 0, 4),
+      }))
+      .sort((a, b) => a.questionNumber - b.questionNumber),
+    findings: arrayValue(value.findings)
+      .map((finding) => ({
+        ...finding,
+        description: finding.description.trim(),
+        evidence: finding.evidence.trim(),
+        impact: finding.impact.trim(),
+      }))
+      .filter((finding) => finding.description),
   }
 }
 
 function validateActiveTool(
   activeTool: DiagnosticToolKey,
+  pest: UpdatePestPayload,
+  porter: UpdatePorterPayload,
   swot: UpdateSwotPayload,
   valueChain: UpdateValueChainPayload,
   bcg: UpdateBcgPayload,
 ) {
+  if (activeTool === 'pest') {
+    const payload = cleanPest(pest)
+    if (payload.responses.length !== 25) {
+      return 'Responda las 25 preguntas PEST antes de enviar a revision.'
+    }
+    if (!payload.findings.some((finding) => finding.category === 'OPORTUNIDAD')
+      || !payload.findings.some((finding) => finding.category === 'AMENAZA')) {
+      return 'Registre al menos una oportunidad y una amenaza derivadas del analisis PEST.'
+    }
+  }
+  if (activeTool === 'porter') {
+    const payload = cleanPorter(porter)
+    if (payload.responses.length !== 25) {
+      return 'Responda las 25 preguntas Porter antes de enviar a revision.'
+    }
+    if (!payload.findings.some((finding) => finding.category === 'OPORTUNIDAD')
+      || !payload.findings.some((finding) => finding.category === 'AMENAZA')) {
+      return 'Registre al menos una oportunidad y una amenaza derivadas del analisis Porter.'
+    }
+  }
   if (activeTool === 'foda') {
     const payload = cleanSwot(swot)
     if (!payload.strengths.length || !payload.opportunities.length || !payload.weaknesses.length || !payload.threats.length) {
@@ -1414,8 +2161,12 @@ function validateActiveTool(
   }
   if (activeTool === 'valueChain') {
     const payload = cleanValueChain(valueChain)
-    if (!payload.supportActivities.length || !payload.primaryActivities.length || !payload.assessments.length) {
-      return 'Complete al menos una actividad de apoyo, una primaria y una valoracion.'
+    if (payload.assessments.filter((assessment) => assessment.questionNumber !== null).length !== 25) {
+      return 'Responda las 25 preguntas de cadena de valor antes de enviar a revision.'
+    }
+    if (!payload.findings.some((finding) => finding.category === 'FORTALEZA')
+      || !payload.findings.some((finding) => finding.category === 'DEBILIDAD')) {
+      return 'Registre al menos una fortaleza y una debilidad derivadas de la cadena de valor.'
     }
   }
   if (activeTool === 'bcg') {
@@ -1432,19 +2183,31 @@ function validateActiveTool(
 
 function diagnosticChangeRequestPayload(
   activeTool: DiagnosticToolKey,
+  pest: UpdatePestPayload,
+  porter: UpdatePorterPayload,
   swot: UpdateSwotPayload,
   valueChain: UpdateValueChainPayload,
   bcg: UpdateBcgPayload,
   swotSummary: SwotSummary | null,
   valueChainSummary: ValueChainSummary | null,
   bcgSummary: BcgSummary | null,
+  pestSummary: PestSummary | null,
+  porterSummary: PorterSummary | null,
 ): CreatePhaseChangeRequestPayload {
-  const title = activeTool === 'foda'
+  const title = activeTool === 'pest'
+    ? 'Aprobar analisis PEST'
+    : activeTool === 'porter'
+    ? 'Aprobar analisis Porter'
+    : activeTool === 'foda'
     ? 'Aprobar FODA'
     : activeTool === 'valueChain'
       ? 'Aprobar cadena de valor'
       : 'Aprobar BCG'
-  const content = activeTool === 'foda'
+  const content = activeTool === 'pest'
+    ? { pest: cleanPest(pest) }
+    : activeTool === 'porter'
+    ? { porter: cleanPorter(porter) }
+    : activeTool === 'foda'
     ? { swot: cleanSwot(swot) }
     : activeTool === 'valueChain'
       ? { valueChain: cleanValueChain(valueChain) }
@@ -1453,19 +2216,53 @@ function diagnosticChangeRequestPayload(
     title,
     description: 'Solicitud para aprobar una herramienta del bloque diagnostico.',
     proposedContent: content,
-    entries: diagnosticEntries(activeTool, swot, valueChain, bcg, swotSummary, valueChainSummary, bcgSummary),
+    entries: diagnosticEntries(
+      activeTool,
+      pest,
+      porter,
+      swot,
+      valueChain,
+      bcg,
+      pestSummary,
+      porterSummary,
+      swotSummary,
+      valueChainSummary,
+      bcgSummary,
+    ),
   }
 }
 
 function diagnosticEntries(
   activeTool: DiagnosticToolKey,
+  pest: UpdatePestPayload,
+  porter: UpdatePorterPayload,
   swot: UpdateSwotPayload,
   valueChain: UpdateValueChainPayload,
   bcg: UpdateBcgPayload,
+  pestSummary: PestSummary | null,
+  porterSummary: PorterSummary | null,
   swotSummary: SwotSummary | null,
   valueChainSummary: ValueChainSummary | null,
   bcgSummary: BcgSummary | null,
 ): PhaseChangeEntry[] {
+  if (activeTool === 'pest') {
+    const current = cleanPest(pestSummary ? pestPayloadFromSummary(pestSummary) : emptyPest)
+    const next = cleanPest(pest)
+    return [
+      diagnosticEntry('pest.responses', current.responses, next.responses),
+      diagnosticEntry('pest.findings', current.findings, next.findings),
+    ].filter((entry) => entry.previousValue !== entry.proposedValue)
+  }
+
+  if (activeTool === 'porter') {
+    const current = cleanPorter(porterSummary ? porterPayloadFromSummary(porterSummary) : emptyPorter)
+    const next = cleanPorter(porter)
+    return [
+      diagnosticEntry('porter.responses', current.responses, next.responses),
+      diagnosticEntry('porter.findings', current.findings, next.findings),
+    ].filter((entry) => entry.previousValue !== entry.proposedValue)
+  }
+
   if (activeTool === 'foda') {
     const current = cleanSwot(swotSummary ? swotPayloadFromSummary(swotSummary) : emptySwot)
     const next = cleanSwot(swot)
@@ -1484,6 +2281,7 @@ function diagnosticEntries(
       diagnosticEntry('supportActivities', current.supportActivities, next.supportActivities),
       diagnosticEntry('primaryActivities', current.primaryActivities, next.primaryActivities),
       diagnosticEntry('assessments', current.assessments, next.assessments),
+      diagnosticEntry('findings', current.findings, next.findings),
       diagnosticEntry('observations', current.observations, next.observations),
       diagnosticEntry('strengths', current.strengths, next.strengths),
       diagnosticEntry('weaknesses', current.weaknesses, next.weaknesses),
@@ -1516,10 +2314,18 @@ function stringifyDiagnosticValue(value: unknown) {
 
 function diagnosticPayloadFromCurrent(
   activeTool: DiagnosticToolKey,
+  pestSummary: PestSummary | null,
+  porterSummary: PorterSummary | null,
   swotSummary: SwotSummary | null,
   valueChainSummary: ValueChainSummary | null,
   bcgSummary: BcgSummary | null,
 ): DiagnosticPreviewPayload {
+  if (activeTool === 'pest') {
+    return { tool: 'pest', pest: pestSummary ? pestPayloadFromSummary(pestSummary) : emptyPest }
+  }
+  if (activeTool === 'porter') {
+    return { tool: 'porter', porter: porterSummary ? porterPayloadFromSummary(porterSummary) : emptyPorter }
+  }
   if (activeTool === 'foda') {
     return { tool: 'foda', swot: swotSummary ? swotPayloadFromSummary(swotSummary) : emptySwot }
   }
@@ -1533,23 +2339,32 @@ function diagnosticPayloadFromCurrent(
 }
 
 function diagnosticPayloadFromContent(
-  content: Record<string, unknown>,
+  content: unknown,
   fallbackTool: DiagnosticToolKey,
 ): DiagnosticPreviewPayload {
-  const tool = diagnosticToolFromContent(content, fallbackTool)
+  const source = recordValue(content)
+  const tool = diagnosticToolFromContent(source, fallbackTool)
+  if (tool === 'pest') {
+    return { tool, pest: pestPayloadFromContent(source.pest) }
+  }
+  if (tool === 'porter') {
+    return { tool, porter: porterPayloadFromContent(source.porter) }
+  }
   if (tool === 'foda') {
-    return { tool, swot: swotPayloadFromContent(content.swot) }
+    return { tool, swot: swotPayloadFromContent(source.swot) }
   }
   if (tool === 'valueChain') {
-    return { tool, valueChain: valueChainPayloadFromContent(content.valueChain) }
+    return { tool, valueChain: valueChainPayloadFromContent(source.valueChain) }
   }
-  return { tool, bcg: bcgPayloadFromContent(content.bcg) }
+  return { tool, bcg: bcgPayloadFromContent(source.bcg) }
 }
 
 function diagnosticToolFromContent(
-  content: Record<string, unknown>,
+  content: unknown,
   fallbackTool: DiagnosticToolKey = 'foda',
 ): DiagnosticToolKey {
+  if (contentHasTool(content, 'pest')) return 'pest'
+  if (contentHasTool(content, 'porter')) return 'porter'
   if (contentHasTool(content, 'foda')) return 'foda'
   if (contentHasTool(content, 'valueChain')) return 'valueChain'
   if (contentHasTool(content, 'bcg')) return 'bcg'
@@ -1558,6 +2373,12 @@ function diagnosticToolFromContent(
 
 function diagnosticToolLabel(tool: DiagnosticToolKey) {
   return diagnosticTools.find((item) => item.key === tool)?.title ?? 'Diagnostico'
+}
+
+function diagnosticAreaForTool(tool: DiagnosticToolKey): DiagnosticAreaKey {
+  if (tool === 'pest' || tool === 'porter') return 'external'
+  if (tool === 'valueChain' || tool === 'bcg') return 'internal'
+  return 'foda'
 }
 
 function userNameById(group: PlanningGroupSummary | null, userId?: number | null) {
@@ -1576,6 +2397,14 @@ function editorSwotPayload(value: UpdateSwotPayload): UpdateSwotPayload {
   }
 }
 
+function editorPestPayload(value: UpdatePestPayload): UpdatePestPayload {
+  return cleanPest(value)
+}
+
+function editorPorterPayload(value: UpdatePorterPayload): UpdatePorterPayload {
+  return cleanPorter(value)
+}
+
 function editorValueChainPayload(value: UpdateValueChainPayload): UpdateValueChainPayload {
   const cleaned = cleanValueChain(value)
   return {
@@ -1587,10 +2416,11 @@ function editorValueChainPayload(value: UpdateValueChainPayload): UpdateValueCha
       : [{ activity: 'OPERACIONES', description: '', priority: 'MEDIA' }],
     assessments: cleaned.assessments.length > 0
       ? cleaned.assessments
-      : [{ activity: 'OPERACIONES', statement: '', score: 2, notes: '' }],
+      : [],
     observations: cleaned.observations,
     strengths: cleaned.strengths,
     weaknesses: cleaned.weaknesses,
+    findings: cleaned.findings,
   }
 }
 
@@ -1618,6 +2448,52 @@ function swotPayloadFromContent(value: unknown): UpdateSwotPayload {
   }
 }
 
+function pestPayloadFromContent(value: unknown): UpdatePestPayload {
+  const content = recordValue(value)
+  return {
+    responses: recordsFromValue(content.responses)
+      .map((response) => ({
+        questionNumber: numberFromValue(response.questionNumber),
+        score: response.score === null || response.score === undefined ? null : clamp(numberFromValue(response.score), 0, 4),
+      }))
+      .filter((response) => response.questionNumber >= 1 && response.questionNumber <= 25),
+    findings: recordsFromValue(content.findings)
+      .map((finding) => ({
+        sourceDimension: pestFactorValue(finding.sourceDimension),
+        category: finding.category === 'AMENAZA' ? 'AMENAZA' as const : 'OPORTUNIDAD' as const,
+        description: textValue(finding.description),
+        evidence: textValue(finding.evidence),
+        impact: textValue(finding.impact),
+        priority: priorityValue(finding.priority),
+        selectedForFoda: Boolean(finding.selectedForFoda),
+      }))
+      .filter((finding) => finding.description),
+  }
+}
+
+function porterPayloadFromContent(value: unknown): UpdatePorterPayload {
+  const content = recordValue(value)
+  return {
+    responses: recordsFromValue(content.responses)
+      .map((response) => ({
+        questionNumber: numberFromValue(response.questionNumber),
+        score: response.score === null || response.score === undefined ? null : clamp(numberFromValue(response.score), 0, 4),
+      }))
+      .filter((response) => response.questionNumber >= 1 && response.questionNumber <= 25),
+    findings: recordsFromValue(content.findings)
+      .map((finding) => ({
+        sourceDimension: porterForceValue(finding.sourceDimension),
+        category: finding.category === 'AMENAZA' ? 'AMENAZA' as const : 'OPORTUNIDAD' as const,
+        description: textValue(finding.description),
+        evidence: textValue(finding.evidence),
+        impact: textValue(finding.impact),
+        priority: priorityValue(finding.priority),
+        selectedForFoda: Boolean(finding.selectedForFoda),
+      }))
+      .filter((finding) => finding.description),
+  }
+}
+
 function swotItemsFromContent(value: unknown): SwotItemPayload[] {
   return recordsFromValue(value)
     .map((item) => ({
@@ -1636,6 +2512,7 @@ function valueChainPayloadFromContent(value: unknown): UpdateValueChainPayload {
     observations: textValue(content.observations),
     strengths: stringListFromValue(content.strengths),
     weaknesses: stringListFromValue(content.weaknesses),
+    findings: valueChainFindingsFromContent(content.findings, content.strengths, content.weaknesses),
   }
 }
 
@@ -1652,12 +2529,38 @@ function activityItemsFromContent(value: unknown, fallback: ValueChainActivity):
 function assessmentItemsFromContent(value: unknown): ValueChainAssessmentPayload[] {
   return recordsFromValue(value)
     .map((item) => ({
+      questionNumber: item.questionNumber === null || item.questionNumber === undefined
+        ? null
+        : numberFromValue(item.questionNumber),
       activity: activityValue(item.activity, 'OPERACIONES'),
       statement: textValue(item.statement).trim(),
       score: clamp(numberFromValue(item.score), 0, 4),
       notes: textValue(item.notes).trim(),
     }))
-    .filter((item) => item.statement)
+    .filter((item) => item.questionNumber !== null || item.statement)
+}
+
+function valueChainFindingsFromContent(
+  findings: unknown,
+  strengths: unknown,
+  weaknesses: unknown,
+): DiagnosticFindingPayload[] {
+  const parsed = recordsFromValue(findings)
+    .map((finding) => ({
+      sourceDimension: activityValue(finding.sourceDimension, 'OPERACIONES'),
+      category: finding.category === 'DEBILIDAD' ? 'DEBILIDAD' as const : 'FORTALEZA' as const,
+      description: textValue(finding.description).trim(),
+      evidence: textValue(finding.evidence).trim(),
+      impact: textValue(finding.impact).trim(),
+      priority: priorityValue(finding.priority),
+      selectedForFoda: Boolean(finding.selectedForFoda),
+    }))
+    .filter((finding) => finding.description)
+  if (parsed.length > 0) return parsed
+  return [
+    ...stringListFromValue(strengths).map((description) => ({ ...emptyValueChainFinding('FORTALEZA'), description })),
+    ...stringListFromValue(weaknesses).map((description) => ({ ...emptyValueChainFinding('DEBILIDAD'), description })),
+  ]
 }
 
 function bcgPayloadFromContent(value: unknown): UpdateBcgPayload {
@@ -1692,6 +2595,10 @@ function recordsFromValue(value: unknown): Array<Record<string, unknown>> {
     : []
 }
 
+function arrayValue<T>(value: T[] | readonly T[] | null | undefined): T[] {
+  return Array.isArray(value) ? [...value] : []
+}
+
 function textValue(value: unknown) {
   return typeof value === 'string' ? value : ''
 }
@@ -1708,35 +2615,55 @@ function activityValue(value: unknown, fallback: ValueChainActivity): ValueChain
   return allActivities.includes(value as ValueChainActivity) ? value as ValueChainActivity : fallback
 }
 
+function pestFactorValue(value: unknown) {
+  const factors = ['SOCIAL_DEMOGRAPHIC', 'ENVIRONMENTAL', 'POLITICAL', 'ECONOMIC', 'TECHNOLOGICAL'] as const
+  return factors.includes(value as typeof factors[number]) ? value as typeof factors[number] : 'SOCIAL_DEMOGRAPHIC'
+}
+
+function porterForceValue(value: unknown) {
+  const forces = ['INDUSTRY_RIVALRY', 'NEW_ENTRANTS', 'BUYER_POWER', 'SUPPLIER_POWER', 'SUBSTITUTES'] as const
+  return forces.includes(value as typeof forces[number]) ? value as typeof forces[number] : 'INDUSTRY_RIVALRY'
+}
+
 function numberFromValue(value: unknown, fallback = 0) {
   const parsed = typeof value === 'number' ? value : Number(value)
   return Number.isFinite(parsed) ? parsed : fallback
 }
 
-function contentHasTool(content: Record<string, unknown>, tool: DiagnosticToolKey) {
-  if (tool === 'foda') return Boolean(content.swot)
-  if (tool === 'valueChain') return Boolean(content.valueChain)
-  return Boolean(content.bcg)
+function contentHasTool(content: unknown, tool: DiagnosticToolKey) {
+  const source = recordValue(content)
+  if (tool === 'pest') return Boolean(source.pest)
+  if (tool === 'porter') return Boolean(source.porter)
+  if (tool === 'foda') return Boolean(source.swot)
+  if (tool === 'valueChain') return Boolean(source.valueChain)
+  return Boolean(source.bcg)
 }
 
 function swotCount(summary: SwotSummary | null) {
   if (!summary) return 0
-  return summary.strengths.length + summary.opportunities.length + summary.weaknesses.length + summary.threats.length
+  return arrayValue(summary.strengths).length
+    + arrayValue(summary.opportunities).length
+    + arrayValue(summary.weaknesses).length
+    + arrayValue(summary.threats).length
 }
 
 function activeUpdatedAt(
   activeTool: DiagnosticToolKey,
+  pest: PestSummary | null,
+  porter: PorterSummary | null,
   swot: SwotSummary | null,
   valueChain: ValueChainSummary | null,
   bcg: BcgSummary | null,
 ) {
+  if (activeTool === 'pest') return pest?.updatedAt
+  if (activeTool === 'porter') return porter?.updatedAt
   if (activeTool === 'foda') return swot?.updatedAt
   if (activeTool === 'valueChain') return valueChain?.updatedAt
   return bcg?.updatedAt
 }
 
 function activePhaseTitle(plan: PlanSummary) {
-  return plan.phases.find((phase) => phase.phase === plan.activePhase)?.title ?? '-'
+  return arrayValue(plan.phases).find((phase) => phase.phase === plan.activePhase)?.title ?? '-'
 }
 
 function splitLines(value: string) {
@@ -1744,7 +2671,7 @@ function splitLines(value: string) {
 }
 
 function cleanLines(values: string[]) {
-  return values.map((value) => value.trim()).filter(Boolean)
+  return arrayValue(values).map((value) => value.trim()).filter(Boolean)
 }
 
 function numberValue(value: string) {

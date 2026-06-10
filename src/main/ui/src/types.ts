@@ -114,6 +114,14 @@ export type ValueChainActivity =
   | 'SERVICIOS'
 export type BcgQuadrant = 'ESTRELLA' | 'INCOGNITA' | 'VACA' | 'PERRO'
 export type BcgStrategicDecision = 'POTENCIAR' | 'EVALUAR' | 'MANTENER' | 'REESTRUCTURAR_O_DESINVERTIR'
+export type PestFactor = 'SOCIAL_DEMOGRAPHIC' | 'ENVIRONMENTAL' | 'POLITICAL' | 'ECONOMIC' | 'TECHNOLOGICAL'
+export type PorterForce = 'INDUSTRY_RIVALRY' | 'NEW_ENTRANTS' | 'BUYER_POWER' | 'SUPPLIER_POWER' | 'SUBSTITUTES'
+export type ValueChainDimension =
+  | 'PROCESS_NORMALIZATION'
+  | 'TECHNOLOGY_IMPROVEMENT'
+  | 'PRODUCT_PRODUCTIVITY'
+  | 'ORGANIZATION_STRATEGY'
+  | 'CUSTOMER_DISTRIBUTION'
 
 export type CompanyProfile = {
   companyName: string
@@ -198,6 +206,105 @@ export type SwotSummary = {
   updatedAt: string
 }
 
+export type PestResponsePayload = {
+  questionNumber: number
+  score: number | null
+}
+
+export type DiagnosticFindingPayload = {
+  sourceDimension: PestFactor | PorterForce | ValueChainActivity
+  category: SwotCategory
+  description: string
+  evidence: string
+  impact: string
+  priority: DiagnosticPriority
+  selectedForFoda: boolean
+}
+
+export type UpdatePestPayload = {
+  responses: PestResponsePayload[]
+  findings: DiagnosticFindingPayload[]
+}
+
+export type PestQuestionSummary = {
+  questionNumber: number
+  factor: PestFactor
+  statement: string
+  score: number | null
+}
+
+export type PestFactorSummary = {
+  factor: PestFactor
+  label: string
+  answeredQuestions: number
+  score: number
+  maxScore: number
+  impactLevel: number
+  impactPercentage: number
+  notableImpact: boolean
+}
+
+export type DiagnosticFindingSummary = DiagnosticFindingPayload & {
+  id: number | null
+  source: 'PEST' | 'PORTER' | 'VALUE_CHAIN' | 'BCG'
+  createdByUserId: number
+  position: number
+  createdAt: string
+  updatedAt: string
+}
+
+export type PestSummary = {
+  planId: number | null
+  questions: PestQuestionSummary[]
+  factors: PestFactorSummary[]
+  findings: DiagnosticFindingSummary[]
+  answeredQuestions: number
+  complete: boolean
+  updatedAt: string
+}
+
+export type PorterResponsePayload = {
+  questionNumber: number
+  score: number | null
+}
+
+export type UpdatePorterPayload = {
+  responses: PorterResponsePayload[]
+  findings: DiagnosticFindingPayload[]
+}
+
+export type PorterQuestionSummary = {
+  questionNumber: number
+  force: PorterForce
+  statement: string
+  score: number | null
+}
+
+export type PorterForceSummary = {
+  force: PorterForce
+  label: string
+  answeredQuestions: number
+  score: number
+  maxScore: number
+  pressureLevel: number
+  pressurePercentage: number
+  highPressure: boolean
+}
+
+export type PorterSummary = {
+  planId: number | null
+  questions: PorterQuestionSummary[]
+  forces: PorterForceSummary[]
+  findings: DiagnosticFindingSummary[]
+  answeredQuestions: number
+  overallScore: number
+  maxOverallScore: number
+  pressurePercentage: number
+  conclusion: string
+  complete: boolean
+  updatedAt: string
+}
+
 export type ValueChainActivityPayload = {
   activity: ValueChainActivity
   description: string
@@ -205,6 +312,7 @@ export type ValueChainActivityPayload = {
 }
 
 export type ValueChainAssessmentPayload = {
+  questionNumber: number | null
   activity: ValueChainActivity
   statement: string
   score: number
@@ -218,6 +326,7 @@ export type UpdateValueChainPayload = {
   observations: string
   strengths: string[]
   weaknesses: string[]
+  findings: DiagnosticFindingPayload[]
 }
 
 export type ValueChainActivitySummary = {
@@ -231,6 +340,7 @@ export type ValueChainActivitySummary = {
 
 export type ValueChainAssessmentSummary = {
   id: number | null
+  questionNumber: number | null
   activity: ValueChainActivity
   statement: string
   score: number
@@ -238,8 +348,30 @@ export type ValueChainAssessmentSummary = {
   position: number
 }
 
+export type ValueChainQuestionSummary = {
+  questionNumber: number
+  activity: ValueChainActivity
+  dimensions: ValueChainDimension[]
+  statement: string
+  score: number | null
+}
+
+export type ValueChainDimensionSummary = {
+  dimension: ValueChainDimension
+  code: string
+  label: string
+  answeredQuestions: number
+  score: number
+  maxScore: number
+  maturityPercentage: number
+  improvementPercentage: number
+}
+
 export type ValueChainSummary = {
   planId: number | null
+  questions: ValueChainQuestionSummary[]
+  dimensions: ValueChainDimensionSummary[]
+  findings: DiagnosticFindingSummary[]
   supportActivities: ValueChainActivitySummary[]
   primaryActivities: ValueChainActivitySummary[]
   assessments: ValueChainAssessmentSummary[]
@@ -249,6 +381,10 @@ export type ValueChainSummary = {
   totalScore: number
   maxScore: number
   scorePercentage: number
+  answeredQuestions: number
+  improvementPercentage: number
+  complete: boolean
+  conclusion: string
   updatedAt: string
 }
 

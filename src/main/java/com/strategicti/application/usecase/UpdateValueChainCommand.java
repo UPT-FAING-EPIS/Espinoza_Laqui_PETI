@@ -11,6 +11,7 @@ public record UpdateValueChainCommand(
         List<@Valid ValueChainAssessmentCommand> assessments,
         @Size(max = 1000) String observations,
         List<@Size(max = 1000) String> strengths,
-        List<@Size(max = 1000) String> weaknesses
+        List<@Size(max = 1000) String> weaknesses,
+        List<@Valid DiagnosticFindingCommand> findings
 ) {
 }

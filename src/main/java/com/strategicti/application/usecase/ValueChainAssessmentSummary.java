@@ -4,6 +4,7 @@ import com.strategicti.domain.model.ValueChainActivity;
 
 public record ValueChainAssessmentSummary(
         Long id,
+        Integer questionNumber,
         ValueChainActivity activity,
         String statement,
         int score,

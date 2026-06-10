@@ -223,7 +223,7 @@ public class PlanPhaseWorkflowService {
         if (applier == null) {
             return plan;
         }
-        return applier.apply(plan, request.proposedContentJson());
+        return applier.apply(plan, request.proposedContentJson(), request.createdByUserId());
     }
 
     private boolean completesPhase(StrategicPlan plan, PlanChangeRequest request) {

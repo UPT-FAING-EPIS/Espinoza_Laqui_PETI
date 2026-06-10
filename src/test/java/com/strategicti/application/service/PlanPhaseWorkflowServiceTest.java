@@ -8,12 +8,16 @@ import com.strategicti.application.usecase.PhaseChangeRequestSummary;
 import com.strategicti.application.usecase.PhaseVersionSummary;
 import com.strategicti.application.usecase.ReviewPhaseChangeRequestCommand;
 import com.strategicti.domain.model.DiagnosticTool;
+import com.strategicti.domain.model.DiagnosticFinding;
+import com.strategicti.domain.model.DiagnosticPriority;
 import com.strategicti.domain.model.GroupRole;
 import com.strategicti.domain.model.PetiPhase;
+import com.strategicti.domain.model.PestFactor;
 import com.strategicti.domain.model.PhaseChangeStatus;
 import com.strategicti.domain.model.PlanningGroup;
 import com.strategicti.domain.model.StrategicPlan;
 import com.strategicti.domain.model.SystemRole;
+import com.strategicti.domain.model.SwotCategory;
 import com.strategicti.domain.model.UserAccount;
 import com.strategicti.support.InMemoryDiagnosticRepository;
 import com.strategicti.support.InMemoryPlanPhaseWorkflowRepository;
@@ -211,7 +215,7 @@ class PlanPhaseWorkflowServiceTest {
     }
 
     @Test
-    void diagnosticsApprovalStoresFodaWithoutCompletingDiagnosticsPhase() throws Exception {
+    void diagnosticsApprovalStoresFinalFodaAndCompletesDiagnosticsPhase() throws Exception {
         AuthenticatedUser editorUser = authenticated(editor);
         AuthenticatedUser leaderUser = authenticated(leader);
         StrategicPlan identityCompletedPlan = planRepository.findCurrentByGroupId(group.id()).orElseThrow()
@@ -237,8 +241,8 @@ class PlanPhaseWorkflowServiceTest {
         StrategicPlan plan = planRepository.findCurrentByGroupId(group.id()).orElseThrow();
         assertEquals(PhaseChangeStatus.APPROVED, approved.status());
         assertEquals(4, diagnosticRepository.findItems(plan.id(), DiagnosticTool.FODA).size());
-        assertEquals(PetiPhase.DIAGNOSTICS, plan.activePhase());
-        assertTrue(!plan.isCompleted(PetiPhase.DIAGNOSTICS));
+        assertEquals(PetiPhase.FORMULATION, plan.activePhase());
+        assertTrue(plan.isCompleted(PetiPhase.DIAGNOSTICS));
     }
 
     @Test
@@ -266,8 +270,9 @@ class PlanPhaseWorkflowServiceTest {
         );
 
         StrategicPlan plan = planRepository.findCurrentByGroupId(group.id()).orElseThrow();
-        assertEquals(2, diagnosticRepository.findAssessments(plan.id(), DiagnosticTool.VALUE_CHAIN).size());
+        assertEquals(25, diagnosticRepository.findAssessments(plan.id(), DiagnosticTool.VALUE_CHAIN).size());
         assertEquals(4, diagnosticRepository.findAssessments(plan.id(), DiagnosticTool.VALUE_CHAIN).getFirst().score());
+        assertEquals(2, diagnosticRepository.findFindings(plan.id(), DiagnosticTool.VALUE_CHAIN).size());
         assertEquals(PetiPhase.DIAGNOSTICS, plan.activePhase());
         assertTrue(!plan.isCompleted(PetiPhase.DIAGNOSTICS));
     }
@@ -301,6 +306,144 @@ class PlanPhaseWorkflowServiceTest {
         assertEquals(2, diagnosticRepository.findItems(plan.id(), DiagnosticTool.BCG).size());
         assertEquals(PetiPhase.DIAGNOSTICS, plan.activePhase());
         assertTrue(!plan.isCompleted(PetiPhase.DIAGNOSTICS));
+    }
+
+    @Test
+    void diagnosticsApprovalStoresFindingsOnlyAfterApprovalAndTracksAuthor() throws Exception {
+        AuthenticatedUser editorUser = authenticated(editor);
+        AuthenticatedUser leaderUser = authenticated(leader);
+        StrategicPlan identityCompletedPlan = planRepository.findCurrentByGroupId(group.id()).orElseThrow()
+                .complete(PetiPhase.IDENTITY);
+        planRepository.save(identityCompletedPlan);
+
+        PhaseChangeRequestSummary draft = service.createChangeRequest(
+                group.id(),
+                PetiPhase.DIAGNOSTICS,
+                findingsChangeCommand(),
+                editorUser
+        );
+        service.submitChangeRequest(group.id(), PetiPhase.DIAGNOSTICS, draft.id(), editorUser);
+
+        StrategicPlan plan = planRepository.findCurrentByGroupId(group.id()).orElseThrow();
+        assertTrue(diagnosticRepository.findFindings(plan.id()).isEmpty());
+
+        service.approveChangeRequest(
+                group.id(),
+                PetiPhase.DIAGNOSTICS,
+                draft.id(),
+                new ReviewPhaseChangeRequestCommand("Hallazgos externos validados"),
+                leaderUser
+        );
+
+        List<DiagnosticFinding> findings = diagnosticRepository.findFindings(plan.id(), DiagnosticTool.PEST);
+        assertEquals(2, findings.size());
+        assertEquals(editor.id(), findings.getFirst().createdByUserId());
+        assertEquals(SwotCategory.OPORTUNIDAD, findings.getFirst().category());
+        assertTrue(findings.getFirst().selectedForFoda());
+
+        List<PhaseVersionSummary> versions = service.listVersions(group.id(), PetiPhase.DIAGNOSTICS, leaderUser);
+        assertEquals("PEST", versions.getFirst().content().get("findings").get(0).get("source").asText());
+    }
+
+    @Test
+    void legacyDiagnosticsContentDoesNotRemoveExistingFindings() throws Exception {
+        AuthenticatedUser editorUser = authenticated(editor);
+        AuthenticatedUser leaderUser = authenticated(leader);
+        StrategicPlan plan = planRepository.findCurrentByGroupId(group.id()).orElseThrow()
+                .complete(PetiPhase.IDENTITY);
+        planRepository.save(plan);
+        diagnosticRepository.replaceFindings(
+                plan.id(),
+                DiagnosticTool.PEST,
+                List.of(DiagnosticFinding.create(
+                        plan.id(),
+                        DiagnosticTool.PEST,
+                        PestFactor.TECHNOLOGICAL.name(),
+                        SwotCategory.OPORTUNIDAD,
+                        "Mayor adopcion de servicios digitales",
+                        "Reporte sectorial",
+                        "Incremento de demanda",
+                        DiagnosticPriority.ALTA,
+                        true,
+                        editor.id(),
+                        0
+                ))
+        );
+
+        PhaseChangeRequestSummary draft = service.createChangeRequest(
+                group.id(),
+                PetiPhase.DIAGNOSTICS,
+                bcgChangeCommand(),
+                editorUser
+        );
+        service.submitChangeRequest(group.id(), PetiPhase.DIAGNOSTICS, draft.id(), editorUser);
+        service.approveChangeRequest(
+                group.id(),
+                PetiPhase.DIAGNOSTICS,
+                draft.id(),
+                new ReviewPhaseChangeRequestCommand("BCG validado"),
+                leaderUser
+        );
+
+        assertEquals(1, diagnosticRepository.findFindings(plan.id(), DiagnosticTool.PEST).size());
+    }
+
+    @Test
+    void diagnosticsApprovalStoresCompletePestQuestionnaireAndFindings() throws Exception {
+        AuthenticatedUser editorUser = authenticated(editor);
+        AuthenticatedUser leaderUser = authenticated(leader);
+        StrategicPlan plan = planRepository.findCurrentByGroupId(group.id()).orElseThrow()
+                .complete(PetiPhase.IDENTITY);
+        planRepository.save(plan);
+
+        PhaseChangeRequestSummary draft = service.createChangeRequest(
+                group.id(),
+                PetiPhase.DIAGNOSTICS,
+                pestChangeCommand(),
+                editorUser
+        );
+        service.submitChangeRequest(group.id(), PetiPhase.DIAGNOSTICS, draft.id(), editorUser);
+        service.approveChangeRequest(
+                group.id(),
+                PetiPhase.DIAGNOSTICS,
+                draft.id(),
+                new ReviewPhaseChangeRequestCommand("PEST validado"),
+                leaderUser
+        );
+
+        assertEquals(25, diagnosticRepository.findAssessments(plan.id(), DiagnosticTool.PEST).size());
+        assertEquals(2, diagnosticRepository.findFindings(plan.id(), DiagnosticTool.PEST).size());
+        assertEquals(editor.id(), diagnosticRepository.findFindings(plan.id(), DiagnosticTool.PEST).getFirst().createdByUserId());
+    }
+
+    @Test
+    void diagnosticsApprovalStoresCompletePorterQuestionnaireAndFindings() throws Exception {
+        AuthenticatedUser editorUser = authenticated(editor);
+        AuthenticatedUser leaderUser = authenticated(leader);
+        StrategicPlan plan = planRepository.findCurrentByGroupId(group.id()).orElseThrow()
+                .complete(PetiPhase.IDENTITY);
+        planRepository.save(plan);
+
+        PhaseChangeRequestSummary draft = service.createChangeRequest(
+                group.id(),
+                PetiPhase.DIAGNOSTICS,
+                porterChangeCommand(),
+                editorUser
+        );
+        service.submitChangeRequest(group.id(), PetiPhase.DIAGNOSTICS, draft.id(), editorUser);
+        assertTrue(diagnosticRepository.findAssessments(plan.id(), DiagnosticTool.PORTER).isEmpty());
+
+        service.approveChangeRequest(
+                group.id(),
+                PetiPhase.DIAGNOSTICS,
+                draft.id(),
+                new ReviewPhaseChangeRequestCommand("Porter validado"),
+                leaderUser
+        );
+
+        assertEquals(25, diagnosticRepository.findAssessments(plan.id(), DiagnosticTool.PORTER).size());
+        assertEquals(2, diagnosticRepository.findFindings(plan.id(), DiagnosticTool.PORTER).size());
+        assertEquals(editor.id(), diagnosticRepository.findFindings(plan.id(), DiagnosticTool.PORTER).getFirst().createdByUserId());
     }
 
     private CreatePhaseChangeRequestCommand identityChangeCommand(String mission) throws Exception {
@@ -375,22 +518,55 @@ class PlanPhaseWorkflowServiceTest {
                               }
                             ],
                             "assessments": [
-                              {
-                                "activity": "DESARROLLO_TECNOLOGICO",
-                                "statement": "La tecnologia soporta ventajas internas.",
-                                "score": 4,
-                                "notes": "Buen avance"
-                              },
-                              {
-                                "activity": "OPERACIONES",
-                                "statement": "Los procesos estan documentados.",
-                                "score": 3,
-                                "notes": "Debe reforzarse"
-                              }
+                              {"questionNumber": 1, "score": 4},
+                              {"questionNumber": 2, "score": 4},
+                              {"questionNumber": 3, "score": 4},
+                              {"questionNumber": 4, "score": 4},
+                              {"questionNumber": 5, "score": 4},
+                              {"questionNumber": 6, "score": 4},
+                              {"questionNumber": 7, "score": 4},
+                              {"questionNumber": 8, "score": 4},
+                              {"questionNumber": 9, "score": 4},
+                              {"questionNumber": 10, "score": 4},
+                              {"questionNumber": 11, "score": 4},
+                              {"questionNumber": 12, "score": 4},
+                              {"questionNumber": 13, "score": 4},
+                              {"questionNumber": 14, "score": 4},
+                              {"questionNumber": 15, "score": 4},
+                              {"questionNumber": 16, "score": 4},
+                              {"questionNumber": 17, "score": 4},
+                              {"questionNumber": 18, "score": 4},
+                              {"questionNumber": 19, "score": 4},
+                              {"questionNumber": 20, "score": 4},
+                              {"questionNumber": 21, "score": 2},
+                              {"questionNumber": 22, "score": 2},
+                              {"questionNumber": 23, "score": 2},
+                              {"questionNumber": 24, "score": 2},
+                              {"questionNumber": 25, "score": 2}
                             ],
                             "observations": "Se observa potencial de mejora.",
                             "strengths": ["Capacidad tecnica interna"],
-                            "weaknesses": ["Procesos manuales"]
+                            "weaknesses": ["Procesos manuales"],
+                            "findings": [
+                              {
+                                "sourceDimension": "DESARROLLO_TECNOLOGICO",
+                                "category": "FORTALEZA",
+                                "description": "Capacidad tecnica interna",
+                                "evidence": "Cuestionario interno",
+                                "impact": "Acelera automatizacion",
+                                "priority": "ALTA",
+                                "selectedForFoda": true
+                              },
+                              {
+                                "sourceDimension": "OPERACIONES",
+                                "category": "DEBILIDAD",
+                                "description": "Procesos manuales",
+                                "evidence": "Cuestionario interno",
+                                "impact": "Reduce eficiencia",
+                                "priority": "MEDIA",
+                                "selectedForFoda": true
+                              }
+                            ]
                           }
                         }
                         """),
@@ -432,6 +608,119 @@ class PlanPhaseWorkflowServiceTest {
                         }
                         """),
                 List.of(new PhaseChangeEntryCommand("bcg", "", "BCG validado"))
+        );
+    }
+
+    private CreatePhaseChangeRequestCommand findingsChangeCommand() throws Exception {
+        return new CreatePhaseChangeRequestCommand(
+                "Aprobar hallazgos PEST",
+                "Resultados consolidados del analisis externo.",
+                objectMapper.readTree("""
+                        {
+                          "findings": [
+                            {
+                              "source": "PEST",
+                              "findings": [
+                                {
+                                  "sourceDimension": "TECHNOLOGICAL",
+                                  "category": "OPORTUNIDAD",
+                                  "description": "Mayor adopcion de servicios digitales",
+                                  "evidence": "Reporte sectorial 2026",
+                                  "impact": "Incremento de demanda",
+                                  "priority": "ALTA",
+                                  "selectedForFoda": true
+                                },
+                                {
+                                  "sourceDimension": "POLITICAL",
+                                  "category": "AMENAZA",
+                                  "description": "Nuevas exigencias regulatorias",
+                                  "evidence": "Proyecto normativo",
+                                  "impact": "Mayor costo de cumplimiento",
+                                  "priority": "MEDIA",
+                                  "selectedForFoda": false
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                        """),
+                List.of(new PhaseChangeEntryCommand("findings.PEST", "", "2 hallazgos externos"))
+        );
+    }
+
+    private CreatePhaseChangeRequestCommand pestChangeCommand() throws Exception {
+        String responses = java.util.stream.IntStream.rangeClosed(1, 25)
+                .mapToObj(number -> "{\"questionNumber\":" + number + ",\"score\":3}")
+                .collect(java.util.stream.Collectors.joining(","));
+        return new CreatePhaseChangeRequestCommand(
+                "Aprobar PEST",
+                "Cuestionario y hallazgos del macroentorno.",
+                objectMapper.readTree("""
+                        {
+                          "pest": {
+                            "responses": [%s],
+                            "findings": [
+                              {
+                                "sourceDimension": "TECHNOLOGICAL",
+                                "category": "OPORTUNIDAD",
+                                "description": "Mayor adopcion de servicios digitales",
+                                "evidence": "Cuestionario PEST",
+                                "impact": "Nuevos canales",
+                                "priority": "ALTA",
+                                "selectedForFoda": true
+                              },
+                              {
+                                "sourceDimension": "POLITICAL",
+                                "category": "AMENAZA",
+                                "description": "Nuevas exigencias regulatorias",
+                                "evidence": "Cambios normativos",
+                                "impact": "Mayor costo",
+                                "priority": "MEDIA",
+                                "selectedForFoda": true
+                              }
+                            ]
+                          }
+                        }
+                        """.formatted(responses)),
+                List.of(new PhaseChangeEntryCommand("pest.responses", "", "25 respuestas"))
+        );
+    }
+
+    private CreatePhaseChangeRequestCommand porterChangeCommand() throws Exception {
+        String responses = java.util.stream.IntStream.rangeClosed(1, 25)
+                .mapToObj(number -> "{\"questionNumber\":" + number + ",\"score\":3}")
+                .collect(java.util.stream.Collectors.joining(","));
+        return new CreatePhaseChangeRequestCommand(
+                "Aprobar Porter",
+                "Cuestionario y hallazgos del microentorno.",
+                objectMapper.readTree("""
+                        {
+                          "porter": {
+                            "responses": [%s],
+                            "findings": [
+                              {
+                                "sourceDimension": "SUPPLIER_POWER",
+                                "category": "OPORTUNIDAD",
+                                "description": "Diversificacion posible de proveedores",
+                                "evidence": "Cuestionario Porter",
+                                "impact": "Menor dependencia",
+                                "priority": "ALTA",
+                                "selectedForFoda": true
+                              },
+                              {
+                                "sourceDimension": "INDUSTRY_RIVALRY",
+                                "category": "AMENAZA",
+                                "description": "Competidores con capacidades similares",
+                                "evidence": "Cuestionario Porter",
+                                "impact": "Mayor presion sobre precios",
+                                "priority": "MEDIA",
+                                "selectedForFoda": true
+                              }
+                            ]
+                          }
+                        }
+                        """.formatted(responses)),
+                List.of(new PhaseChangeEntryCommand("porter.responses", "", "25 respuestas"))
         );
     }
 
