@@ -89,8 +89,15 @@ public class DiagnosticsPhaseContentApplier implements PhaseContentApplier {
                         true
                 );
                 List<DiagnosticItem> items = diagnosticContentMapper.normalizeBcgItems(plan.id(), content.bcg(), true);
+                List<DiagnosticFinding> findings = diagnosticContentMapper.normalizeBcgFindings(
+                        plan.id(),
+                        content.bcg(),
+                        createdByUserId,
+                        true
+                );
                 diagnosticRepository.replaceBcgPortfolioItems(plan.id(), products);
                 diagnosticRepository.replaceItems(plan.id(), DiagnosticTool.BCG, items);
+                diagnosticRepository.replaceFindings(plan.id(), DiagnosticTool.BCG, findings);
             }
             if (content.pest() != null) {
                 List<DiagnosticAssessment> assessments = diagnosticContentMapper.normalizePestAssessments(
@@ -126,6 +133,7 @@ public class DiagnosticsPhaseContentApplier implements PhaseContentApplier {
             if (content.pest() != null) alreadyApplied.add(DiagnosticTool.PEST);
             if (content.porter() != null) alreadyApplied.add(DiagnosticTool.PORTER);
             if (content.valueChain() != null) alreadyApplied.add(DiagnosticTool.VALUE_CHAIN);
+            if (content.bcg() != null) alreadyApplied.add(DiagnosticTool.BCG);
             applyFindings(plan.id(), content.findings(), createdByUserId, alreadyApplied);
             return plan;
         } catch (JacksonException exception) {

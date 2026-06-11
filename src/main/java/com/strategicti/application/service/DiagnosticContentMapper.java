@@ -1,5 +1,7 @@
 package com.strategicti.application.service;
 
+import com.strategicti.application.usecase.BcgCompetitorSaleCommand;
+import com.strategicti.application.usecase.BcgCompetitorSaleSummary;
 import com.strategicti.application.usecase.BcgPortfolioItemCommand;
 import com.strategicti.application.usecase.BcgPortfolioItemSummary;
 import com.strategicti.application.usecase.BcgSummary;
@@ -29,6 +31,7 @@ import com.strategicti.application.usecase.ValueChainAssessmentSummary;
 import com.strategicti.application.usecase.ValueChainDimensionSummary;
 import com.strategicti.application.usecase.ValueChainQuestionSummary;
 import com.strategicti.application.usecase.ValueChainSummary;
+import com.strategicti.domain.model.BcgCompetitorSale;
 import com.strategicti.domain.model.BcgPortfolioItem;
 import com.strategicti.domain.model.BcgQuadrant;
 import com.strategicti.domain.model.DiagnosticAssessment;
@@ -287,12 +290,22 @@ public class DiagnosticContentMapper {
             if (product.annualSales() < 0 || product.relativeMarketShare() < 0) {
                 throw new IllegalArgumentException("La cartera BCG no puede tener ventas o participacion negativas.");
             }
+            List<Double> marketGrowthRates = numberValues(product.marketGrowthRates(), false);
+            List<Double> sectorDemandValues = numberValues(product.sectorDemandValues(), true);
+            List<BcgCompetitorSale> competitors = competitorSales(product.competitors());
             inputs.add(new BcgProductInput(
                     name,
                     contentMapper.clean(product.description()),
                     product.annualSales(),
-                    product.marketGrowthRate(),
-                    product.relativeMarketShare(),
+                    BcgPortfolioItem.marketGrowthFromRates(marketGrowthRates, product.marketGrowthRate()),
+                    BcgPortfolioItem.relativeMarketShareFromCompetitors(
+                            product.annualSales(),
+                            competitors,
+                            product.relativeMarketShare()
+                    ),
+                    marketGrowthRates,
+                    sectorDemandValues,
+                    competitors,
                     contentMapper.clean(product.notes())
             ));
         }
@@ -313,6 +326,9 @@ public class DiagnosticContentMapper {
                     salesPercentage,
                     input.marketGrowthRate(),
                     input.relativeMarketShare(),
+                    input.marketGrowthRates(),
+                    input.sectorDemandValues(),
+                    input.competitors(),
                     growthThreshold,
                     shareThreshold,
                     input.notes(),
@@ -347,6 +363,38 @@ public class DiagnosticContentMapper {
         position = addTextItems(items, planId, DiagnosticTool.BCG, BCG_STRENGTH, command.strengths(), position);
         addTextItems(items, planId, DiagnosticTool.BCG, BCG_WEAKNESS, command.weaknesses(), position);
         return items;
+    }
+
+    public List<DiagnosticFinding> normalizeBcgFindings(
+            Long planId,
+            UpdateBcgCommand command,
+            Long createdByUserId,
+            boolean requireComplete
+    ) {
+        List<DiagnosticFinding> normalized = normalizeFindings(
+                planId,
+                new UpdateDiagnosticFindingsCommand(
+                        DiagnosticTool.BCG,
+                        bcgFindingCommands(command)
+                ),
+                createdByUserId
+        );
+        boolean hasInvalidCategory = normalized.stream()
+                .anyMatch(finding -> finding.category() != SwotCategory.FORTALEZA
+                        && finding.category() != SwotCategory.DEBILIDAD);
+        if (hasInvalidCategory) {
+            throw new IllegalArgumentException("Los hallazgos BCG solo pueden ser fortalezas o debilidades.");
+        }
+        if (requireComplete) {
+            boolean hasStrength = normalized.stream()
+                    .anyMatch(finding -> finding.category() == SwotCategory.FORTALEZA);
+            boolean hasWeakness = normalized.stream()
+                    .anyMatch(finding -> finding.category() == SwotCategory.DEBILIDAD);
+            if (!hasStrength || !hasWeakness) {
+                throw new IllegalArgumentException("BCG debe incluir al menos una fortaleza y una debilidad.");
+            }
+        }
+        return normalized;
     }
 
     public List<DiagnosticFinding> normalizeFindings(
@@ -671,9 +719,10 @@ public class DiagnosticContentMapper {
             Long planId,
             List<BcgPortfolioItem> products,
             List<DiagnosticItem> items,
+            List<DiagnosticFinding> findings,
             Instant fallbackUpdatedAt
     ) {
-        Instant updatedAt = latestBcgUpdatedAt(items, products, fallbackUpdatedAt);
+        Instant updatedAt = latestBcgUpdatedAt(items, products, findings, fallbackUpdatedAt);
         double totalSales = round(products.stream().mapToDouble(BcgPortfolioItem::annualSales).sum());
         double marketGrowthThreshold = products.stream()
                 .findFirst()
@@ -695,12 +744,25 @@ public class DiagnosticContentMapper {
                                 product.salesPercentage(),
                                 product.marketGrowthRate(),
                                 product.relativeMarketShare(),
+                                product.marketGrowthRates(),
+                                product.sectorDemandValues(),
+                                product.competitors().stream()
+                                        .map(competitor -> new BcgCompetitorSaleSummary(
+                                                competitor.name(),
+                                                competitor.sales()
+                                        ))
+                                        .toList(),
+                                product.largestCompetitorSales(),
                                 product.quadrant(),
                                 product.strategicDecision(),
                                 product.strategicDecision().label(),
                                 product.notes(),
                                 product.position()
                         ))
+                        .toList(),
+                findings.stream()
+                        .sorted(Comparator.comparingInt(DiagnosticFinding::position))
+                        .map(this::toFindingSummary)
                         .toList(),
                 firstDescription(items, BCG_OBSERVATION),
                 descriptions(items, BCG_STRENGTH),
@@ -970,6 +1032,41 @@ public class DiagnosticContentMapper {
         return fallback;
     }
 
+    private List<DiagnosticFindingCommand> bcgFindingCommands(UpdateBcgCommand command) {
+        List<DiagnosticFindingCommand> findings = command == null ? null : command.findings();
+        if (findings != null && !findings.isEmpty()) {
+            return findings;
+        }
+        List<DiagnosticFindingCommand> fallback = new ArrayList<>();
+        if (command != null && command.strengths() != null) {
+            for (String strength : command.strengths()) {
+                fallback.add(new DiagnosticFindingCommand(
+                        "BCG",
+                        SwotCategory.FORTALEZA,
+                        strength,
+                        "",
+                        "",
+                        DiagnosticPriority.MEDIA,
+                        true
+                ));
+            }
+        }
+        if (command != null && command.weaknesses() != null) {
+            for (String weakness : command.weaknesses()) {
+                fallback.add(new DiagnosticFindingCommand(
+                        "BCG",
+                        SwotCategory.DEBILIDAD,
+                        weakness,
+                        "",
+                        "",
+                        DiagnosticPriority.MEDIA,
+                        true
+                ));
+            }
+        }
+        return fallback;
+    }
+
     private String valueChainConclusion(int scorePercentage, boolean complete) {
         if (!complete) {
             return "Complete las 25 preguntas para obtener el potencial de mejora interno.";
@@ -1046,6 +1143,49 @@ public class DiagnosticContentMapper {
         return threshold;
     }
 
+    private List<Double> numberValues(List<Double> values, boolean requireNonNegative) {
+        if (values == null) {
+            return List.of();
+        }
+        List<Double> numbers = new ArrayList<>();
+        for (Double value : values) {
+            if (value == null || !Double.isFinite(value)) {
+                continue;
+            }
+            if (requireNonNegative && value < 0) {
+                throw new IllegalArgumentException("Los valores BCG no pueden ser negativos.");
+            }
+            numbers.add(round(value));
+        }
+        return numbers;
+    }
+
+    private List<BcgCompetitorSale> competitorSales(List<BcgCompetitorSaleCommand> competitors) {
+        if (competitors == null) {
+            return List.of();
+        }
+        List<BcgCompetitorSale> sales = new ArrayList<>();
+        int index = 1;
+        for (BcgCompetitorSaleCommand competitor : competitors) {
+            if (competitor == null) {
+                continue;
+            }
+            if (competitor.sales() < 0) {
+                throw new IllegalArgumentException("Las ventas del competidor BCG no pueden ser negativas.");
+            }
+            String name = contentMapper.clean(competitor.name());
+            if (name.isBlank()) {
+                name = "Competidor " + index;
+            }
+            sales.add(new BcgCompetitorSale(name, round(competitor.sales())));
+            index++;
+            if (sales.size() == 9) {
+                break;
+            }
+        }
+        return sales;
+    }
+
     private double round(double value) {
         return Math.round(value * 100.0) / 100.0;
     }
@@ -1083,17 +1223,23 @@ public class DiagnosticContentMapper {
     private Instant latestBcgUpdatedAt(
             List<DiagnosticItem> items,
             List<BcgPortfolioItem> products,
+            List<DiagnosticFinding> findings,
             Instant fallbackUpdatedAt
     ) {
         Instant latestItem = items.stream()
                 .map(DiagnosticItem::updatedAt)
                 .max(Comparator.naturalOrder())
                 .orElse(fallbackUpdatedAt);
-        return products.stream()
+        Instant latestProduct = products.stream()
                 .map(BcgPortfolioItem::updatedAt)
                 .max(Comparator.naturalOrder())
                 .filter(instant -> instant.isAfter(latestItem))
                 .orElse(latestItem);
+        return findings.stream()
+                .map(DiagnosticFinding::updatedAt)
+                .max(Comparator.naturalOrder())
+                .filter(instant -> instant.isAfter(latestProduct))
+                .orElse(latestProduct);
     }
 
     private ValueChainActivity valueChainActivity(String value) {
@@ -1113,6 +1259,9 @@ public class DiagnosticContentMapper {
             double annualSales,
             double marketGrowthRate,
             double relativeMarketShare,
+            List<Double> marketGrowthRates,
+            List<Double> sectorDemandValues,
+            List<BcgCompetitorSale> competitors,
             String notes
     ) {
     }

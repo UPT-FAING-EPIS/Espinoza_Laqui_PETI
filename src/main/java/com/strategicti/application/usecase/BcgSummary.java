@@ -6,6 +6,7 @@ import java.util.List;
 public record BcgSummary(
         Long planId,
         List<BcgPortfolioItemSummary> products,
+        List<DiagnosticFindingSummary> findings,
         String observations,
         List<String> strengths,
         List<String> weaknesses,

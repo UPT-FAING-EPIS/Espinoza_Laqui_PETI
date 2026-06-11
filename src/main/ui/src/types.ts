@@ -212,7 +212,7 @@ export type PestResponsePayload = {
 }
 
 export type DiagnosticFindingPayload = {
-  sourceDimension: PestFactor | PorterForce | ValueChainActivity
+  sourceDimension: string
   category: SwotCategory
   description: string
   evidence: string
@@ -388,12 +388,20 @@ export type ValueChainSummary = {
   updatedAt: string
 }
 
+export type BcgCompetitorSalePayload = {
+  name: string
+  sales: number
+}
+
 export type BcgPortfolioItemPayload = {
   name: string
   description: string
   annualSales: number
   marketGrowthRate: number
   relativeMarketShare: number
+  marketGrowthRates: number[]
+  sectorDemandValues: number[]
+  competitors: BcgCompetitorSalePayload[]
   notes: string
 }
 
@@ -404,6 +412,12 @@ export type UpdateBcgPayload = {
   observations: string
   strengths: string[]
   weaknesses: string[]
+  findings: DiagnosticFindingPayload[]
+}
+
+export type BcgCompetitorSaleSummary = {
+  name: string
+  sales: number
 }
 
 export type BcgPortfolioItemSummary = {
@@ -414,6 +428,10 @@ export type BcgPortfolioItemSummary = {
   salesPercentage: number
   marketGrowthRate: number
   relativeMarketShare: number
+  marketGrowthRates: number[]
+  sectorDemandValues: number[]
+  competitors: BcgCompetitorSaleSummary[]
+  largestCompetitorSales: number
   quadrant: BcgQuadrant
   strategicDecision: BcgStrategicDecision
   strategicDecisionLabel: string
@@ -424,6 +442,7 @@ export type BcgPortfolioItemSummary = {
 export type BcgSummary = {
   planId: number | null
   products: BcgPortfolioItemSummary[]
+  findings: DiagnosticFindingSummary[]
   observations: string
   strengths: string[]
   weaknesses: string[]

@@ -154,8 +154,15 @@ public class DiagnosticService {
         assertDiagnosticsEditable(plan);
         List<BcgPortfolioItem> products = diagnosticContentMapper.normalizeBcgPortfolio(plan.id(), command, false);
         List<DiagnosticItem> items = diagnosticContentMapper.normalizeBcgItems(plan.id(), command, false);
+        List<DiagnosticFinding> findings = diagnosticContentMapper.normalizeBcgFindings(
+                plan.id(),
+                command,
+                viewer.id(),
+                false
+        );
         diagnosticRepository.replaceBcgPortfolioItems(plan.id(), products);
         diagnosticRepository.replaceItems(plan.id(), DiagnosticTool.BCG, items);
+        diagnosticRepository.replaceFindings(plan.id(), DiagnosticTool.BCG, findings);
         return toBcgSummary(plan);
     }
 
@@ -186,7 +193,8 @@ public class DiagnosticService {
     private BcgSummary toBcgSummary(StrategicPlan plan) {
         List<BcgPortfolioItem> products = diagnosticRepository.findBcgPortfolioItems(plan.id());
         List<DiagnosticItem> items = diagnosticRepository.findItems(plan.id(), DiagnosticTool.BCG);
-        return diagnosticContentMapper.toBcgSummary(plan.id(), products, items, plan.updatedAt());
+        List<DiagnosticFinding> findings = diagnosticRepository.findFindings(plan.id(), DiagnosticTool.BCG);
+        return diagnosticContentMapper.toBcgSummary(plan.id(), products, items, findings, plan.updatedAt());
     }
 
     private void assertDiagnosticsEditable(StrategicPlan plan) {

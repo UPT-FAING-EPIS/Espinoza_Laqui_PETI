@@ -303,7 +303,8 @@ class PlanPhaseWorkflowServiceTest {
 
         StrategicPlan plan = planRepository.findCurrentByGroupId(group.id()).orElseThrow();
         assertEquals(2, diagnosticRepository.findBcgPortfolioItems(plan.id()).size());
-        assertEquals(2, diagnosticRepository.findItems(plan.id(), DiagnosticTool.BCG).size());
+        assertEquals(3, diagnosticRepository.findItems(plan.id(), DiagnosticTool.BCG).size());
+        assertEquals(2, diagnosticRepository.findFindings(plan.id(), DiagnosticTool.BCG).size());
         assertEquals(PetiPhase.DIAGNOSTICS, plan.activePhase());
         assertTrue(!plan.isCompleted(PetiPhase.DIAGNOSTICS));
     }
@@ -603,7 +604,7 @@ class PlanPhaseWorkflowServiceTest {
                             "relativeMarketShareThreshold": 1,
                             "observations": "La cartera requiere priorizacion diferenciada.",
                             "strengths": ["Servicio academico con alto potencial"],
-                            "weaknesses": []
+                            "weaknesses": ["Servicio emergente con baja participacion relativa"]
                           }
                         }
                         """),

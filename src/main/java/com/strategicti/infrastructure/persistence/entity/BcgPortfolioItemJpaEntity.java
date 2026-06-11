@@ -9,6 +9,7 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Lob;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
@@ -42,6 +43,21 @@ public class BcgPortfolioItemJpaEntity {
 
     @Column(nullable = false)
     private double relativeMarketShare;
+
+    @Lob
+    @Column(columnDefinition = "LONGTEXT")
+    private String marketGrowthRatesJson;
+
+    @Lob
+    @Column(columnDefinition = "LONGTEXT")
+    private String sectorDemandValuesJson;
+
+    @Lob
+    @Column(columnDefinition = "LONGTEXT")
+    private String competitorsJson;
+
+    @Column(nullable = false)
+    private double largestCompetitorSales;
 
     @Column(nullable = false)
     private double marketGrowthThreshold = 10.0;
@@ -134,6 +150,38 @@ public class BcgPortfolioItemJpaEntity {
 
     public void setRelativeMarketShare(double relativeMarketShare) {
         this.relativeMarketShare = relativeMarketShare;
+    }
+
+    public String getMarketGrowthRatesJson() {
+        return marketGrowthRatesJson;
+    }
+
+    public void setMarketGrowthRatesJson(String marketGrowthRatesJson) {
+        this.marketGrowthRatesJson = marketGrowthRatesJson;
+    }
+
+    public String getSectorDemandValuesJson() {
+        return sectorDemandValuesJson;
+    }
+
+    public void setSectorDemandValuesJson(String sectorDemandValuesJson) {
+        this.sectorDemandValuesJson = sectorDemandValuesJson;
+    }
+
+    public String getCompetitorsJson() {
+        return competitorsJson;
+    }
+
+    public void setCompetitorsJson(String competitorsJson) {
+        this.competitorsJson = competitorsJson;
+    }
+
+    public double getLargestCompetitorSales() {
+        return largestCompetitorSales;
+    }
+
+    public void setLargestCompetitorSales(double largestCompetitorSales) {
+        this.largestCompetitorSales = largestCompetitorSales;
     }
 
     public double getMarketGrowthThreshold() {

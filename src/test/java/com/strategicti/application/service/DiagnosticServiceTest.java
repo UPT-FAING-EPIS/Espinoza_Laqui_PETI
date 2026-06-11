@@ -1,6 +1,7 @@
 package com.strategicti.application.service;
 
 import com.strategicti.application.usecase.AuthenticatedUser;
+import com.strategicti.application.usecase.BcgCompetitorSaleCommand;
 import com.strategicti.application.usecase.BcgPortfolioItemCommand;
 import com.strategicti.application.usecase.BcgSummary;
 import com.strategicti.application.usecase.ForbiddenOperationException;
@@ -105,16 +106,27 @@ class DiagnosticServiceTest {
     void updateBcgForGroupStoresPortfolioAndClassifiesQuadrants() {
         BcgSummary summary = service.updateBcgForGroup(group.id(), bcgCommand(), authenticated(member));
 
-        assertEquals(4, summary.products().size());
+        assertEquals(6, summary.products().size());
         assertEquals(10000.0, summary.totalSales(), 0.01);
         assertEquals(1, summary.stars());
-        assertEquals(1, summary.questionMarks());
+        assertEquals(2, summary.questionMarks());
         assertEquals(1, summary.cashCows());
-        assertEquals(1, summary.dogs());
+        assertEquals(2, summary.dogs());
         assertEquals(BcgQuadrant.ESTRELLA, summary.products().get(0).quadrant());
         assertEquals(BcgStrategicDecision.POTENCIAR, summary.products().get(0).strategicDecision());
         assertEquals(40.0, summary.products().get(0).salesPercentage(), 0.01);
+        assertEquals(20.0, summary.products().get(0).marketGrowthRate(), 0.01);
+        assertEquals(1.6, summary.products().get(0).relativeMarketShare(), 0.01);
+        assertEquals(6, summary.products().get(0).marketGrowthRates().size());
+        assertEquals(7, summary.products().get(0).sectorDemandValues().size());
+        assertEquals(2500.0, summary.products().get(0).largestCompetitorSales(), 0.01);
         assertEquals("Dependencia de servicios con baja participacion", summary.weaknesses().getFirst());
+        assertEquals(2, summary.findings().size());
+        assertEquals(BcgQuadrant.ESTRELLA.name(), summary.findings().getFirst().sourceDimension());
+        assertEquals(2, diagnosticRepository.findFindings(
+                planRepository.findCurrentByGroupId(group.id()).orElseThrow().id(),
+                com.strategicti.domain.model.DiagnosticTool.BCG
+        ).size());
     }
 
     @Test
@@ -253,40 +265,106 @@ class DiagnosticServiceTest {
                                 "Sistema academico",
                                 "Servicio central con demanda creciente",
                                 4000,
-                                18,
-                                1.6,
+                                0,
+                                0,
+                                List.of(16.0, 18.0, 20.0, 22.0, 24.0, 20.0),
+                                List.of(9000.0, 9800.0, 10700.0, 11600.0, 12800.0, 14100.0, 15000.0),
+                                List.of(
+                                        new BcgCompetitorSaleCommand("Competidor A", 2500),
+                                        new BcgCompetitorSaleCommand("Competidor B", 2200)
+                                ),
                                 "Debe potenciarse"
                         ),
                         new BcgPortfolioItemCommand(
                                 "Mesa de ayuda",
                                 "Servicio emergente con baja participacion",
                                 2500,
-                                16,
-                                0.7,
+                                0,
+                                0,
+                                List.of(14.0, 15.0, 16.0, 17.0, 18.0),
+                                List.of(5000.0, 5400.0, 5900.0, 6500.0, 7200.0, 8200.0),
+                                List.of(
+                                        new BcgCompetitorSaleCommand("Competidor A", 3500),
+                                        new BcgCompetitorSaleCommand("Competidor B", 2900)
+                                ),
                                 "Evaluar inversion"
                         ),
                         new BcgPortfolioItemCommand(
                                 "Gestion documental",
                                 "Servicio estable con alta participacion",
                                 2000,
-                                4,
-                                1.4,
+                                0,
+                                0,
+                                List.of(4.0, 5.0, 3.0, 4.0, 4.0),
+                                List.of(3200.0, 3300.0, 3400.0, 3500.0, 3600.0, 3700.0),
+                                List.of(
+                                        new BcgCompetitorSaleCommand("Competidor A", 1428.57),
+                                        new BcgCompetitorSaleCommand("Competidor B", 1000)
+                                ),
                                 "Mantener eficiencia"
                         ),
                         new BcgPortfolioItemCommand(
                                 "Aplicacion heredada",
                                 "Servicio con baja demanda y baja participacion",
                                 1500,
-                                3,
-                                0.4,
+                                0,
+                                0,
+                                List.of(2.0, 3.0, 3.0, 4.0, 3.0),
+                                List.of(2200.0, 2100.0, 2000.0, 1950.0, 1900.0, 1850.0),
+                                List.of(
+                                        new BcgCompetitorSaleCommand("Competidor A", 3750),
+                                        new BcgCompetitorSaleCommand("Competidor B", 3100)
+                                ),
                                 "Planificar retiro"
+                        ),
+                        new BcgPortfolioItemCommand(
+                                "Analitica predictiva",
+                                "Servicio experimental con crecimiento alto",
+                                0,
+                                0,
+                                0,
+                                List.of(12.0, 13.0, 14.0),
+                                List.of(1000.0, 1250.0, 1500.0),
+                                List.of(),
+                                "Evaluar antes de invertir"
+                        ),
+                        new BcgPortfolioItemCommand(
+                                "Servicio archivado",
+                                "Servicio sin crecimiento relevante",
+                                0,
+                                0,
+                                0,
+                                List.of(1.0, 1.0, 2.0),
+                                List.of(900.0, 850.0, 800.0),
+                                List.of(),
+                                "Mantener controlado"
                         )
                 ),
                 10.0,
                 1.0,
                 "La cartera combina servicios maduros y servicios con potencial.",
                 List.of("Portafolio con servicios estrella"),
-                List.of("Dependencia de servicios con baja participacion")
+                List.of("Dependencia de servicios con baja participacion"),
+                List.of(
+                        new DiagnosticFindingCommand(
+                                BcgQuadrant.ESTRELLA.name(),
+                                com.strategicti.domain.model.SwotCategory.FORTALEZA,
+                                "Portafolio con servicios estrella",
+                                "Matriz BCG",
+                                "Permite priorizar inversion en servicios de alto potencial",
+                                DiagnosticPriority.ALTA,
+                                true
+                        ),
+                        new DiagnosticFindingCommand(
+                                BcgQuadrant.PERRO.name(),
+                                com.strategicti.domain.model.SwotCategory.DEBILIDAD,
+                                "Dependencia de servicios con baja participacion",
+                                "Matriz BCG",
+                                "Consume esfuerzo sin aportar crecimiento relevante",
+                                DiagnosticPriority.MEDIA,
+                                true
+                        )
+                )
         );
     }
 

@@ -12,6 +12,7 @@ public record UpdateBcgCommand(
         @Positive Double relativeMarketShareThreshold,
         @Size(max = 1000) String observations,
         List<@Size(max = 1000) String> strengths,
-        List<@Size(max = 1000) String> weaknesses
+        List<@Size(max = 1000) String> weaknesses,
+        List<@Valid DiagnosticFindingCommand> findings
 ) {
 }

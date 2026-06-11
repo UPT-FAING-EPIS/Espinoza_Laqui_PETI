@@ -1,5 +1,6 @@
 package com.strategicti.infrastructure.persistence.factory;
 
+import com.strategicti.domain.model.BcgCompetitorSale;
 import com.strategicti.domain.model.BcgPortfolioItem;
 import com.strategicti.domain.model.DiagnosticAssessment;
 import com.strategicti.domain.model.DiagnosticFinding;
@@ -9,9 +10,20 @@ import com.strategicti.infrastructure.persistence.entity.DiagnosticAssessmentJpa
 import com.strategicti.infrastructure.persistence.entity.DiagnosticFindingJpaEntity;
 import com.strategicti.infrastructure.persistence.entity.DiagnosticItemJpaEntity;
 import org.springframework.stereotype.Component;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.ObjectMapper;
+
+import java.util.Arrays;
+import java.util.List;
 
 @Component
 public class DiagnosticPersistenceFactory {
+    private final ObjectMapper objectMapper;
+
+    public DiagnosticPersistenceFactory(ObjectMapper objectMapper) {
+        this.objectMapper = objectMapper;
+    }
+
     public DiagnosticItemJpaEntity toEntity(DiagnosticItem item) {
         DiagnosticItemJpaEntity entity = new DiagnosticItemJpaEntity();
         entity.setPlanId(item.planId());
@@ -73,6 +85,10 @@ public class DiagnosticPersistenceFactory {
         entity.setSalesPercentage(product.salesPercentage());
         entity.setMarketGrowthRate(product.marketGrowthRate());
         entity.setRelativeMarketShare(product.relativeMarketShare());
+        entity.setMarketGrowthRatesJson(writeJson(product.marketGrowthRates()));
+        entity.setSectorDemandValuesJson(writeJson(product.sectorDemandValues()));
+        entity.setCompetitorsJson(writeJson(product.competitors()));
+        entity.setLargestCompetitorSales(product.largestCompetitorSales());
         entity.setMarketGrowthThreshold(product.marketGrowthThreshold());
         entity.setRelativeMarketShareThreshold(product.relativeMarketShareThreshold());
         entity.setQuadrant(product.quadrant());
@@ -93,6 +109,10 @@ public class DiagnosticPersistenceFactory {
                 entity.getSalesPercentage(),
                 entity.getMarketGrowthRate(),
                 entity.getRelativeMarketShare(),
+                readNumbers(entity.getMarketGrowthRatesJson()),
+                readNumbers(entity.getSectorDemandValuesJson()),
+                readCompetitors(entity.getCompetitorsJson()),
+                entity.getLargestCompetitorSales(),
                 entity.getMarketGrowthThreshold(),
                 entity.getRelativeMarketShareThreshold(),
                 entity.getQuadrant(),
@@ -142,5 +162,41 @@ public class DiagnosticPersistenceFactory {
 
     private String emptyIfNull(String value) {
         return value == null ? "" : value;
+    }
+
+    private String writeJson(Object value) {
+        try {
+            return objectMapper.writeValueAsString(value == null ? List.of() : value);
+        } catch (JacksonException exception) {
+            return "[]";
+        }
+    }
+
+    private List<Double> readNumbers(String json) {
+        if (json == null || json.isBlank()) {
+            return List.of();
+        }
+        try {
+            Double[] values = objectMapper.readValue(json, Double[].class);
+            return Arrays.stream(values)
+                    .filter(value -> value != null && Double.isFinite(value))
+                    .toList();
+        } catch (JacksonException exception) {
+            return List.of();
+        }
+    }
+
+    private List<BcgCompetitorSale> readCompetitors(String json) {
+        if (json == null || json.isBlank()) {
+            return List.of();
+        }
+        try {
+            BcgCompetitorSale[] values = objectMapper.readValue(json, BcgCompetitorSale[].class);
+            return Arrays.stream(values)
+                    .filter(competitor -> competitor != null)
+                    .toList();
+        } catch (JacksonException exception) {
+            return List.of();
+        }
     }
 }

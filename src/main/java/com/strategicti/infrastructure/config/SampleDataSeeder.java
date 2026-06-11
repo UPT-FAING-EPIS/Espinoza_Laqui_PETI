@@ -421,7 +421,7 @@ public class SampleDataSeeder {
                             new ValueChainSeed(VALUE_CHAIN_STRENGTH, "Equipo con apertura al cambio digital."),
                             new ValueChainSeed(VALUE_CHAIN_WEAKNESS, "Indicadores aun dispersos.")
                     ),
-                    valueChainAssessments(3, Set.of(1, 6, 10, 17, 21), Set.of(4, 12, 18, 24)),
+                    SampleDataSeeder.valueChainAssessments(3, Set.of(1, 6, 10, 17, 21), Set.of(4, 12, 18, 24)),
                     List.of(
                             new BcgSeed("Canal e-commerce", "Canal digital de ventas.", 150000, 14.0, 1.2, "Potenciar inversion."),
                             new BcgSeed("App de fidelizacion", "Servicio de retencion de clientes.", 65000, 16.0, 0.6, "Evaluar crecimiento."),

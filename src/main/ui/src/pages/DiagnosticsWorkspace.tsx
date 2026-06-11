@@ -15,7 +15,7 @@ import {
   Workflow,
   XCircle,
 } from 'lucide-react'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { Fragment, useCallback, useEffect, useMemo, useState } from 'react'
 import {
   createPhaseChangeRequest,
   getGroupPlanBcg,
@@ -65,6 +65,19 @@ import { porterForceScores, porterOverallPressure } from './porterMetrics'
 type DiagnosticToolKey = 'pest' | 'porter' | 'valueChain' | 'bcg' | 'foda'
 type DiagnosticAreaKey = 'external' | 'internal' | 'foda'
 type SwotKey = keyof UpdateSwotPayload
+type SwotSourceSuggestion = {
+  key: SwotKey
+  description: string
+  priority: DiagnosticPriority
+  source: string
+  sourceDimension: string
+}
+type BcgDerivedProduct = BcgPortfolioItemPayload & {
+  salesPercentage: number
+  largestCompetitorSales: number
+  quadrant: BcgQuadrant
+  position: number
+}
 type DiagnosticPreviewPayload =
   | { tool: 'pest'; pest: UpdatePestPayload }
   | { tool: 'porter'; porter: UpdatePorterPayload }
@@ -347,20 +360,43 @@ const emptyValueChain: UpdateValueChainPayload = {
   findings: [],
 }
 
-const emptyBcg: UpdateBcgPayload = {
-  products: [{
+const BCG_DEFAULT_GROWTH_PERIODS = 5
+const BCG_DEFAULT_DEMAND_PERIODS = 6
+const BCG_MAX_COMPETITORS = 9
+const bcgFindingDimensions = ['BCG', 'ESTRELLA', 'INCOGNITA', 'VACA', 'PERRO'] as const
+const bcgFindingDimensionLabels: Record<typeof bcgFindingDimensions[number], string> = {
+  BCG: 'Matriz BCG',
+  ESTRELLA: 'Estrella',
+  INCOGNITA: 'Incognita',
+  VACA: 'Vaca',
+  PERRO: 'Perro',
+}
+
+function emptyBcgProduct(
+  growthPeriods = BCG_DEFAULT_GROWTH_PERIODS,
+  demandPeriods = BCG_DEFAULT_DEMAND_PERIODS,
+): BcgPortfolioItemPayload {
+  return {
     name: '',
     description: '',
     annualSales: 0,
     marketGrowthRate: 0,
     relativeMarketShare: 0,
+    marketGrowthRates: Array.from({ length: Math.max(1, growthPeriods) }, () => 0),
+    sectorDemandValues: Array.from({ length: Math.max(1, demandPeriods) }, () => 0),
+    competitors: [],
     notes: '',
-  }],
+  }
+}
+
+const emptyBcg: UpdateBcgPayload = {
+  products: [emptyBcgProduct()],
   marketGrowthThreshold: 10,
   relativeMarketShareThreshold: 1,
   observations: '',
   strengths: [],
   weaknesses: [],
+  findings: [],
 }
 
 const emptyPest: UpdatePestPayload = {
@@ -419,6 +455,10 @@ export function DiagnosticsWorkspace({
     ) ?? null,
     [activeTool, changes, user?.id],
   )
+  const swotSuggestions = useMemo(
+    () => swotSuggestionsFromDiagnostics(pest, porter, valueChain, bcg),
+    [bcg, pest, porter, valueChain],
+  )
   const workflowBusy = workflowAction !== null
 
   const loadDiagnostics = useCallback(async () => {
@@ -439,11 +479,26 @@ export function DiagnosticsWorkspace({
       setSwotSummary(nextSwot)
       setValueChainSummary(nextValueChain)
       setBcgSummary(nextBcg)
-      setPest(pestPayloadFromSummary(nextPest))
-      setPorter(porterPayloadFromSummary(nextPorter))
-      setSwot(swotPayloadFromSummary(nextSwot))
-      setValueChain(valueChainPayloadFromSummary(nextValueChain))
-      setBcg(bcgPayloadFromSummary(nextBcg))
+      const nextPestPayload = pestPayloadFromSummary(nextPest)
+      const nextPorterPayload = porterPayloadFromSummary(nextPorter)
+      const nextSwotPayload = swotPayloadFromSummary(nextSwot)
+      const nextValueChainPayload = valueChainPayloadFromSummary(nextValueChain)
+      const nextBcgPayload = bcgPayloadFromSummary(nextBcg)
+      const nextSwotSuggestions = swotSuggestionsFromDiagnostics(
+        nextPestPayload,
+        nextPorterPayload,
+        nextValueChainPayload,
+        nextBcgPayload,
+      )
+      setPest(nextPestPayload)
+      setPorter(nextPorterPayload)
+      setSwot(
+        swotHasContent(nextSwotPayload)
+          ? nextSwotPayload
+          : editorSwotPayload(swotPayloadFromSuggestions(nextSwotSuggestions)),
+      )
+      setValueChain(nextValueChainPayload)
+      setBcg(nextBcgPayload)
       setChanges(nextChanges)
       setVersions(nextVersions)
     } catch (exception) {
@@ -532,6 +587,16 @@ export function DiagnosticsWorkspace({
     )
   }
 
+  function handleImportSwotSuggestions() {
+    if (swotSuggestions.length === 0) {
+      onError('No hay hallazgos seleccionados en PEST, Porter, cadena de valor o BCG para importar al FODA.')
+      return
+    }
+    setSwot(editorSwotPayload(mergeSwotWithSuggestions(swot, swotSuggestions)))
+    onError(null)
+    onNotice('Hallazgos seleccionados importados al FODA. Revise y ajuste los campos antes de enviarlos a revision.')
+  }
+
   return (
     <div className="content-grid diag-grid">
       <div className="form-area">
@@ -610,7 +675,12 @@ export function DiagnosticsWorkspace({
               <PorterEditor summary={porterSummary} value={porter} onChange={setPorter} />
             )}
             {!loading && activeTool === 'foda' && (
-              <SwotEditor swot={swot} onChange={setSwot} />
+              <SwotEditor
+                suggestions={swotSuggestions}
+                swot={swot}
+                onChange={setSwot}
+                onImportSuggestions={handleImportSwotSuggestions}
+              />
             )}
             {!loading && activeTool === 'valueChain' && (
               <ValueChainEditor summary={valueChainSummary} value={valueChain} onChange={setValueChain} />
@@ -919,32 +989,35 @@ function DiagnosticPreviewContent({ payload }: { payload: DiagnosticPreviewPaylo
   }
 
   const bcg = cleanBcg(payload.bcg)
-  const totalSales = bcg.products.reduce((total, product) => total + product.annualSales, 0)
+  const bcgProducts = bcgDerivedProducts(bcg).filter((product) => product.name)
+  const totalSales = bcgProducts.reduce((total, product) => total + product.annualSales, 0)
+  const bcgFindings = arrayValue(bcg.findings)
   return (
     <div className="gplan-preview-sections">
       <section>
         <h3>Indicadores</h3>
-        <DiagnosticPreviewItem label="Productos" value={String(bcg.products.length)} />
+        <DiagnosticPreviewItem label="Productos" value={String(bcgProducts.length)} />
         <DiagnosticPreviewItem label="Ventas" value={formatNumber(totalSales)} />
         <DiagnosticPreviewItem label="Crecimiento alto" value={`${bcg.marketGrowthThreshold}%`} />
         <DiagnosticPreviewItem label="Participacion alta" value={String(bcg.relativeMarketShareThreshold)} />
+        <DiagnosticPreviewItem label="Hallazgos" value={String(bcgFindings.length)} />
       </section>
       <DiagnosticListSection
         title="Cartera"
-        items={bcg.products.map((product) => {
-          const quadrant = classifyBcg(
-            product.marketGrowthRate,
-            product.relativeMarketShare,
-            bcg.marketGrowthThreshold,
-            bcg.relativeMarketShareThreshold,
-          )
-          return `${product.name}: ${quadrant} - ventas ${formatNumber(product.annualSales)}`
-        })}
+        items={bcgProducts.map((product) => `${product.name}: ${bcgQuadrantLabel(product.quadrant)} - TCM ${formatNumber(product.marketGrowthRate)}%, PRM ${formatNumber(product.relativeMarketShare)}, ventas ${formatNumber(product.annualSales)}`)}
+      />
+      <DiagnosticListSection
+        title="Fortalezas"
+        items={bcgFindings.filter((finding) => finding.category === 'FORTALEZA').map((finding) => finding.description)}
+      />
+      <DiagnosticListSection
+        title="Debilidades"
+        items={bcgFindings.filter((finding) => finding.category === 'DEBILIDAD').map((finding) => finding.description)}
       />
       <DiagnosticSynthesisSection
         observations={bcg.observations}
-        strengths={bcg.strengths}
-        weaknesses={bcg.weaknesses}
+        strengths={bcgFindings.filter((finding) => finding.category === 'FORTALEZA').map((finding) => finding.description)}
+        weaknesses={bcgFindings.filter((finding) => finding.category === 'DEBILIDAD').map((finding) => finding.description)}
       />
     </div>
   )
@@ -1002,9 +1075,13 @@ function DiagnosticPreviewItem({
 
 function SwotEditor({
   onChange,
+  onImportSuggestions,
+  suggestions,
   swot,
 }: {
   onChange: (value: UpdateSwotPayload) => void
+  onImportSuggestions: () => void
+  suggestions: SwotSourceSuggestion[]
   swot: UpdateSwotPayload
 }) {
   const sections: Array<{ key: SwotKey; title: string }> = [
@@ -1033,6 +1110,7 @@ function SwotEditor({
   return (
     <div className="diag-swot-layout">
       <SwotChart swot={swot} />
+      <SwotSourceFindings suggestions={suggestions} onImport={onImportSuggestions} />
       <div className="diag-swot-grid">
         {sections.map((section) => (
           <section className="diag-panel" key={section.key}>
@@ -1068,6 +1146,65 @@ function SwotEditor({
         ))}
       </div>
     </div>
+  )
+}
+
+function SwotSourceFindings({
+  onImport,
+  suggestions,
+}: {
+  onImport: () => void
+  suggestions: SwotSourceSuggestion[]
+}) {
+  const sections: Array<{ key: SwotKey; title: string }> = [
+    { key: 'strengths', title: 'Fortalezas' },
+    { key: 'opportunities', title: 'Oportunidades' },
+    { key: 'weaknesses', title: 'Debilidades' },
+    { key: 'threats', title: 'Amenazas' },
+  ]
+  return (
+    <section className="diag-panel wide diag-swot-source-panel">
+      <div className="diag-panel-head">
+        <div>
+          <h3>Resultados seleccionados para FODA</h3>
+          <p className="diag-panel-copy">
+            Hallazgos marcados en PEST, Porter, cadena de valor y BCG. Puede importarlos como base y luego ajustarlos.
+          </p>
+        </div>
+        <button className="gplan-inline-btn" disabled={suggestions.length === 0} type="button" onClick={onImport}>
+          <Plus size={14} />
+          Completar FODA
+        </button>
+      </div>
+      {suggestions.length === 0 && (
+        <p className="gplan-muted">No hay hallazgos seleccionados en los diagnosticos previos.</p>
+      )}
+      {suggestions.length > 0 && (
+        <div className="diag-swot-source-grid">
+          {sections.map((section) => {
+            const items = suggestions.filter((suggestion) => suggestion.key === section.key)
+            return (
+              <article className="diag-swot-source-group" key={section.key}>
+                <div className="diag-swot-source-head">
+                  <strong>{section.title}</strong>
+                  <span>{items.length}</span>
+                </div>
+                {items.length === 0 && <p className="gplan-muted">Sin hallazgos seleccionados.</p>}
+                {items.map((item, index) => (
+                  <div className="diag-swot-source-item" key={`${section.key}-${item.source}-${index}`}>
+                    <div>
+                      <strong>{item.description}</strong>
+                      <span>{item.source}{item.sourceDimension ? ` / ${item.sourceDimension}` : ''}</span>
+                    </div>
+                    <em className={`diag-priority-pill ${item.priority.toLowerCase()}`}>{item.priority}</em>
+                  </div>
+                ))}
+              </article>
+            )
+          })}
+        </div>
+      )}
+    </section>
   )
 }
 
@@ -1394,6 +1531,22 @@ function BcgEditor({
   value: UpdateBcgPayload
 }) {
   const current = bcgFormValue(value)
+  const derivedProducts = bcgDerivedProducts(current)
+  const resultCounts = bcgResultCounts(derivedProducts)
+  const totalSales = derivedProducts.reduce((total, product) => total + product.annualSales, 0)
+  const productNames = current.products.map((product, index) => product.name.trim() || `Producto ${index + 1}`)
+  const growthPeriodCount = Math.max(
+    1,
+    ...current.products.map((product) => bcgPeriodList(product.marketGrowthRates, BCG_DEFAULT_GROWTH_PERIODS).length),
+  )
+  const demandPeriodCount = Math.max(
+    1,
+    ...current.products.map((product) => bcgPeriodList(product.sectorDemandValues, BCG_DEFAULT_DEMAND_PERIODS, true).length),
+  )
+  const competitorRowCount = Math.max(
+    1,
+    ...current.products.map((product) => arrayValue(product.competitors).length),
+  )
 
   function updateProduct(index: number, patch: Partial<BcgPortfolioItemPayload>) {
     onChange({
@@ -1403,22 +1556,115 @@ function BcgEditor({
   }
 
   function addProduct() {
-    onChange({ ...current, products: [...current.products, emptyBcg.products[0]] })
+    onChange({ ...current, products: [...current.products, emptyBcgProduct(growthPeriodCount, demandPeriodCount)] })
   }
 
   function removeProduct(index: number) {
     const next = current.products.filter((_, i) => i !== index)
-    onChange({ ...current, products: next.length > 0 ? next : emptyBcg.products })
+    onChange({ ...current, products: next.length > 0 ? next : [emptyBcgProduct()] })
+  }
+
+  function updateGrowthRate(productIndex: number, periodIndex: number, value: number) {
+    const rates = bcgPeriodList(current.products[productIndex]?.marketGrowthRates, BCG_DEFAULT_GROWTH_PERIODS)
+    while (rates.length <= periodIndex) {
+      rates.push(0)
+    }
+    rates[periodIndex] = value
+    updateProduct(productIndex, { marketGrowthRates: rates })
+  }
+
+  function addGrowthPeriod() {
+    onChange({
+      ...current,
+      products: current.products.map((product) => ({
+        ...product,
+        marketGrowthRates: [...bcgPeriodList(product.marketGrowthRates, BCG_DEFAULT_GROWTH_PERIODS), 0],
+      })),
+    })
+  }
+
+  function removeGrowthPeriod(periodIndex: number) {
+    if (growthPeriodCount <= 1) return
+    onChange({
+      ...current,
+      products: current.products.map((product) => {
+        const rates = bcgPeriodList(product.marketGrowthRates, BCG_DEFAULT_GROWTH_PERIODS)
+        const nextRates = rates.filter((_, index) => index !== periodIndex)
+        return { ...product, marketGrowthRates: nextRates.length > 0 ? nextRates : [0] }
+      }),
+    })
+  }
+
+  function updateSectorDemand(productIndex: number, periodIndex: number, value: number) {
+    const values = bcgPeriodList(current.products[productIndex]?.sectorDemandValues, BCG_DEFAULT_DEMAND_PERIODS, true)
+    while (values.length <= periodIndex) {
+      values.push(0)
+    }
+    values[periodIndex] = Math.max(0, value)
+    updateProduct(productIndex, { sectorDemandValues: values })
+  }
+
+  function addSectorDemandPeriod() {
+    onChange({
+      ...current,
+      products: current.products.map((product) => ({
+        ...product,
+        sectorDemandValues: [...bcgPeriodList(product.sectorDemandValues, BCG_DEFAULT_DEMAND_PERIODS, true), 0],
+      })),
+    })
+  }
+
+  function removeSectorDemandPeriod(periodIndex: number) {
+    if (demandPeriodCount <= 1) return
+    onChange({
+      ...current,
+      products: current.products.map((product) => {
+        const values = bcgPeriodList(product.sectorDemandValues, BCG_DEFAULT_DEMAND_PERIODS, true)
+        const nextValues = values.filter((_, index) => index !== periodIndex)
+        return { ...product, sectorDemandValues: nextValues.length > 0 ? nextValues : [0] }
+      }),
+    })
+  }
+
+  function updateCompetitor(
+    productIndex: number,
+    competitorIndex: number,
+    patch: Partial<BcgPortfolioItemPayload['competitors'][number]>,
+  ) {
+    const competitors = arrayValue(current.products[productIndex]?.competitors)
+    while (competitors.length <= competitorIndex) {
+      competitors.push({ name: '', sales: 0 })
+    }
+    competitors[competitorIndex] = { ...competitors[competitorIndex], ...patch }
+    updateProduct(productIndex, { competitors: competitors.slice(0, BCG_MAX_COMPETITORS) })
+  }
+
+  function addCompetitor(productIndex: number) {
+    const competitors = arrayValue(current.products[productIndex]?.competitors)
+    if (competitors.length >= BCG_MAX_COMPETITORS) return
+    updateProduct(productIndex, { competitors: [...competitors, { name: '', sales: 0 }] })
+  }
+
+  function removeCompetitor(productIndex: number, competitorIndex: number) {
+    const competitors = arrayValue(current.products[productIndex]?.competitors)
+    updateProduct(productIndex, { competitors: competitors.filter((_, index) => index !== competitorIndex) })
   }
 
   return (
     <div className="diag-bcg-layout">
       <section className="diag-panel wide">
         <div className="diag-panel-head">
-          <h3>Cartera de productos o servicios</h3>
-          <button className="gplan-inline-btn" type="button" onClick={addProduct}>
+          <div>
+            <h3>Autodiagnostico BCG</h3>
+            <p className="diag-panel-copy">Complete las tablas del formato para calcular TCM, PRM y participacion sobre ventas.</p>
+          </div>
+          <button
+            className="gplan-inline-btn"
+            type="button"
+            onClick={addProduct}
+          >
             <Plus size={14} />
-            Agregar
+            Producto
           </button>
         </div>
         <div className="diag-bcg-thresholds">
@@ -1441,144 +1687,503 @@ function BcgEditor({
             />
           </label>
         </div>
-        <div className="diag-bcg-products">
-          {current.products.map((product, index) => (
-            <article className="diag-bcg-product" key={index}>
-              <div className="diag-bcg-product-head">
-                <strong>Producto {index + 1}</strong>
-                <button className="gplan-remove-btn" type="button" onClick={() => removeProduct(index)}>
-                  <Trash2 size={14} />
+
+        <div className="diag-bcg-table-stack">
+          <div className="diag-bcg-table-block">
+            <div className="diag-bcg-subhead">
+              <strong>Prevision de ventas</strong>
+              <span>Productos, ventas y porcentaje sobre total</span>
+            </div>
+            <div className="diag-bcg-table-wrap">
+              <table className="diag-bcg-table product">
+                <thead>
+                  <tr>
+                    <th>Productos</th>
+                    <th>Ventas</th>
+                    <th>% s/ total</th>
+                    <th>Cuadrante</th>
+                    <th>Descripcion</th>
+                    <th>Notas estrategicas</th>
+                    <th aria-label="Acciones"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {current.products.map((product, index) => {
+                    const metrics = derivedProducts[index] ?? bcgDerivedProduct(product, current, index, totalSales)
+                    return (
+                      <tr key={`product-${index}`}>
+                        <td>
+                          <input
+                            value={product.name}
+                            onChange={(event) => updateProduct(index, { name: event.target.value })}
+                            placeholder={`Producto ${index + 1}`}
+                          />
+                        </td>
+                        <td>
+                          <input
+                            min={0}
+                            type="number"
+                            value={product.annualSales}
+                            onChange={(event) => updateProduct(index, { annualSales: numberValue(event.target.value) })}
+                            placeholder="Ventas"
+                          />
+                        </td>
+                        <td className="diag-bcg-number">{formatNumber(metrics.salesPercentage)}%</td>
+                        <td>
+                          <span className={`diag-bcg-pill ${metrics.quadrant.toLowerCase()}`}>
+                            {bcgQuadrantLabel(metrics.quadrant)}
+                          </span>
+                        </td>
+                        <td>
+                          <textarea
+                            rows={2}
+                            value={product.description}
+                            onChange={(event) => updateProduct(index, { description: event.target.value })}
+                            placeholder="Descripcion"
+                          />
+                        </td>
+                        <td>
+                          <textarea
+                            rows={2}
+                            value={product.notes}
+                            onChange={(event) => updateProduct(index, { notes: event.target.value })}
+                            placeholder="Notas"
+                          />
+                        </td>
+                        <td>
+                          <button className="gplan-remove-btn" title="Eliminar producto" type="button" onClick={() => removeProduct(index)}>
+                            <Trash2 size={14} />
+                          </button>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                  <tr className="diag-bcg-total-row">
+                    <th>Total</th>
+                    <td className="diag-bcg-number">{formatNumber(totalSales)}</td>
+                    <td className="diag-bcg-number">{formatNumber(totalSales > 0 ? 100 : 0)}%</td>
+                    <td colSpan={4}></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div className="diag-bcg-table-block">
+            <div className="diag-bcg-subhead">
+              <strong>Tasas de crecimiento del mercado (TCM)</strong>
+              <div className="diag-bcg-subtools">
+                <span>{growthPeriodCount} periodos</span>
+                <button className="gplan-inline-btn" type="button" onClick={addGrowthPeriod}>
+                  <Plus size={14} />
+                  Periodo
                 </button>
               </div>
-              <div className="diag-bcg-fields">
-                <input
-                  value={product.name}
-                  onChange={(event) => updateProduct(index, { name: event.target.value })}
-                  placeholder="Nombre del producto o servicio"
-                />
-                <input
-                  min={0}
-                  type="number"
-                  value={product.annualSales}
-                  onChange={(event) => updateProduct(index, { annualSales: numberValue(event.target.value) })}
-                  placeholder="Ventas"
-                />
-                <input
-                  type="number"
-                  value={product.marketGrowthRate}
-                  onChange={(event) => updateProduct(index, { marketGrowthRate: numberValue(event.target.value) })}
-                  placeholder="TCM"
-                />
-                <input
-                  min={0}
-                  step="0.01"
-                  type="number"
-                  value={product.relativeMarketShare}
-                  onChange={(event) => updateProduct(index, { relativeMarketShare: numberValue(event.target.value) })}
-                  placeholder="PRM"
-                />
-                <textarea
-                  rows={2}
-                  value={product.description}
-                  onChange={(event) => updateProduct(index, { description: event.target.value })}
-                  placeholder="Descripcion"
-                />
-                <textarea
-                  rows={2}
-                  value={product.notes}
-                  onChange={(event) => updateProduct(index, { notes: event.target.value })}
-                  placeholder="Notas estrategicas"
-                />
+            </div>
+            <div className="diag-bcg-table-wrap">
+              <table className="diag-bcg-table">
+                <thead>
+                  <tr>
+                    <th>Periodos</th>
+                    {productNames.map((name, index) => <th key={`growth-head-${index}`}>{name}</th>)}
+                    <th aria-label="Acciones"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {Array.from({ length: growthPeriodCount }, (_, periodIndex) => (
+                    <tr key={`growth-period-${periodIndex}`}>
+                      <th>TCM {periodIndex + 1}</th>
+                      {current.products.map((product, productIndex) => {
+                        const rates = bcgPeriodList(product.marketGrowthRates, BCG_DEFAULT_GROWTH_PERIODS)
+                        return (
+                          <td key={`growth-${productIndex}-${periodIndex}`}>
+                            <input
+                              type="number"
+                              value={rates[periodIndex] ?? 0}
+                              onChange={(event) => updateGrowthRate(productIndex, periodIndex, numberValue(event.target.value))}
+                            />
+                          </td>
+                        )
+                      })}
+                      <td>
+                        <button
+                          className="gplan-remove-btn"
+                          disabled={growthPeriodCount <= 1}
+                          title="Quitar periodo"
+                          type="button"
+                          onClick={() => removeGrowthPeriod(periodIndex)}
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div className="diag-bcg-table-block">
+            <div className="diag-bcg-subhead">
+              <strong>BCG</strong>
+              <span>Resultado calculado por producto</span>
+            </div>
+            <div className="diag-bcg-table-wrap">
+              <table className="diag-bcg-table summary">
+                <thead>
+                  <tr>
+                    <th>BCG</th>
+                    {productNames.map((name, index) => <th key={`bcg-head-${index}`}>{name}</th>)}
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <th>TCM</th>
+                    {derivedProducts.map((product) => <td className="diag-bcg-number" key={`tcm-${product.position}`}>{formatNumber(product.marketGrowthRate)}%</td>)}
+                  </tr>
+                  <tr>
+                    <th>PRM</th>
+                    {derivedProducts.map((product) => <td className="diag-bcg-number" key={`prm-${product.position}`}>{formatNumber(product.relativeMarketShare)}</td>)}
+                  </tr>
+                  <tr>
+                    <th>% s/ vtas</th>
+                    {derivedProducts.map((product) => <td className="diag-bcg-number" key={`sales-${product.position}`}>{formatNumber(product.salesPercentage)}%</td>)}
+                  </tr>
+                  <tr>
+                    <th>Decision</th>
+                    {derivedProducts.map((product) => <td key={`decision-${product.position}`}>{bcgDecisionLabel(product.quadrant)}</td>)}
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div className="diag-bcg-table-block">
+            <div className="diag-bcg-subhead">
+              <strong>Evolucion de la demanda global sector</strong>
+              <div className="diag-bcg-subtools">
+                <span>{demandPeriodCount} periodos</span>
+                <button className="gplan-inline-btn" type="button" onClick={addSectorDemandPeriod}>
+                  <Plus size={14} />
+                  Periodo
+                </button>
               </div>
-            </article>
+            </div>
+            <div className="diag-bcg-table-wrap">
+              <table className="diag-bcg-table">
+                <thead>
+                  <tr>
+                    <th>Anios</th>
+                    {productNames.map((name, index) => <th key={`demand-head-${index}`}>{name}</th>)}
+                    <th aria-label="Acciones"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {Array.from({ length: demandPeriodCount }, (_, periodIndex) => (
+                    <tr key={`demand-period-${periodIndex}`}>
+                      <th>Periodo {periodIndex + 1}</th>
+                      {current.products.map((product, productIndex) => {
+                        const values = bcgPeriodList(product.sectorDemandValues, BCG_DEFAULT_DEMAND_PERIODS, true)
+                        return (
+                          <td key={`demand-${productIndex}-${periodIndex}`}>
+                            <input
+                              min={0}
+                              type="number"
+                              value={values[periodIndex] ?? 0}
+                              onChange={(event) => updateSectorDemand(productIndex, periodIndex, numberValue(event.target.value))}
+                            />
+                          </td>
+                        )
+                      })}
+                      <td>
+                        <button
+                          className="gplan-remove-btn"
+                          disabled={demandPeriodCount <= 1}
+                          title="Quitar periodo"
+                          type="button"
+                          onClick={() => removeSectorDemandPeriod(periodIndex)}
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div className="diag-bcg-table-block">
+            <div className="diag-bcg-subhead">
+              <strong>Niveles de venta de los competidores de cada producto</strong>
+              <span>Hasta {BCG_MAX_COMPETITORS} competidores por producto</span>
+            </div>
+            <div className="diag-bcg-table-wrap">
+              <table className="diag-bcg-table competitors">
+                <thead>
+                  <tr>
+                    {productNames.map((name, productIndex) => (
+                      <th colSpan={3} key={`competitor-group-${productIndex}`}>
+                        <div className="diag-bcg-product-group">
+                          <span>{name}</span>
+                          <button
+                            className="gplan-inline-btn"
+                            disabled={arrayValue(current.products[productIndex]?.competitors).length >= BCG_MAX_COMPETITORS}
+                            type="button"
+                            onClick={() => addCompetitor(productIndex)}
+                          >
+                            <Plus size={14} />
+                            Competidor
+                          </button>
+                        </div>
+                      </th>
+                    ))}
+                  </tr>
+                  <tr>
+                    {current.products.map((_, productIndex) => (
+                      <Fragment key={`competitor-subhead-${productIndex}`}>
+                        <th>Competidor</th>
+                        <th>Ventas</th>
+                        <th aria-label="Acciones"></th>
+                      </Fragment>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {Array.from({ length: competitorRowCount }, (_, competitorIndex) => (
+                    <tr key={`competitor-row-${competitorIndex}`}>
+                      {current.products.map((product, productIndex) => {
+                        const competitors = arrayValue(product.competitors)
+                        const competitor = competitors[competitorIndex] ?? { name: '', sales: 0 }
+                        const hasCompetitor = competitorIndex < competitors.length
+                        return (
+                          <Fragment key={`competitor-${productIndex}-${competitorIndex}`}>
+                            <td>
+                              <input
+                                value={competitor.name}
+                                onChange={(event) => updateCompetitor(productIndex, competitorIndex, { name: event.target.value })}
+                                placeholder={`CP${productIndex + 1}-${competitorIndex + 1}`}
+                              />
+                            </td>
+                            <td>
+                              <input
+                                min={0}
+                                type="number"
+                                value={competitor.sales}
+                                onChange={(event) => updateCompetitor(productIndex, competitorIndex, { sales: numberValue(event.target.value) })}
+                                placeholder="Ventas"
+                              />
+                            </td>
+                            <td>
+                              {hasCompetitor && (
+                                <button
+                                  className="gplan-remove-btn"
+                                  title="Eliminar competidor"
+                                  type="button"
+                                  onClick={() => removeCompetitor(productIndex, competitorIndex)}
+                                >
+                                  <Trash2 size={14} />
+                                </button>
+                              )}
+                            </td>
+                          </Fragment>
+                        )
+                      })}
+                    </tr>
+                  ))}
+                  <tr className="diag-bcg-total-row">
+                    {current.products.map((_, productIndex) => (
+                      <Fragment key={`competitor-largest-${productIndex}`}>
+                        <th>Mayor</th>
+                        <td className="diag-bcg-number">{formatNumber(derivedProducts[productIndex]?.largestCompetitorSales ?? 0)}</td>
+                        <td></td>
+                      </Fragment>
+                    ))}
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="diag-panel wide">
+        <div className="diag-panel-head">
+          <h3>Resultado BCG</h3>
+          <span className="diag-total">Ventas {formatNumber(totalSales || summary?.totalSales || 0)}</span>
+        </div>
+        <BcgMatrix value={current} />
+        <div className="diag-bcg-result">
+          <DiagnosticMetric label="Estrellas" value={String(resultCounts.stars)} />
+          <DiagnosticMetric label="Incognitas" value={String(resultCounts.questionMarks)} />
+          <DiagnosticMetric label="Vacas" value={String(resultCounts.cashCows)} />
+          <DiagnosticMetric label="Perros" value={String(resultCounts.dogs)} />
+        </div>
+        <div className="diag-version-list">
+          {derivedProducts.filter((product) => product.name).map((product) => (
+            <div className="diag-version-row" key={`${product.name}-${product.position}`}>
+              <span>{product.name}</span>
+              <strong>{bcgQuadrantLabel(product.quadrant)} / {formatNumber(product.salesPercentage)}%</strong>
+            </div>
           ))}
         </div>
       </section>
 
-      {summary && (
-        <section className="diag-panel wide">
-          <div className="diag-panel-head">
-            <h3>Resultado BCG</h3>
-            <span className="diag-total">Ventas {formatNumber(summary.totalSales)}</span>
-          </div>
-          <BcgMatrix value={current} />
-          <div className="diag-bcg-result">
-            <DiagnosticMetric label="Estrellas" value={String(summary.stars)} />
-            <DiagnosticMetric label="Incognitas" value={String(summary.questionMarks)} />
-            <DiagnosticMetric label="Vacas" value={String(summary.cashCows)} />
-            <DiagnosticMetric label="Perros" value={String(summary.dogs)} />
-          </div>
-          <div className="diag-version-list">
-            {arrayValue(summary.products).map((product) => (
-              <div className="diag-version-row" key={`${product.name}-${product.position}`}>
-                <span>{product.name}</span>
-                <strong>{product.quadrant}</strong>
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
-
-      <TextBlocks
-        observations={current.observations}
-        strengths={current.strengths}
-        weaknesses={current.weaknesses}
-        onChange={(patch) => onChange({ ...current, ...patch })}
-      />
+      <BcgFindingsEditor value={current} onChange={onChange} />
     </div>
   )
 }
 
 function SwotChart({ swot }: { swot: UpdateSwotPayload }) {
-  const sections: Array<{ color: string; key: SwotKey; label: string }> = [
-    { key: 'strengths', label: 'Fortalezas', color: '#22c55e' },
-    { key: 'opportunities', label: 'Oportunidades', color: '#3b82f6' },
-    { key: 'weaknesses', label: 'Debilidades', color: '#f59e0b' },
-    { key: 'threats', label: 'Amenazas', color: '#ef4444' },
+  const sections: Array<{
+    axis: 'Interno' | 'Externo'
+    key: SwotKey
+    label: string
+    shortLabel: string
+    tone: string
+  }> = [
+    { key: 'strengths', label: 'Fortalezas', shortLabel: 'F', axis: 'Interno', tone: 'strengths' },
+    { key: 'weaknesses', label: 'Debilidades', shortLabel: 'D', axis: 'Interno', tone: 'weaknesses' },
+    { key: 'opportunities', label: 'Oportunidades', shortLabel: 'O', axis: 'Externo', tone: 'opportunities' },
+    { key: 'threats', label: 'Amenazas', shortLabel: 'A', axis: 'Externo', tone: 'threats' },
   ]
   const counts = sections.map((section) => ({
     ...section,
-    value: cleanSwotItems(swot[section.key]).length,
+    items: cleanSwotItems(swot[section.key]),
   }))
-  const maxCount = Math.max(1, ...counts.map((item) => item.value))
+    .map((section) => ({
+      ...section,
+      priorityCounts: priorities.map((priority) => ({
+        priority,
+        value: section.items.filter((item) => item.priority === priority).length,
+      })),
+      score: section.items.reduce((total, item) => total + swotPriorityWeight(item.priority), 0),
+      value: section.items.length,
+    }))
+  const maxScore = Math.max(1, ...counts.map((item) => item.score))
   const allItems = sections.flatMap((section) => cleanSwotItems(swot[section.key]))
   const priorityCounts = priorities.map((priority) => ({
     priority,
     value: allItems.filter((item) => item.priority === priority).length,
   }))
+  const favorableScore = swotWeightedScore(swot.strengths) + swotWeightedScore(swot.opportunities)
+  const riskScore = swotWeightedScore(swot.weaknesses) + swotWeightedScore(swot.threats)
+  const internalScore = swotWeightedScore(swot.strengths) + swotWeightedScore(swot.weaknesses)
+  const externalScore = swotWeightedScore(swot.opportunities) + swotWeightedScore(swot.threats)
+  const balance = favorableScore - riskScore
+  const dominant = counts.reduce((current, item) => item.score > current.score ? item : current, counts[0])
 
   return (
     <section className="diag-chart-card wide">
       <div className="diag-chart-head">
         <div>
           <span>Grafico FODA</span>
-          <h3>Distribucion por cuadrante</h3>
+          <h3>Mapa estrategico por cuadrante</h3>
         </div>
-        <strong>{allItems.length} items</strong>
+        <strong>{allItems.length} items / peso {favorableScore + riskScore}</strong>
       </div>
-      <div className="diag-bar-chart">
-        {counts.map((item) => (
-          <div className="diag-bar-row" key={item.key}>
-            <span>{item.label}</span>
-            <div className="diag-bar-track">
-              <div
-                className="diag-bar-fill"
-                style={{ backgroundColor: item.color, width: `${(item.value / maxCount) * 100}%` }}
-              />
-            </div>
-            <strong>{item.value}</strong>
-          </div>
-        ))}
+
+      <div className="diag-swot-map">
+        <div className="diag-swot-axis corner"></div>
+        <div className="diag-swot-axis favorable">Favorable</div>
+        <div className="diag-swot-axis unfavorable">Desfavorable</div>
+        <div className="diag-swot-axis side">Interno</div>
+        <SwotQuadrantCard item={counts[0]} maxScore={maxScore} />
+        <SwotQuadrantCard item={counts[1]} maxScore={maxScore} />
+        <div className="diag-swot-axis side">Externo</div>
+        <SwotQuadrantCard item={counts[2]} maxScore={maxScore} />
+        <SwotQuadrantCard item={counts[3]} maxScore={maxScore} />
+      </div>
+
+      <div className="diag-swot-balance">
+        <div>
+          <span>Balance</span>
+          <strong className={balance >= 0 ? 'positive' : 'negative'}>{balance >= 0 ? '+' : ''}{balance}</strong>
+        </div>
+        <div>
+          <span>Interno</span>
+          <strong>{internalScore}</strong>
+        </div>
+        <div>
+          <span>Externo</span>
+          <strong>{externalScore}</strong>
+        </div>
+        <div>
+          <span>Mayor peso</span>
+          <strong>{dominant.label}</strong>
+        </div>
       </div>
       <div className="diag-priority-strip">
         {priorityCounts.map((item) => (
           <span className={`diag-priority-pill ${item.priority.toLowerCase()}`} key={item.priority}>
-            {item.priority} · {item.value}
+            {item.priority} - {item.value}
           </span>
         ))}
       </div>
     </section>
   )
+}
+
+function SwotQuadrantCard({
+  item,
+  maxScore,
+}: {
+  item: {
+    axis: 'Interno' | 'Externo'
+    key: SwotKey
+    label: string
+    priorityCounts: Array<{ priority: DiagnosticPriority; value: number }>
+    score: number
+    shortLabel: string
+    tone: string
+    value: number
+  }
+  maxScore: number
+}) {
+  const arc = Math.round((item.score / maxScore) * 100)
+  return (
+    <article className={`diag-swot-quadrant ${item.tone}`}>
+      <div className="diag-swot-quadrant-head">
+        <span>{item.shortLabel}</span>
+        <div>
+          <strong>{item.label}</strong>
+          <small>{item.axis} / {item.value} items</small>
+        </div>
+      </div>
+      <div className="diag-swot-quadrant-body">
+        <div className="diag-swot-dial" style={{ background: `conic-gradient(currentColor ${arc}%, var(--surface-3) 0)` }}>
+          <div>
+            <strong>{item.score}</strong>
+            <span>peso</span>
+          </div>
+        </div>
+        <div className="diag-swot-priority-bars">
+          {item.priorityCounts.map((priority) => (
+            <div className="diag-swot-priority-row" key={`${item.key}-${priority.priority}`}>
+              <span>{priority.priority}</span>
+              <div className="diag-bar-track">
+                <div
+                  className={`diag-bar-fill ${priority.priority.toLowerCase()}`}
+                  style={{ width: `${(priority.value / Math.max(1, item.value)) * 100}%` }}
+                />
+              </div>
+              <strong>{priority.value}</strong>
+            </div>
+          ))}
+        </div>
+      </div>
+    </article>
+  )
+}
+
+function swotPriorityWeight(priority: DiagnosticPriority) {
+  if (priority === 'ALTA') return 3
+  if (priority === 'MEDIA') return 2
+  return 1
+}
+
+function swotWeightedScore(items: SwotItemPayload[]) {
+  return cleanSwotItems(items).reduce((total, item) => total + swotPriorityWeight(item.priority), 0)
 }
 
 function ValueChainChart({
@@ -1718,14 +2323,157 @@ function valueChainAnsweredCount(value: UpdateValueChainPayload) {
 function bcgFormValue(value: UpdateBcgPayload): UpdateBcgPayload {
   const source = value ?? emptyBcg
   const products = arrayValue(source.products)
+  const normalizedProducts = products.length > 0
+    ? alignBcgTablePeriods(products.map(bcgProductFormValue))
+    : [emptyBcgProduct()]
   return {
-    products: products.length > 0 ? products : emptyBcg.products,
+    products: normalizedProducts,
     marketGrowthThreshold: numberFromValue(source.marketGrowthThreshold, 10),
     relativeMarketShareThreshold: numberFromValue(source.relativeMarketShareThreshold, 1),
     observations: textValue(source.observations),
     strengths: arrayValue(source.strengths),
     weaknesses: arrayValue(source.weaknesses),
+    findings: bcgFindingsFromContent(source.findings, source.strengths, source.weaknesses),
   }
+}
+
+function bcgProductFormValue(product: Partial<BcgPortfolioItemPayload>): BcgPortfolioItemPayload {
+  return {
+    name: textValue(product.name),
+    description: textValue(product.description),
+    annualSales: Math.max(0, numberFromValue(product.annualSales)),
+    marketGrowthRate: numberFromValue(product.marketGrowthRate),
+    relativeMarketShare: Math.max(0, numberFromValue(product.relativeMarketShare)),
+    marketGrowthRates: numericListFromValue(product.marketGrowthRates, false),
+    sectorDemandValues: numericListFromValue(product.sectorDemandValues, true),
+    competitors: recordsFromValue(product.competitors)
+      .map((competitor) => ({
+        name: textValue(competitor.name),
+        sales: Math.max(0, numberFromValue(competitor.sales)),
+      }))
+      .slice(0, BCG_MAX_COMPETITORS),
+    notes: textValue(product.notes),
+  }
+}
+
+function bcgDerivedProducts(value: UpdateBcgPayload): BcgDerivedProduct[] {
+  const current = {
+    ...value,
+    products: alignBcgTablePeriods(arrayValue(value.products).map(bcgProductFormValue)),
+    marketGrowthThreshold: numberFromValue(value.marketGrowthThreshold, 10),
+    relativeMarketShareThreshold: numberFromValue(value.relativeMarketShareThreshold, 1),
+  }
+  const totalSales = current.products.reduce((total, product) => total + Math.max(0, product.annualSales), 0)
+  return current.products.map((product, index) => bcgDerivedProduct(product, current, index, totalSales))
+}
+
+function alignBcgTablePeriods(products: BcgPortfolioItemPayload[]) {
+  if (products.length === 0) return products
+  const growthLists = products.map((product) => bcgPeriodList(product.marketGrowthRates, BCG_DEFAULT_GROWTH_PERIODS))
+  const demandLists = products.map((product) => bcgPeriodList(product.sectorDemandValues, BCG_DEFAULT_DEMAND_PERIODS, true))
+  const growthSize = Math.max(1, ...growthLists.map((list) => list.length))
+  const demandSize = Math.max(1, ...demandLists.map((list) => list.length))
+  return products.map((product, index) => ({
+    ...product,
+    marketGrowthRates: padBcgPeriodList(growthLists[index], growthSize),
+    sectorDemandValues: padBcgPeriodList(demandLists[index], demandSize),
+  }))
+}
+
+function padBcgPeriodList(values: number[], size: number) {
+  return Array.from({ length: size }, (_, index) => values[index] ?? 0)
+}
+
+function bcgDerivedProduct(
+  product: BcgPortfolioItemPayload,
+  value: UpdateBcgPayload,
+  position: number,
+  totalSales: number,
+): BcgDerivedProduct {
+  const current = bcgProductFormValue(product)
+  const competitors = cleanBcgCompetitors(current.competitors)
+  const largestCompetitorSales = competitors.reduce((largest, competitor) => Math.max(largest, competitor.sales), 0)
+  const marketGrowthRate = current.marketGrowthRates.length > 0
+    ? bcgAverageMarketGrowth(current.marketGrowthRates, current.marketGrowthRate)
+    : current.marketGrowthRate
+  const relativeMarketShare = largestCompetitorSales > 0
+    ? roundNumber(Math.min(2, current.annualSales / largestCompetitorSales))
+    : current.relativeMarketShare
+  const salesPercentage = totalSales > 0 ? roundNumber((current.annualSales * 100) / totalSales) : 0
+  const quadrant = classifyBcg(
+    marketGrowthRate,
+    relativeMarketShare,
+    value.marketGrowthThreshold || 10,
+    value.relativeMarketShareThreshold > 0 ? value.relativeMarketShareThreshold : 1,
+  )
+  return {
+    ...current,
+    competitors,
+    marketGrowthRate,
+    relativeMarketShare,
+    salesPercentage,
+    largestCompetitorSales,
+    quadrant,
+    position,
+  }
+}
+
+function bcgAverageMarketGrowth(values: number[], fallback: number) {
+  const rates = numericListFromValue(values, false)
+  if (rates.length === 0) return fallback
+  const average = rates.reduce((total, rate) => total + rate, 0) / rates.length
+  return roundNumber(Math.min(20, average))
+}
+
+function bcgResultCounts(products: BcgDerivedProduct[]) {
+  return {
+    stars: products.filter((product) => product.quadrant === 'ESTRELLA').length,
+    questionMarks: products.filter((product) => product.quadrant === 'INCOGNITA').length,
+    cashCows: products.filter((product) => product.quadrant === 'VACA').length,
+    dogs: products.filter((product) => product.quadrant === 'PERRO').length,
+  }
+}
+
+function cleanBcgCompetitors(competitors: BcgPortfolioItemPayload['competitors']) {
+  return arrayValue(competitors)
+    .map((competitor) => ({
+      name: competitor.name.trim(),
+      sales: Math.max(0, numberFromValue(competitor.sales)),
+    }))
+    .filter((competitor) => competitor.name || competitor.sales > 0)
+    .slice(0, BCG_MAX_COMPETITORS)
+}
+
+function numericListFromValue(value: unknown, nonNegative: boolean) {
+  return Array.isArray(value)
+    ? value
+        .map((item) => numberFromValue(item))
+        .filter((item) => Number.isFinite(item))
+        .map((item) => (nonNegative ? Math.max(0, item) : item))
+    : []
+}
+
+function bcgPeriodList(value: unknown, fallbackSize: number, nonNegative = false) {
+  const values = numericListFromValue(value, nonNegative)
+  return values.length > 0 ? values : Array.from({ length: fallbackSize }, () => 0)
+}
+
+function roundNumber(value: number) {
+  return Math.round(value * 100) / 100
+}
+
+function bcgQuadrantLabel(quadrant: BcgQuadrant) {
+  if (quadrant === 'ESTRELLA') return 'Estrella'
+  if (quadrant === 'INCOGNITA') return 'Incognita'
+  if (quadrant === 'VACA') return 'Vaca'
+  return 'Perro'
+}
+
+function bcgDecisionLabel(quadrant: BcgQuadrant) {
+  if (quadrant === 'ESTRELLA') return 'potenciar'
+  if (quadrant === 'INCOGNITA') return 'evaluar'
+  if (quadrant === 'VACA') return 'mantener'
+  return 'reestructurar o desinvertir'
 }
 
 function emptyValueChainFinding(category: 'FORTALEZA' | 'DEBILIDAD'): DiagnosticFindingPayload {
@@ -1740,22 +2488,59 @@ function emptyValueChainFinding(category: 'FORTALEZA' | 'DEBILIDAD'): Diagnostic
   }
 }
 
+function emptyBcgFinding(category: 'FORTALEZA' | 'DEBILIDAD'): DiagnosticFindingPayload {
+  return {
+    sourceDimension: category === 'FORTALEZA' ? 'ESTRELLA' : 'PERRO',
+    category,
+    description: '',
+    evidence: '',
+    impact: '',
+    priority: 'MEDIA',
+    selectedForFoda: true,
+  }
+}
+
+function bcgFindingDimensionValue(value: unknown) {
+  return bcgFindingDimensions.includes(value as typeof bcgFindingDimensions[number])
+    ? value as typeof bcgFindingDimensions[number]
+    : 'BCG'
+}
+
+function bcgFindingsFromContent(
+  findings: unknown,
+  strengths: unknown,
+  weaknesses: unknown,
+): DiagnosticFindingPayload[] {
+  const parsed = recordsFromValue(findings)
+    .map((finding) => ({
+      sourceDimension: bcgFindingDimensionValue(finding.sourceDimension),
+      category: finding.category === 'DEBILIDAD' ? 'DEBILIDAD' as const : 'FORTALEZA' as const,
+      description: textValue(finding.description).trim(),
+      evidence: textValue(finding.evidence).trim(),
+      impact: textValue(finding.impact).trim(),
+      priority: priorityValue(finding.priority),
+      selectedForFoda: finding.selectedForFoda !== false,
+    }))
+  if (parsed.length > 0) return parsed
+  return [
+    ...stringListFromValue(strengths).map((description) => ({ ...emptyBcgFinding('FORTALEZA'), description })),
+    ...stringListFromValue(weaknesses).map((description) => ({ ...emptyBcgFinding('DEBILIDAD'), description })),
+  ]
+}
+
 function BcgMatrix({ value }: { value: UpdateBcgPayload }) {
   const current = bcgFormValue(value)
-  const products = current.products
+  const products = bcgDerivedProducts(current)
     .filter((product) => product.name.trim())
     .map((product, index) => ({ ...product, name: product.name.trim() || `Producto ${index + 1}` }))
-  const growthThreshold = current.marketGrowthThreshold || 10
   const shareThreshold = current.relativeMarketShareThreshold > 0 ? current.relativeMarketShareThreshold : 1
-  const maxSales = Math.max(1, ...products.map((product) => product.annualSales))
+  const maxSalesPercentage = Math.max(1, ...products.map((product) => product.salesPercentage))
   const bubbles = products.map((product) => {
-    const quadrant = classifyBcg(product.marketGrowthRate, product.relativeMarketShare, growthThreshold, shareThreshold)
     return {
       ...product,
-      quadrant,
-      size: 18 + (Math.max(0, product.annualSales) / maxSales) * 26,
+      size: 18 + (Math.max(0, product.salesPercentage) / maxSalesPercentage) * 26,
       x: matrixCoordinate(product.relativeMarketShare, shareThreshold),
-      y: 100 - matrixCoordinate(product.marketGrowthRate, growthThreshold),
+      y: 100 - matrixCoordinate(product.marketGrowthRate, current.marketGrowthThreshold || 10),
     }
   })
 
@@ -1778,7 +2563,7 @@ function BcgMatrix({ value }: { value: UpdateBcgPayload }) {
               top: `${product.y}%`,
               width: product.size,
             }}
-            title={`${product.name}: ${product.quadrant}`}
+            title={`${product.name}: ${bcgQuadrantLabel(product.quadrant)}`}
           >
             {index + 1}
           </span>
@@ -1788,7 +2573,7 @@ function BcgMatrix({ value }: { value: UpdateBcgPayload }) {
         {bubbles.length === 0 && <span>Agregue productos para graficar la matriz.</span>}
         {bubbles.map((product, index) => (
           <span key={`${product.name}-legend-${index}`}>
-            {index + 1}. {product.name} · {product.quadrant}
+            {index + 1}. {product.name} - {bcgQuadrantLabel(product.quadrant)}
           </span>
         ))}
       </div>
@@ -1796,52 +2581,201 @@ function BcgMatrix({ value }: { value: UpdateBcgPayload }) {
   )
 }
 
-function TextBlocks({
-  observations,
+function BcgFindingsEditor({
   onChange,
-  strengths,
-  weaknesses,
+  value,
 }: {
-  observations: string
-  onChange: (patch: Pick<UpdateValueChainPayload, 'observations' | 'strengths' | 'weaknesses'>) => void
-  strengths: string[]
-  weaknesses: string[]
+  onChange: (value: UpdateBcgPayload) => void
+  value: UpdateBcgPayload
 }) {
+  const current = bcgFormValue(value)
+  const indexedFindings = current.findings.map((finding, index) => ({ finding, index }))
+  const strengthFindings = indexedFindings.filter(({ finding }) => finding.category === 'FORTALEZA')
+  const weaknessFindings = indexedFindings.filter(({ finding }) => finding.category === 'DEBILIDAD')
+
+  function addFinding(category: 'FORTALEZA' | 'DEBILIDAD') {
+    onChange({ ...current, findings: [...current.findings, emptyBcgFinding(category)] })
+  }
+
+  function updateFinding(index: number, patch: Partial<DiagnosticFindingPayload>) {
+    onChange({
+      ...current,
+      findings: current.findings.map((finding, itemIndex) => itemIndex === index ? { ...finding, ...patch } : finding),
+    })
+  }
+
+  function removeFinding(index: number) {
+    onChange({ ...current, findings: current.findings.filter((_, itemIndex) => itemIndex !== index) })
+  }
+
   return (
     <section className="diag-panel wide">
       <div className="diag-panel-head">
-        <h3>Sintesis</h3>
+        <div>
+          <h3>Hallazgos BCG</h3>
+          <p className="diag-panel-copy">Registre fortalezas y debilidades del portafolio para llevarlas a la matriz FODA.</p>
+        </div>
+        <div className="diag-pest-finding-actions">
+          <button className="gplan-inline-btn" type="button" onClick={() => addFinding('FORTALEZA')}>
+            <Plus size={14} />
+            Fortaleza
+          </button>
+          <button className="gplan-inline-btn" type="button" onClick={() => addFinding('DEBILIDAD')}>
+            <Plus size={14} />
+            Debilidad
+          </button>
+        </div>
       </div>
-      <div className="diag-text-grid">
-        <label className="field">
+      <div className="diag-bcg-synthesis">
+        <label className="field diag-chain-observation">
           <span className="field-label">Observaciones</span>
           <textarea
             rows={3}
-            value={observations}
-            onChange={(event) => onChange({ observations: event.target.value, strengths, weaknesses })}
+            value={current.observations}
+            onChange={(event) => onChange({ ...current, observations: event.target.value })}
             placeholder="Lectura general del diagnostico"
           />
         </label>
-        <label className="field">
-          <span className="field-label">Fortalezas</span>
+        <div className="diag-bcg-finding-columns">
+          <BcgFindingColumn
+            category="FORTALEZA"
+            emptyMessage="Todavia no se registraron fortalezas BCG."
+            entries={strengthFindings}
+            title="Fortalezas"
+            onRemove={removeFinding}
+            onUpdate={updateFinding}
+          />
+          <BcgFindingColumn
+            category="DEBILIDAD"
+            emptyMessage="Todavia no se registraron debilidades BCG."
+            entries={weaknessFindings}
+            title="Debilidades"
+            onRemove={removeFinding}
+            onUpdate={updateFinding}
+          />
+        </div>
+      </div>
+    </section>
+  )
+}
+
+function BcgFindingColumn({
+  category,
+  emptyMessage,
+  entries,
+  onRemove,
+  onUpdate,
+  title,
+}: {
+  category: 'FORTALEZA' | 'DEBILIDAD'
+  emptyMessage: string
+  entries: Array<{ finding: DiagnosticFindingPayload; index: number }>
+  onRemove: (index: number) => void
+  onUpdate: (index: number, patch: Partial<DiagnosticFindingPayload>) => void
+  title: string
+}) {
+  return (
+    <section className="diag-bcg-finding-group">
+      <div className="diag-bcg-finding-group-head">
+        <div className="diag-bcg-finding-group-title">
+          <span className={`diag-pest-kind ${category.toLowerCase()}`}>{title}</span>
+          <small>{entries.length} registradas</small>
+        </div>
+      </div>
+      {entries.length === 0 && <p className="gplan-muted">{emptyMessage}</p>}
+      <div className="diag-pest-findings">
+        {entries.map(({ finding, index }) => (
+          <BcgFindingCard
+            finding={finding}
+            index={index}
+            key={index}
+            onRemove={onRemove}
+            onUpdate={onUpdate}
+          />
+        ))}
+      </div>
+    </section>
+  )
+}
+
+function BcgFindingCard({
+  finding,
+  index,
+  onRemove,
+  onUpdate,
+}: {
+  finding: DiagnosticFindingPayload
+  index: number
+  onRemove: (index: number) => void
+  onUpdate: (index: number, patch: Partial<DiagnosticFindingPayload>) => void
+}) {
+  return (
+    <article className="diag-pest-finding">
+      <div className="diag-pest-finding-head">
+        <span className={`diag-pest-kind ${finding.category.toLowerCase()}`}>{finding.category}</span>
+        <button className="gplan-remove-btn" title="Eliminar hallazgo" type="button" onClick={() => onRemove(index)}>
+          <Trash2 size={14} />
+        </button>
+      </div>
+      <div className="diag-pest-finding-grid">
+        <label>
+          <span>Origen BCG</span>
+          <select
+            value={bcgFindingDimensionValue(finding.sourceDimension)}
+            onChange={(event) => onUpdate(index, { sourceDimension: event.target.value })}
+          >
+            {bcgFindingDimensions.map((dimension) => (
+              <option key={dimension} value={dimension}>{bcgFindingDimensionLabels[dimension]}</option>
+            ))}
+          </select>
+        </label>
+        <label>
+          <span>Prioridad</span>
+          <select
+            value={finding.priority}
+            onChange={(event) => onUpdate(index, { priority: event.target.value as DiagnosticPriority })}
+          >
+            {priorities.map((priority) => <option key={priority} value={priority}>{priority}</option>)}
+          </select>
+        </label>
+        <label className="wide">
+          <span>Descripcion</span>
           <textarea
-            rows={3}
-            value={strengths.join('\n')}
-            onChange={(event) => onChange({ observations, strengths: splitLines(event.target.value), weaknesses })}
-            placeholder="Una fortaleza por linea"
+            rows={2}
+            value={finding.description}
+            onChange={(event) => onUpdate(index, { description: event.target.value })}
+            placeholder="Explique la fortaleza o debilidad del portafolio"
           />
         </label>
-        <label className="field">
-          <span className="field-label">Debilidades</span>
+        <label>
+          <span>Evidencia</span>
           <textarea
-            rows={3}
-            value={weaknesses.join('\n')}
-            onChange={(event) => onChange({ observations, strengths, weaknesses: splitLines(event.target.value) })}
-            placeholder="Una debilidad por linea"
+            rows={2}
+            value={finding.evidence}
+            onChange={(event) => onUpdate(index, { evidence: event.target.value })}
+            placeholder="Dato o cuadrante que sustenta el hallazgo"
+          />
+        </label>
+        <label>
+          <span>Impacto esperado</span>
+          <textarea
+            rows={2}
+            value={finding.impact}
+            onChange={(event) => onUpdate(index, { impact: event.target.value })}
+            placeholder="Como afecta a la organizacion"
           />
         </label>
       </div>
-    </section>
+      <label className="diag-pest-foda-check">
+        <input
+          checked={finding.selectedForFoda}
+          type="checkbox"
+          onChange={(event) => onUpdate(index, { selectedForFoda: event.target.checked })}
+        />
+        <CheckCircle2 size={15} />
+        Seleccionar para la matriz FODA
+      </label>
+    </article>
   )
 }
 
@@ -1975,6 +2909,9 @@ function activityItems(
 
 function bcgPayloadFromSummary(summary: BcgSummary): UpdateBcgPayload {
   const products = arrayValue(summary.products)
+  const summaryFindings = arrayValue(summary.findings)
+  const summaryStrengths = arrayValue(summary.strengths)
+  const summaryWeaknesses = arrayValue(summary.weaknesses)
   return {
     products: products.length > 0
       ? products.map((product) => ({
@@ -1983,14 +2920,33 @@ function bcgPayloadFromSummary(summary: BcgSummary): UpdateBcgPayload {
           annualSales: product.annualSales,
           marketGrowthRate: product.marketGrowthRate,
           relativeMarketShare: product.relativeMarketShare,
+          marketGrowthRates: numericListFromValue(product.marketGrowthRates, false),
+          sectorDemandValues: numericListFromValue(product.sectorDemandValues, true),
+          competitors: recordsFromValue(product.competitors)
+            .map((competitor) => ({
+              name: textValue(competitor.name),
+              sales: Math.max(0, numberFromValue(competitor.sales)),
+            }))
+            .slice(0, BCG_MAX_COMPETITORS),
           notes: product.notes,
         }))
-      : emptyBcg.products,
+      : [emptyBcgProduct()],
     marketGrowthThreshold: summary.marketGrowthThreshold || 10,
     relativeMarketShareThreshold: summary.relativeMarketShareThreshold || 1,
     observations: summary.observations,
-    strengths: summary.strengths,
-    weaknesses: summary.weaknesses,
+    strengths: summaryStrengths,
+    weaknesses: summaryWeaknesses,
+    findings: summaryFindings.length > 0
+      ? summaryFindings.map((finding) => ({
+          sourceDimension: bcgFindingDimensionValue(finding.sourceDimension),
+          category: finding.category === 'DEBILIDAD' ? 'DEBILIDAD' as const : 'FORTALEZA' as const,
+          description: finding.description,
+          evidence: finding.evidence,
+          impact: finding.impact,
+          priority: finding.priority,
+          selectedForFoda: finding.selectedForFoda,
+        }))
+      : bcgFindingsFromContent([], summaryStrengths, summaryWeaknesses),
   }
 }
 
@@ -2007,6 +2963,108 @@ function cleanSwotItems(items: SwotItemPayload[]) {
   return items
     .map((item) => ({ description: item.description.trim(), priority: item.priority }))
     .filter((item) => item.description)
+}
+
+function swotSuggestionsFromDiagnostics(
+  pest: UpdatePestPayload,
+  porter: UpdatePorterPayload,
+  valueChain: UpdateValueChainPayload,
+  bcg: UpdateBcgPayload,
+): SwotSourceSuggestion[] {
+  return dedupeSwotSuggestions([
+    ...swotSuggestionsFromFindings('PEST', pest.findings),
+    ...swotSuggestionsFromFindings('Porter', porter.findings),
+    ...swotSuggestionsFromFindings('Cadena de valor', valueChain.findings),
+    ...swotSuggestionsFromFindings('BCG', bcg.findings),
+  ])
+}
+
+function swotSuggestionsFromFindings(
+  source: string,
+  findings: DiagnosticFindingPayload[] | null | undefined,
+): SwotSourceSuggestion[] {
+  return arrayValue(findings)
+    .filter((finding) => finding.selectedForFoda !== false)
+    .map((finding) => {
+      const key = swotKeyForFindingCategory(finding.category)
+      if (!key) return null
+      return {
+        key,
+        description: textValue(finding.description).trim(),
+        priority: priorityValue(finding.priority),
+        source,
+        sourceDimension: textValue(finding.sourceDimension).trim(),
+      }
+    })
+    .filter((item): item is SwotSourceSuggestion => Boolean(item && item.description))
+}
+
+function swotKeyForFindingCategory(category: DiagnosticFindingPayload['category']): SwotKey | null {
+  if (category === 'FORTALEZA') return 'strengths'
+  if (category === 'OPORTUNIDAD') return 'opportunities'
+  if (category === 'DEBILIDAD') return 'weaknesses'
+  if (category === 'AMENAZA') return 'threats'
+  return null
+}
+
+function dedupeSwotSuggestions(items: SwotSourceSuggestion[]) {
+  const seen = new Set<string>()
+  return items.filter((item) => {
+    const key = `${item.key}:${normalizeTextKey(item.description)}`
+    if (seen.has(key)) return false
+    seen.add(key)
+    return true
+  })
+}
+
+function swotPayloadFromSuggestions(suggestions: SwotSourceSuggestion[]): UpdateSwotPayload {
+  return {
+    strengths: suggestionsToSwotItems(suggestions, 'strengths'),
+    opportunities: suggestionsToSwotItems(suggestions, 'opportunities'),
+    weaknesses: suggestionsToSwotItems(suggestions, 'weaknesses'),
+    threats: suggestionsToSwotItems(suggestions, 'threats'),
+  }
+}
+
+function suggestionsToSwotItems(suggestions: SwotSourceSuggestion[], key: SwotKey): SwotItemPayload[] {
+  return suggestions
+    .filter((suggestion) => suggestion.key === key)
+    .map((suggestion) => ({
+      description: suggestion.description,
+      priority: suggestion.priority,
+    }))
+}
+
+function mergeSwotWithSuggestions(current: UpdateSwotPayload, suggestions: SwotSourceSuggestion[]): UpdateSwotPayload {
+  const cleanCurrent = cleanSwot(current)
+  const suggested = swotPayloadFromSuggestions(suggestions)
+  return {
+    strengths: mergeSwotItems(cleanCurrent.strengths, suggested.strengths),
+    opportunities: mergeSwotItems(cleanCurrent.opportunities, suggested.opportunities),
+    weaknesses: mergeSwotItems(cleanCurrent.weaknesses, suggested.weaknesses),
+    threats: mergeSwotItems(cleanCurrent.threats, suggested.threats),
+  }
+}
+
+function mergeSwotItems(current: SwotItemPayload[], incoming: SwotItemPayload[]) {
+  const seen = new Set<string>()
+  return [...current, ...incoming]
+    .map((item) => ({ description: item.description.trim(), priority: item.priority }))
+    .filter((item) => {
+      if (!item.description) return false
+      const key = normalizeTextKey(item.description)
+      if (seen.has(key)) return false
+      seen.add(key)
+      return true
+    })
+}
+
+function swotHasContent(value: UpdateSwotPayload) {
+  const clean = cleanSwot(value)
+  return clean.strengths.length > 0
+    || clean.opportunities.length > 0
+    || clean.weaknesses.length > 0
+    || clean.threats.length > 0
 }
 
 function cleanValueChain(value: UpdateValueChainPayload): UpdateValueChainPayload {
@@ -2049,22 +3107,55 @@ function cleanActivities(items: ValueChainActivityPayload[]) {
 
 function cleanBcg(value: UpdateBcgPayload): UpdateBcgPayload {
   const current = bcgFormValue(value)
+  const findings = current.findings
+    .map((finding) => ({
+      ...finding,
+      sourceDimension: bcgFindingDimensionValue(finding.sourceDimension),
+      category: finding.category === 'DEBILIDAD' ? 'DEBILIDAD' as const : 'FORTALEZA' as const,
+      description: finding.description.trim(),
+      evidence: finding.evidence.trim(),
+      impact: finding.impact.trim(),
+      priority: priorityValue(finding.priority),
+      selectedForFoda: finding.selectedForFoda,
+    }))
+    .filter((finding) => finding.description)
+  const findingStrengths = findings
+    .filter((finding) => finding.category === 'FORTALEZA')
+    .map((finding) => finding.description)
+  const findingWeaknesses = findings
+    .filter((finding) => finding.category === 'DEBILIDAD')
+    .map((finding) => finding.description)
   return {
     products: current.products
-      .map((product) => ({
-        name: product.name.trim(),
-        description: product.description.trim(),
-        annualSales: Math.max(0, product.annualSales),
-        marketGrowthRate: product.marketGrowthRate,
-        relativeMarketShare: Math.max(0, product.relativeMarketShare),
-        notes: product.notes.trim(),
-      }))
+      .map((product) => {
+        const competitors = cleanBcgCompetitors(product.competitors)
+        const marketGrowthRates = numericListFromValue(product.marketGrowthRates, false)
+        const sectorDemandValues = numericListFromValue(product.sectorDemandValues, true)
+        const derived = bcgDerivedProduct(
+          { ...product, competitors, marketGrowthRates, sectorDemandValues },
+          current,
+          0,
+          0,
+        )
+        return {
+          name: product.name.trim(),
+          description: product.description.trim(),
+          annualSales: Math.max(0, product.annualSales),
+          marketGrowthRate: derived.marketGrowthRate,
+          relativeMarketShare: Math.max(0, derived.relativeMarketShare),
+          marketGrowthRates,
+          sectorDemandValues,
+          competitors,
+          notes: product.notes.trim(),
+        }
+      })
       .filter((product) => product.name),
     marketGrowthThreshold: current.marketGrowthThreshold,
     relativeMarketShareThreshold: current.relativeMarketShareThreshold,
     observations: current.observations.trim(),
-    strengths: cleanLines(current.strengths),
-    weaknesses: cleanLines(current.weaknesses),
+    strengths: findingStrengths.length > 0 ? findingStrengths : cleanLines(current.strengths),
+    weaknesses: findingWeaknesses.length > 0 ? findingWeaknesses : cleanLines(current.weaknesses),
+    findings,
   }
 }
 
@@ -2176,6 +3267,10 @@ function validateActiveTool(
     }
     if (payload.relativeMarketShareThreshold <= 0) {
       return 'La participacion relativa alta debe ser mayor a cero.'
+    }
+    if (!payload.findings.some((finding) => finding.category === 'FORTALEZA')
+      || !payload.findings.some((finding) => finding.category === 'DEBILIDAD')) {
+      return 'Registre al menos una fortaleza y una debilidad derivadas del BCG.'
     }
   }
   return ''
@@ -2294,6 +3389,7 @@ function diagnosticEntries(
     diagnosticEntry('products', current.products, next.products),
     diagnosticEntry('marketGrowthThreshold', current.marketGrowthThreshold, next.marketGrowthThreshold),
     diagnosticEntry('relativeMarketShareThreshold', current.relativeMarketShareThreshold, next.relativeMarketShareThreshold),
+    diagnosticEntry('findings', current.findings, next.findings),
     diagnosticEntry('observations', current.observations, next.observations),
     diagnosticEntry('strengths', current.strengths, next.strengths),
     diagnosticEntry('weaknesses', current.weaknesses, next.weaknesses),
@@ -2429,12 +3525,13 @@ function editorBcgPayload(value: UpdateBcgPayload): UpdateBcgPayload {
   return {
     products: cleaned.products.length > 0
       ? cleaned.products
-      : [{ name: '', description: '', annualSales: 0, marketGrowthRate: 0, relativeMarketShare: 0, notes: '' }],
+      : [emptyBcgProduct()],
     marketGrowthThreshold: cleaned.marketGrowthThreshold > 0 ? cleaned.marketGrowthThreshold : 10,
     relativeMarketShareThreshold: cleaned.relativeMarketShareThreshold > 0 ? cleaned.relativeMarketShareThreshold : 1,
     observations: cleaned.observations,
     strengths: cleaned.strengths,
     weaknesses: cleaned.weaknesses,
+    findings: cleaned.findings,
   }
 }
 
@@ -2573,6 +3670,14 @@ function bcgPayloadFromContent(value: unknown): UpdateBcgPayload {
         annualSales: Math.max(0, numberFromValue(product.annualSales)),
         marketGrowthRate: numberFromValue(product.marketGrowthRate),
         relativeMarketShare: Math.max(0, numberFromValue(product.relativeMarketShare)),
+        marketGrowthRates: numericListFromValue(product.marketGrowthRates, false),
+        sectorDemandValues: numericListFromValue(product.sectorDemandValues, true),
+        competitors: recordsFromValue(product.competitors)
+          .map((competitor) => ({
+            name: textValue(competitor.name),
+            sales: Math.max(0, numberFromValue(competitor.sales)),
+          }))
+          .slice(0, BCG_MAX_COMPETITORS),
         notes: textValue(product.notes).trim(),
       }))
       .filter((product) => product.name),
@@ -2581,6 +3686,7 @@ function bcgPayloadFromContent(value: unknown): UpdateBcgPayload {
     observations: textValue(content.observations),
     strengths: stringListFromValue(content.strengths),
     weaknesses: stringListFromValue(content.weaknesses),
+    findings: bcgFindingsFromContent(content.findings, content.strengths, content.weaknesses),
   }
 }
 
@@ -2601,6 +3707,10 @@ function arrayValue<T>(value: T[] | readonly T[] | null | undefined): T[] {
 
 function textValue(value: unknown) {
   return typeof value === 'string' ? value : ''
+}
+
+function normalizeTextKey(value: string) {
+  return value.trim().toLowerCase().replace(/\s+/g, ' ')
 }
 
 function stringListFromValue(value: unknown) {
@@ -2664,10 +3774,6 @@ function activeUpdatedAt(
 
 function activePhaseTitle(plan: PlanSummary) {
   return arrayValue(plan.phases).find((phase) => phase.phase === plan.activePhase)?.title ?? '-'
-}
-
-function splitLines(value: string) {
-  return value.split('\n').map((line) => line.trim()).filter(Boolean)
 }
 
 function cleanLines(values: string[]) {
