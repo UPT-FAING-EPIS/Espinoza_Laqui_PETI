@@ -1,0 +1,744 @@
+/* ============================================
+   GROUP PLAN PAGE
+   ============================================ */
+.gplan-page {
+  max-width: 1240px;
+}
+
+.gplan-back-btn {
+  align-items: center;
+  background: none;
+  border: none;
+  color: var(--ink-3);
+  cursor: pointer;
+  display: inline-flex;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  gap: 4px;
+  margin-bottom: 10px;
+  padding: 0;
+  transition: color 0.2s ease;
+}
+
+.gplan-back-btn:hover {
+  color: var(--ink);
+}
+
+.gplan-empty-card {
+  align-items: center;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 56px 20px;
+  text-align: center;
+}
+
+.gplan-empty-icon {
+  align-items: center;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  color: var(--ink-3);
+  display: flex;
+  height: 84px;
+  justify-content: center;
+  width: 84px;
+}
+
+.gplan-empty-card h2 {
+  color: var(--ink);
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.gplan-empty-card p {
+  color: var(--ink-3);
+  font-size: 14px;
+  margin-bottom: 4px;
+}
+
+.gplan-phase-placeholder {
+  min-height: 360px;
+}
+
+.gplan-phase-helper {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--ink-2);
+  font-size: 12px;
+  font-weight: 700;
+  margin-top: 6px;
+  padding: 7px 10px;
+}
+
+.gplan-title-row {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.gplan-phase-pill {
+  background: rgba(59, 130, 246, 0.1);
+  border: 1px solid rgba(59, 130, 246, 0.2);
+  border-radius: 999px;
+  color: var(--blue);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  padding: 5px 9px;
+  text-transform: uppercase;
+}
+
+.gplan-notice {
+  align-items: center;
+  background: rgba(34, 197, 94, 0.08);
+  border: 1px solid rgba(34, 197, 94, 0.18);
+  border-radius: var(--radius);
+  color: var(--green);
+  display: flex;
+  font-size: 13px;
+  gap: 10px;
+  margin-bottom: 20px;
+  padding: 10px 14px;
+}
+
+.gplan-card-header-action {
+  justify-content: space-between;
+}
+
+.gplan-card-title {
+  align-items: center;
+  display: flex;
+  gap: 10px;
+}
+
+.gplan-card-title svg {
+  color: var(--blue);
+}
+
+.gplan-plan-summary-card {
+  margin-bottom: 20px;
+}
+
+.gplan-plan-summary-grid {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  padding: 16px;
+}
+
+.gplan-inline-btn,
+.gplan-link-btn {
+  align-items: center;
+  background: var(--surface-2);
+  border: 1px solid var(--border-2);
+  border-radius: var(--radius-sm);
+  color: var(--ink-2);
+  cursor: pointer;
+  display: inline-flex;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  gap: 6px;
+  min-height: 32px;
+  padding: 0 12px;
+  transition: all 0.2s ease;
+}
+
+.gplan-inline-btn:hover,
+.gplan-link-btn:hover {
+  background: var(--surface-3);
+  border-color: var(--blue);
+  color: var(--blue);
+}
+
+.gplan-objectives {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.gplan-objective {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px;
+}
+
+.gplan-objective-head {
+  align-items: flex-start;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: 1fr auto;
+}
+
+.gplan-remove-btn {
+  align-items: center;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  color: var(--ink-3);
+  cursor: pointer;
+  display: flex;
+  flex-shrink: 0;
+  height: 34px;
+  justify-content: center;
+  transition: all 0.2s ease;
+  width: 34px;
+}
+
+.gplan-remove-btn:hover {
+  background: rgba(239, 68, 68, 0.1);
+  border-color: rgba(239, 68, 68, 0.2);
+  color: var(--red);
+}
+
+.gplan-specific-list {
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 12px;
+  padding-top: 12px;
+}
+
+.gplan-specific-title {
+  align-items: center;
+  color: var(--ink-2);
+  display: flex;
+  font-size: 12px;
+  font-weight: 700;
+  gap: 6px;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.gplan-specific-row {
+  align-items: center;
+  display: grid;
+  gap: 8px;
+  grid-template-columns: 1fr auto;
+}
+
+.gplan-link-btn {
+  justify-content: center;
+  width: fit-content;
+}
+
+.gplan-side-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px;
+}
+
+.gplan-side-item {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+}
+
+.gplan-side-item span {
+  color: var(--ink-3);
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.gplan-side-item strong {
+  color: var(--ink);
+  display: block;
+  font-size: 14px;
+  font-weight: 700;
+  margin-top: 3px;
+}
+
+.gplan-overview-card {
+  align-items: center;
+  background: var(--surface-2);
+  border: 1px solid var(--border-2);
+  border-radius: var(--radius);
+  color: var(--ink);
+  cursor: pointer;
+  display: grid;
+  font: inherit;
+  gap: 10px;
+  grid-template-columns: auto 1fr;
+  min-height: 54px;
+  padding: 10px 12px;
+  text-align: left;
+  transition: all 0.2s ease;
+  width: 100%;
+}
+
+.gplan-overview-card:hover {
+  background: var(--surface-3);
+  border-color: var(--blue);
+  color: var(--blue);
+}
+
+.gplan-overview-card svg {
+  color: var(--blue);
+}
+
+.gplan-overview-card span {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.gplan-overview-card strong {
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.gplan-overview-card small {
+  color: var(--ink-3);
+  font-size: 11px;
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gplan-workflow-summary,
+.gplan-history-block {
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-top: 14px;
+}
+
+.tools-panel .gplan-side-body > .gplan-workflow-summary:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.gplan-workflow-title {
+  align-items: center;
+  color: var(--ink-2);
+  display: flex;
+  font-size: 12px;
+  font-weight: 800;
+  gap: 7px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.gplan-workflow-title svg {
+  color: var(--blue);
+}
+
+.gplan-status {
+  align-items: center;
+  border-radius: 999px;
+  display: inline-flex;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  min-height: 26px;
+  padding: 0 10px;
+  text-transform: uppercase;
+  width: fit-content;
+}
+
+.gplan-status--draft {
+  background: rgba(99, 102, 241, 0.12);
+  color: var(--indigo);
+}
+
+.gplan-status--pending_approval {
+  background: rgba(245, 158, 11, 0.12);
+  color: var(--amber);
+}
+
+.gplan-status--approved {
+  background: rgba(34, 197, 94, 0.12);
+  color: var(--green);
+}
+
+.gplan-request-card {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px;
+}
+
+.gplan-request-card strong {
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1.3;
+}
+
+.gplan-request-card > span,
+.gplan-muted {
+  color: var(--ink-3);
+  font-size: 12px;
+}
+
+.gplan-review-actions {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: 1fr 1fr;
+  margin-top: 8px;
+}
+
+.gplan-review-btn {
+  align-items: center;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  display: inline-flex;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  gap: 6px;
+  justify-content: center;
+  min-height: 34px;
+  transition: all 0.2s ease;
+}
+
+.gplan-review-btn.approve {
+  background: rgba(34, 197, 94, 0.1);
+  color: var(--green);
+}
+
+.gplan-review-btn.reject {
+  background: rgba(239, 68, 68, 0.1);
+  color: var(--red);
+}
+
+.gplan-review-btn.submit {
+  background: rgba(59, 130, 246, 0.1);
+  color: var(--blue);
+}
+
+.gplan-review-btn.discard {
+  background: rgba(148, 163, 184, 0.1);
+  color: var(--ink-3);
+}
+
+.gplan-review-btn.approve:hover:not(:disabled) {
+  border-color: rgba(34, 197, 94, 0.25);
+}
+
+.gplan-review-btn.reject:hover:not(:disabled) {
+  border-color: rgba(239, 68, 68, 0.25);
+}
+
+.gplan-review-btn.submit:hover:not(:disabled) {
+  border-color: rgba(59, 130, 246, 0.25);
+}
+
+.gplan-review-btn.discard:hover:not(:disabled) {
+  border-color: rgba(148, 163, 184, 0.25);
+  color: var(--ink-2);
+}
+
+.gplan-review-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.gplan-review-actions.single {
+  grid-template-columns: 1fr;
+}
+
+.gplan-preview-overlay {
+  align-items: center;
+  background: rgba(3, 7, 18, 0.68);
+  display: flex;
+  inset: 0;
+  justify-content: center;
+  padding: 24px;
+  position: fixed;
+  z-index: 40;
+}
+
+.gplan-preview-modal {
+  background: var(--surface);
+  border: 1px solid var(--border-2);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.42);
+  display: flex;
+  flex-direction: column;
+  max-height: min(86vh, 760px);
+  max-width: 860px;
+  overflow: hidden;
+  width: min(100%, 860px);
+}
+
+.gplan-preview-header {
+  align-items: flex-start;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  gap: 18px;
+  justify-content: space-between;
+  padding: 20px 22px;
+}
+
+.gplan-preview-kicker {
+  color: var(--blue);
+  display: block;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  margin-bottom: 6px;
+  text-transform: uppercase;
+}
+
+.gplan-preview-header h2 {
+  color: var(--ink);
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: 0;
+  margin: 0;
+}
+
+.gplan-preview-header p {
+  color: var(--ink-3);
+  font-size: 13px;
+  margin-top: 4px;
+}
+
+.gplan-preview-body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  overflow: auto;
+  padding: 18px 22px;
+}
+
+.gplan-dashboard-metric,
+.gplan-preview-focus {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.gplan-dashboard-metric {
+  min-width: 0;
+  padding: 12px;
+}
+
+.gplan-dashboard-metric span {
+  color: var(--ink-3);
+  display: block;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  margin-bottom: 6px;
+  text-transform: uppercase;
+}
+
+.gplan-dashboard-metric strong {
+  color: var(--ink);
+  display: block;
+  font-size: 14px;
+  font-weight: 800;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gplan-preview-focus h3 {
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 800;
+  margin: 0;
+}
+
+.gplan-preview-focus {
+  padding: 14px;
+}
+
+.gplan-preview-focus-head {
+  align-items: flex-start;
+  display: flex;
+  gap: 14px;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.gplan-preview-focus-head strong {
+  color: var(--ink-3);
+  flex-shrink: 0;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.gplan-preview-sections {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.gplan-preview-sections section,
+.gplan-preview-diff {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px;
+}
+
+.gplan-preview-sections section:last-child {
+  grid-column: 1 / -1;
+}
+
+.gplan-preview-sections h3,
+.gplan-preview-diff h3 {
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 800;
+  margin-bottom: 12px;
+}
+
+.gplan-preview-item {
+  display: grid;
+  gap: 6px;
+  grid-template-columns: 110px 1fr;
+}
+
+.gplan-preview-item + .gplan-preview-item {
+  border-top: 1px solid var(--border);
+  margin-top: 10px;
+  padding-top: 10px;
+}
+
+.gplan-preview-item.multiline {
+  grid-template-columns: 1fr;
+}
+
+.gplan-preview-item span {
+  color: var(--ink-3);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.gplan-preview-item p {
+  color: var(--ink-2);
+  font-size: 13px;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.gplan-preview-objectives article {
+  background: rgba(15, 23, 42, 0.32);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 12px;
+}
+
+.gplan-preview-objectives article + article {
+  margin-top: 10px;
+}
+
+.gplan-preview-objectives strong {
+  color: var(--ink);
+  display: block;
+  font-size: 13px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.gplan-preview-objectives ul {
+  color: var(--ink-3);
+  font-size: 13px;
+  line-height: 1.55;
+  margin: 8px 0 0 18px;
+}
+
+.gplan-diff-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.gplan-diff-list span {
+  background: rgba(59, 130, 246, 0.1);
+  border: 1px solid rgba(59, 130, 246, 0.18);
+  border-radius: 999px;
+  color: var(--blue);
+  font-size: 12px;
+  font-weight: 800;
+  padding: 6px 10px;
+}
+
+.gplan-preview-actions {
+  border-top: 1px solid var(--border);
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  padding: 16px 22px;
+}
+
+@media (max-width: 640px) {
+  .gplan-plan-summary-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .gplan-objective-head,
+  .gplan-specific-row {
+    grid-template-columns: 1fr;
+  }
+
+  .gplan-objective-head .gplan-remove-btn,
+  .gplan-specific-row .gplan-remove-btn {
+    justify-self: flex-end;
+  }
+
+  .gplan-review-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .gplan-preview-overlay {
+    align-items: stretch;
+    padding: 12px;
+  }
+
+  .gplan-preview-modal {
+    max-height: calc(100vh - 24px);
+  }
+
+  .gplan-preview-header,
+  .gplan-preview-actions {
+    padding: 16px;
+  }
+
+  .gplan-preview-body {
+    padding: 16px;
+  }
+
+  .gplan-preview-focus-head {
+    flex-direction: column;
+  }
+
+  .gplan-preview-sections {
+    grid-template-columns: 1fr;
+  }
+
+  .gplan-preview-actions {
+    flex-direction: column-reverse;
+  }
+}

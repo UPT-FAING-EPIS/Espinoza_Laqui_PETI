@@ -1,0 +1,15 @@
+package com.strategicti.infrastructure.persistence.repository;
+
+import com.strategicti.domain.model.DiagnosticTool;
+import com.strategicti.infrastructure.persistence.entity.DiagnosticFindingJpaEntity;
+import org.springframework.data.jpa.repository.JpaRepository;
+
+import java.util.List;
+
+public interface SpringDataDiagnosticFindingRepository extends JpaRepository<DiagnosticFindingJpaEntity, Long> {
+    List<DiagnosticFindingJpaEntity> findByPlanIdOrderByPositionAsc(Long planId);
+
+    List<DiagnosticFindingJpaEntity> findByPlanIdAndSourceOrderByPositionAsc(Long planId, DiagnosticTool source);
+
+    void deleteByPlanIdAndSource(Long planId, DiagnosticTool source);
+}

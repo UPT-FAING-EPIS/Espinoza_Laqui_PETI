@@ -1,0 +1,74 @@
+.plan-gateway {
+  max-width: 900px;
+}
+
+.plan-gateway-card {
+  align-items: center;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  display: flex;
+  gap: 20px;
+  padding: 26px;
+}
+
+.plan-gateway-icon {
+  align-items: center;
+  background: rgba(59, 130, 246, 0.12);
+  border: 1px solid rgba(59, 130, 246, 0.18);
+  border-radius: var(--radius);
+  color: var(--blue);
+  display: flex;
+  flex-shrink: 0;
+  height: 64px;
+  justify-content: center;
+  width: 64px;
+}
+
+.plan-gateway-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.plan-gateway-kicker {
+  align-items: center;
+  color: var(--amber);
+  display: flex;
+  font-size: 12px;
+  font-weight: 700;
+  gap: 7px;
+  letter-spacing: 0.03em;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+}
+
+.plan-gateway-content h2 {
+  color: var(--ink);
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 18px;
+  font-weight: 800;
+  line-height: 1.25;
+}
+
+.plan-gateway-content p {
+  color: var(--ink-3);
+  font-size: 14px;
+  line-height: 1.6;
+  margin-top: 6px;
+}
+
+.plan-gateway-action {
+  flex-shrink: 0;
+  text-decoration: none;
+}
+
+@media (max-width: 720px) {
+  .plan-gateway-card {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .plan-gateway-action {
+    width: 100%;
+  }
+}

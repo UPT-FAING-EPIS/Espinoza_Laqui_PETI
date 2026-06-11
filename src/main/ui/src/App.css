@@ -1,0 +1,668 @@
+/* ============================================
+   PETI PAGE LAYOUT (stepper panel + main content)
+   ============================================ */
+.peti-page {
+  display: block;
+  gap: 24px;
+}
+
+.peti-stepper-panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.22);
+  margin-bottom: 26px;
+  padding: 12px 16px;
+  position: static;
+}
+
+.peti-phase-label {
+  color: var(--ink-3);
+  display: block;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  margin-bottom: 10px;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.peti-main {
+  min-width: 0;
+}
+
+/* ============================================
+   STEPPER
+   ============================================ */
+.stepper {
+  display: flex;
+  flex-direction: row;
+  gap: 8px;
+  justify-content: center;
+}
+
+.step {
+  align-items: center;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: inherit;
+  cursor: pointer;
+  display: flex;
+  font: inherit;
+  gap: 9px;
+  min-height: 42px;
+  min-width: 150px;
+  padding: 8px 12px;
+  position: relative;
+  text-align: left;
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease,
+    opacity 0.2s ease;
+  width: auto;
+}
+
+.step:not(:disabled):hover {
+  background: var(--surface-2);
+  border-color: rgba(59, 130, 246, 0.24);
+}
+
+.step:not(:disabled):hover .step-dot {
+  border-color: var(--blue);
+  color: var(--blue);
+}
+
+.step:disabled {
+  cursor: not-allowed;
+}
+
+.step-indicator {
+  align-items: center;
+  display: flex;
+  flex-direction: row;
+  flex-shrink: 0;
+  width: auto;
+}
+
+.step-dot {
+  align-items: center;
+  background: var(--surface-2);
+  border: 2px solid var(--border-2);
+  border-radius: 50%;
+  color: var(--ink-3);
+  display: flex;
+  height: 28px;
+  justify-content: center;
+  width: 28px;
+  position: relative;
+  z-index: 1;
+  transition: all 0.25s ease;
+}
+
+.step-line {
+  display: none;
+}
+
+.step-content {
+  padding: 0;
+  min-width: 0;
+}
+
+.step-content strong {
+  color: var(--ink-2);
+  display: block;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.step-content span {
+  display: none;
+}
+
+/* Stepper states */
+.step.active .step-dot {
+  background: rgba(59, 130, 246, 0.15);
+  border-color: var(--blue);
+  color: var(--blue);
+  box-shadow: 0 0 12px rgba(59, 130, 246, 0.25);
+}
+
+.step.active .step-content strong {
+  color: var(--ink);
+}
+
+.step.active .step-line {
+  background: linear-gradient(to bottom, var(--blue), var(--border));
+}
+
+.step.selected .step-dot {
+  background: rgba(59, 130, 246, 0.15);
+  border-color: var(--blue);
+  color: var(--blue);
+  box-shadow: 0 0 12px rgba(59, 130, 246, 0.2);
+}
+
+.step.selected .step-content strong {
+  color: var(--ink);
+}
+
+.step.selected {
+  background: rgba(59, 130, 246, 0.1);
+  border-color: rgba(59, 130, 246, 0.28);
+}
+
+.step.completed .step-dot {
+  background: rgba(34, 197, 94, 0.15);
+  border-color: var(--green);
+  color: var(--green);
+}
+
+.step.completed.selected .step-dot {
+  background: rgba(59, 130, 246, 0.15);
+  border-color: var(--blue);
+  color: var(--blue);
+}
+
+.step.completed .step-content strong {
+  color: var(--green);
+}
+
+.step.completed .step-line {
+  background: var(--green);
+  opacity: 0.3;
+}
+
+.step.locked {
+  opacity: 0.4;
+}
+
+/* Progress ring */
+.progress-ring-wrapper {
+  position: relative;
+  width: 80px;
+  height: 80px;
+}
+
+.progress-ring {
+  width: 80px;
+  height: 80px;
+  transform: rotate(-90deg);
+}
+
+.progress-ring-bg {
+  fill: none;
+  stroke: var(--surface-3);
+  stroke-width: 5;
+}
+
+.progress-ring-fill {
+  fill: none;
+  stroke: var(--blue);
+  stroke-width: 5;
+  stroke-linecap: round;
+  transition: stroke-dashoffset 0.8s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.progress-ring-label {
+  align-items: center;
+  display: flex;
+  flex-direction: column;
+  inset: 0;
+  justify-content: center;
+  position: absolute;
+}
+
+.progress-ring-label strong {
+  color: var(--ink);
+  font-size: 18px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.progress-ring-label span {
+  color: var(--ink-3);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  margin-top: 2px;
+}
+
+/* ============================================
+   PAGE HEADER
+   ============================================ */
+.page-header {
+  align-items: flex-start;
+  display: flex;
+  justify-content: flex-start;
+  margin-bottom: 22px;
+}
+
+.page-header h1 {
+  background: linear-gradient(135deg, var(--ink) 0%, var(--ink-2) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 28px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+}
+
+.page-subtitle {
+  color: var(--ink-3);
+  font-size: 14px;
+  margin-top: 4px;
+}
+
+.page-header-right {
+  display: flex;
+  gap: 8px;
+  padding-top: 4px;
+}
+
+.btn-icon {
+  align-items: center;
+  background: var(--surface-2);
+  border: 1px solid var(--border-2);
+  border-radius: var(--radius);
+  color: var(--ink-2);
+  cursor: pointer;
+  display: flex;
+  height: 38px;
+  justify-content: center;
+  transition: all 0.2s ease;
+  width: 38px;
+}
+
+.btn-icon:hover {
+  background: var(--surface-3);
+  color: var(--ink);
+  border-color: var(--blue);
+}
+
+.btn-icon:active {
+  transform: scale(0.93);
+}
+
+/* Alert */
+.alert {
+  align-items: center;
+  background: rgba(245, 158, 11, 0.08);
+  border: 1px solid rgba(245, 158, 11, 0.2);
+  border-radius: var(--radius);
+  color: var(--amber);
+  display: flex;
+  font-size: 13px;
+  gap: 10px;
+  margin-bottom: 20px;
+  padding: 10px 14px;
+  animation: slideDown 0.3s ease;
+}
+
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ============================================
+   CONTENT GRID: form + tools side by side
+   ============================================ */
+.content-grid {
+  display: grid;
+  gap: 24px;
+  grid-template-columns: minmax(0, 1fr) 340px;
+  align-items: start;
+}
+
+/* ============================================
+   CARDS
+   ============================================ */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.card + .card {
+  margin-top: 20px;
+}
+
+.card-header {
+  align-items: center;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  gap: 10px;
+  padding: 16px 20px;
+}
+
+.card-header svg {
+  color: var(--blue);
+  flex-shrink: 0;
+}
+
+.card-header h2 {
+  color: var(--ink);
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+.card-body {
+  padding: 20px;
+}
+
+.card-body.two-col {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: 1fr 1fr;
+}
+
+/* ============================================
+   FIELDS
+   ============================================ */
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+}
+
+.field.wide {
+  grid-column: 1 / -1;
+}
+
+.field-label {
+  color: var(--ink-2);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+input,
+textarea {
+  background: var(--surface-2);
+  border: 1px solid var(--border-2);
+  border-radius: var(--radius-sm);
+  color: var(--ink);
+  font: inherit;
+  font-size: 14px;
+  min-width: 0;
+  padding: 9px 12px;
+  resize: vertical;
+  transition: all 0.2s ease;
+  width: 100%;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--ink-3);
+}
+
+input:hover,
+textarea:hover {
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+input:focus,
+textarea:focus {
+  background: var(--surface-3);
+  border-color: var(--blue);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  outline: none;
+}
+
+.field-error {
+  color: var(--red);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+/* ============================================
+   FORM ACTIONS
+   ============================================ */
+.form-area {
+  min-width: 0;
+}
+
+.form-actions {
+  align-items: center;
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  margin-top: 20px;
+}
+
+/* ============================================
+   BUTTONS
+   ============================================ */
+.btn {
+  align-items: center;
+  border-radius: var(--radius);
+  cursor: pointer;
+  display: inline-flex;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  gap: 7px;
+  min-height: 40px;
+  padding: 0 18px;
+  transition: all 0.2s ease;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, var(--blue), var(--indigo));
+  border: none;
+  color: #fff;
+  box-shadow: 0 2px 10px rgba(59, 130, 246, 0.25);
+}
+
+.btn-primary:hover:not(:disabled) {
+  box-shadow: 0 4px 18px rgba(59, 130, 246, 0.35);
+  transform: translateY(-1px);
+}
+
+.btn-secondary {
+  background: var(--surface-2);
+  border: 1px solid var(--border-2);
+  color: var(--ink);
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background: var(--surface-3);
+  border-color: var(--blue);
+  color: var(--blue);
+}
+
+.btn:active:not(:disabled) {
+  transform: translateY(0) scale(0.98);
+}
+
+.btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.35;
+}
+
+/* ============================================
+   TOOLS PANEL (diagnostic modules)
+   ============================================ */
+.tools-panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  position: sticky;
+  top: 28px;
+}
+
+.tools-panel > .card-header {
+  border-bottom: 1px solid var(--border);
+}
+
+.tools-grid {
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.tool-card {
+  align-items: center;
+  background: var(--surface-2);
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  cursor: pointer;
+  display: flex;
+  gap: 12px;
+  padding: 12px 14px;
+  transition: all 0.2s ease;
+}
+
+.tool-card:hover {
+  background: var(--surface-3);
+  border-color: var(--border-2);
+  transform: translateX(2px);
+}
+
+.tool-icon {
+  align-items: center;
+  background: color-mix(in srgb, var(--tool-color) 12%, transparent);
+  border-radius: var(--radius-sm);
+  color: var(--tool-color);
+  display: flex;
+  flex-shrink: 0;
+  height: 40px;
+  justify-content: center;
+  width: 40px;
+}
+
+.tool-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.tool-info strong {
+  color: var(--ink);
+  display: block;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.tool-info span {
+  color: var(--ink-3);
+  display: block;
+  font-size: 11px;
+  margin-top: 1px;
+}
+
+.tool-arrow {
+  color: var(--ink-3);
+  flex-shrink: 0;
+  opacity: 0;
+  transition: all 0.2s ease;
+  transform: translateX(-4px);
+}
+
+.tool-card:hover .tool-arrow {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+/* ============================================
+   SKELETON
+   ============================================ */
+.skeleton .step-dot {
+  animation: shimmer 1.4s ease-in-out infinite;
+}
+
+.skeleton .step-content strong,
+.skeleton .step-content span {
+  animation: shimmer 1.4s ease-in-out infinite;
+  background: var(--surface-3);
+  border-radius: 4px;
+  display: block;
+}
+
+.skeleton .step-content strong {
+  height: 12px;
+  width: 80%;
+}
+
+.skeleton .step-content span {
+  height: 10px;
+  width: 50%;
+  margin-top: 6px;
+}
+
+@keyframes shimmer {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 0.7; }
+}
+
+/* ============================================
+   RESPONSIVE
+   ============================================ */
+@media (max-width: 980px) {
+  .content-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .tools-panel {
+    position: static;
+  }
+
+  .tools-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  }
+}
+
+@media (max-width: 860px) {
+  .peti-stepper-panel {
+    position: static;
+  }
+
+  .stepper {
+    justify-content: flex-start;
+    overflow-x: auto;
+    padding-bottom: 4px;
+  }
+
+  .step {
+    flex: 0 0 auto;
+    min-width: 132px;
+  }
+}
+
+@media (max-width: 640px) {
+  .card-body.two-col {
+    grid-template-columns: 1fr;
+  }
+
+  .form-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .btn {
+    justify-content: center;
+    width: 100%;
+  }
+
+  .page-header {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .page-header-right {
+    padding-top: 0;
+  }
+}

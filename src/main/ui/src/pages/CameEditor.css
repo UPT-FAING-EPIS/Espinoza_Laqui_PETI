@@ -1,0 +1,145 @@
+.came-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.came-notice {
+  margin: 0 16px 12px;
+  padding: 8px 12px;
+  background: #f0fdf4;
+  border-radius: 8px;
+  font-size: 13px;
+  color: #166534;
+}
+
+.came-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  padding: 16px;
+  padding-bottom: 0;
+}
+
+.came-summary-card {
+  background: var(--surface-2);
+  border-radius: 10px;
+  padding: 12px;
+  text-align: center;
+  border-top: 3px solid transparent;
+}
+
+.came-summary-num {
+  font-size: 24px;
+  font-weight: 700;
+}
+
+.came-summary-label {
+  font-size: 12px;
+  color: var(--ink-2);
+  margin-top: 2px;
+  font-weight: 500;
+}
+
+.came-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  padding: 16px;
+}
+
+.came-quadrant {
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.came-quadrant-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 12px 14px;
+  border-left: 3px solid transparent;
+  background: var(--surface-2);
+  gap: 8px;
+}
+
+.came-quadrant-header strong {
+  display: block;
+  font-size: 14px;
+}
+
+.came-quadrant-desc {
+  font-size: 11px;
+  color: var(--ink-3);
+  display: block;
+  margin-top: 2px;
+}
+
+.came-add-btn {
+  padding: 4px 10px !important;
+  font-size: 12px !important;
+  flex-shrink: 0;
+}
+
+.came-actions-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+}
+
+.came-action-row {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+.came-action-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.came-action-body textarea,
+.came-action-body input {
+  width: 100%;
+  font-size: 13px;
+}
+
+.came-action-side {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 74px;
+}
+
+.came-action-side select {
+  font-size: 12px;
+  font-weight: 600;
+  width: 100%;
+}
+
+.came-remove-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--ink-3);
+  padding: 4px;
+  align-self: center;
+}
+
+.came-remove-btn:hover {
+  color: #ef4444;
+}
+
+@media (max-width: 700px) {
+  .came-grid {
+    grid-template-columns: 1fr;
+  }
+  .came-summary-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}

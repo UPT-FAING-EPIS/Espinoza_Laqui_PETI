@@ -1,0 +1,282 @@
+/* ============================================
+   MY GROUPS PAGE
+   ============================================ */
+.mygroups {
+  max-width: 800px;
+}
+
+.mygroups-header {
+  margin-bottom: 28px;
+}
+
+.mygroups-header h1 {
+  background: linear-gradient(135deg, var(--ink) 0%, var(--ink-2) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 28px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.mygroups-subtitle {
+  color: var(--ink-3);
+  font-size: 14px;
+  margin-top: 4px;
+}
+
+/* List */
+.mygroups-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* Card */
+.mygroups-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  transition: border-color 0.2s ease;
+}
+
+.mygroups-card:hover,
+.mygroups-card.expanded {
+  border-color: var(--border-2);
+}
+
+.mygroups-card-header {
+  align-items: center;
+  background: none;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  display: flex;
+  font: inherit;
+  gap: 14px;
+  padding: 18px 20px;
+  text-align: left;
+  transition: background 0.2s ease;
+  width: 100%;
+}
+
+.mygroups-card-header:hover {
+  background: var(--surface-2);
+}
+
+.mygroups-card-header > svg:last-child {
+  color: var(--ink-3);
+  flex-shrink: 0;
+}
+
+.mygroups-card-icon {
+  align-items: center;
+  background: rgba(99, 102, 241, 0.12);
+  border-radius: var(--radius-sm);
+  color: var(--indigo);
+  display: flex;
+  flex-shrink: 0;
+  height: 40px;
+  justify-content: center;
+  width: 40px;
+}
+
+.mygroups-card-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.mygroups-card-info strong {
+  color: var(--ink);
+  display: block;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.mygroups-card-info span {
+  color: var(--ink-3);
+  display: block;
+  font-size: 12px;
+  margin-top: 2px;
+}
+
+.mygroups-role {
+  border-radius: 20px;
+  flex-shrink: 0;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  padding: 3px 10px;
+  text-transform: uppercase;
+}
+
+.mygroups-role--lider {
+  background: rgba(59, 130, 246, 0.12);
+  color: var(--blue);
+}
+
+.mygroups-role--editor {
+  background: rgba(20, 184, 166, 0.12);
+  color: var(--teal);
+}
+
+/* Card body */
+.mygroups-card-body {
+  animation: expandDown 0.25s ease;
+  border-top: 1px solid var(--border);
+  padding: 20px;
+}
+
+@keyframes expandDown {
+  from { opacity: 0; transform: translateY(-8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.mygroups-desc {
+  color: var(--ink-3);
+  font-size: 14px;
+  line-height: 1.6;
+  margin-bottom: 16px;
+}
+
+.mygroups-members-title {
+  align-items: center;
+  color: var(--ink-2);
+  display: flex;
+  font-size: 12px;
+  font-weight: 600;
+  gap: 6px;
+  letter-spacing: 0.03em;
+  margin-bottom: 10px;
+  text-transform: uppercase;
+}
+
+.mygroups-members {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.mygroups-member {
+  align-items: center;
+  background: var(--surface-2);
+  border-radius: var(--radius);
+  display: flex;
+  gap: 12px;
+  padding: 10px 14px;
+}
+
+.mygroups-member-avatar {
+  align-items: center;
+  background: var(--surface-3);
+  border-radius: 50%;
+  color: var(--ink-2);
+  display: flex;
+  flex-shrink: 0;
+  font-size: 11px;
+  font-weight: 800;
+  height: 32px;
+  justify-content: center;
+  width: 32px;
+}
+
+.mygroups-member-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.mygroups-member-info strong {
+  color: var(--ink);
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.mygroups-member-info span {
+  color: var(--ink-3);
+  display: block;
+  font-size: 12px;
+}
+
+.mygroups-actions {
+  border-top: 1px solid var(--border);
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 16px;
+  padding-top: 16px;
+}
+
+.mygroups-plan-link {
+  align-items: center;
+  background: linear-gradient(135deg, var(--blue), var(--indigo));
+  border: none;
+  border-radius: var(--radius);
+  box-shadow: 0 2px 10px rgba(59, 130, 246, 0.25);
+  color: #fff;
+  display: inline-flex;
+  font-size: 13px;
+  font-weight: 700;
+  gap: 7px;
+  min-height: 38px;
+  padding: 0 16px;
+  text-decoration: none;
+  transition: all 0.2s ease;
+}
+
+.mygroups-plan-link:hover {
+  box-shadow: 0 4px 18px rgba(59, 130, 246, 0.35);
+  transform: translateY(-1px);
+}
+
+/* Empty */
+.mygroups-empty {
+  align-items: center;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 60px 20px;
+  text-align: center;
+}
+
+.mygroups-empty-icon {
+  align-items: center;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  color: var(--ink-3);
+  display: flex;
+  height: 88px;
+  justify-content: center;
+  width: 88px;
+}
+
+.mygroups-empty h2 {
+  color: var(--ink);
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.mygroups-empty p {
+  color: var(--ink-3);
+  font-size: 14px;
+  max-width: 360px;
+}
+
+/* Skeleton */
+.mygroups-skeleton-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.mygroups-skeleton {
+  animation: shimmer 1.4s ease-in-out infinite;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  height: 76px;
+}
