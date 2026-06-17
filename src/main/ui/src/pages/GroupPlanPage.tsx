@@ -3,6 +3,7 @@ import {
   Building2,
   CheckCircle2,
   CircleAlert,
+  FileDown,
   FileText,
   Flag,
   GitPullRequest,
@@ -16,7 +17,7 @@ import {
 } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
-import { useNavigate, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import { z } from 'zod'
 import { getGroup } from '../api/groupApi'
 import {
@@ -32,6 +33,7 @@ import {
 import { useAuth } from '../context/AuthContext'
 import { setActivePetiGroupId } from '../session'
 import { DiagnosticsWorkspace } from './DiagnosticsWorkspace'
+import { FormulationWorkspace } from './FormulationWorkspace'
 import '../App.css'
 import './GroupPlanPage.css'
 import type { ReactNode } from 'react'
@@ -99,10 +101,14 @@ export default function GroupPlanPage() {
     handleSubmit,
     register,
     reset,
+    setValue,
+    watch,
   } = useForm<IdentityForm>({
     resolver: zodResolver(identitySchema),
     defaultValues: emptyIdentity,
   })
+  const valuesText = watch('valuesText')
+  const identityValues = useMemo(() => identityValuesFromText(valuesText), [valuesText])
 
   const activePhase = useMemo(
     () => plan?.phases.find((phase) => phase.phase === plan.activePhase),
@@ -117,6 +123,10 @@ export default function GroupPlanPage() {
     () => plan?.phases.find((phase) => phase.phase === 'IDENTITY'),
     [plan],
   )
+  const diagnosticsPhase = useMemo(
+    () => plan?.phases.find((phase) => phase.phase === 'DIAGNOSTICS'),
+    [plan],
+  )
   const pendingIdentityRequest = useMemo(
     () => phaseChanges.find((change) => change.status === 'PENDING_APPROVAL') ?? null,
     [phaseChanges],
@@ -126,6 +136,7 @@ export default function GroupPlanPage() {
     [phaseChanges, user?.id],
   )
   const identityCompleted = identityPhase?.completed ?? false
+  const diagnosticsCompleted = diagnosticsPhase?.completed ?? false
   const workflowBusy = workflowAction !== null
 
   const load = useCallback(async () => {
@@ -328,6 +339,10 @@ export default function GroupPlanPage() {
     )
   }
 
+  function updateIdentityValues(values: string[]) {
+    setValue('valuesText', values.join('\n'), { shouldDirty: true, shouldValidate: true })
+  }
+
   const viewingPreviousPhase = Boolean(
     plan
       && selectedPhaseSnapshot
@@ -340,12 +355,14 @@ export default function GroupPlanPage() {
     : group?.description || 'Plan estrategico de TI del grupo'
   const showIdentityWorkspace = Boolean(!loading && plan && selectedPhaseKey === 'IDENTITY')
   const showDiagnosticsWorkspace = Boolean(!loading && plan && identityCompleted && selectedPhaseKey === 'DIAGNOSTICS')
+  const showFormulationWorkspace = Boolean(!loading && plan && diagnosticsCompleted && selectedPhaseKey === 'FORMULATION')
   const showUnavailablePhase = Boolean(
     !loading
       && plan
       && !planMissing
       && !showIdentityWorkspace
-      && !showDiagnosticsWorkspace,
+      && !showDiagnosticsWorkspace
+      && !showFormulationWorkspace
   )
 
   return (
@@ -378,6 +395,12 @@ export default function GroupPlanPage() {
             </div>
             <p className="page-subtitle">{selectedPhaseSubtitle}</p>
           </div>
+          <div className="page-header-right">
+            <Link className="btn btn-secondary" to={`/groups/${numericGroupId}/plan/report`}>
+              <FileDown size={16} />
+              Informe PDF
+            </Link>
+          </div>
         </header>
 
         {error && (
@@ -409,6 +432,16 @@ export default function GroupPlanPage() {
 
         {showDiagnosticsWorkspace && plan && (
           <DiagnosticsWorkspace
+            group={group}
+            groupId={numericGroupId}
+            onError={setError}
+            onNotice={setNotice}
+            plan={plan}
+          />
+        )}
+
+        {showFormulationWorkspace && plan && (
+          <FormulationWorkspace
             group={group}
             groupId={numericGroupId}
             onError={setError}
@@ -465,9 +498,12 @@ export default function GroupPlanPage() {
                   <Field label="Vision" error={errors.vision?.message}>
                     <textarea {...register('vision')} rows={4} placeholder="Vision institucional" />
                   </Field>
-                  <Field label="Valores" error={errors.valuesText?.message} wide>
-                    <textarea {...register('valuesText')} rows={3} placeholder="Valores separados por lineas o comas" />
-                  </Field>
+                  <div className="field wide">
+                    <span className="field-label">Valores</span>
+                    <ValueListEditor values={identityValues} onChange={updateIdentityValues} />
+                    <input type="hidden" {...register('valuesText')} />
+                    {errors.valuesText?.message && <small className="field-error">{errors.valuesText.message}</small>}
+                  </div>
                 </div>
               </section>
 
@@ -655,7 +691,7 @@ function identityPayload(values: IdentityForm, objectives: StrategicObjective[])
     description: values.description.trim(),
     mission: values.mission.trim(),
     vision: values.vision.trim(),
-    valuesText: values.valuesText.trim(),
+    valuesText: cleanIdentityValuesText(values.valuesText),
     objectives: normalizeObjectives(objectives),
   }
 }
@@ -733,9 +769,22 @@ function normalizeIdentityPayload(payload: UpdateIdentityPayload): UpdateIdentit
     description: payload.description.trim(),
     mission: payload.mission.trim(),
     vision: payload.vision.trim(),
-    valuesText: payload.valuesText.trim(),
+    valuesText: cleanIdentityValuesText(payload.valuesText),
     objectives: normalizeObjectives(payload.objectives),
   }
+}
+
+function identityValuesFromText(value?: string | null) {
+  const source = value ?? ''
+  const parts = source.includes('\n') ? source.split(/\r?\n/) : source.split(',')
+  return parts.length > 0 ? parts.map((item) => item.trim()) : ['']
+}
+
+function cleanIdentityValuesText(value: string) {
+  return identityValuesFromText(value)
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .join('\n')
 }
 
 function objectivesComparisonValue(objectives: StrategicObjective[]) {
@@ -792,6 +841,54 @@ function formatDate(value?: string | null) {
   return value ? new Date(value).toLocaleDateString() : '-'
 }
 
+function ValueListEditor({
+  onChange,
+  values,
+}: {
+  onChange: (values: string[]) => void
+  values: string[]
+}) {
+  function updateValue(index: number, value: string) {
+    onChange(values.map((item, itemIndex) => (itemIndex === index ? value : item)))
+  }
+
+  function addValue() {
+    onChange([...values, ''])
+  }
+
+  function removeValue(index: number) {
+    const nextValues = values.filter((_, itemIndex) => itemIndex !== index)
+    onChange(nextValues.length > 0 ? nextValues : [''])
+  }
+
+  return (
+    <div className="gplan-values-list">
+      {values.map((value, index) => (
+        <div className="gplan-value-row" key={index}>
+          <input
+            value={value}
+            onChange={(event) => updateValue(index, event.target.value)}
+            placeholder={`Valor ${index + 1}`}
+          />
+          <button
+            className="gplan-remove-btn"
+            disabled={values.length <= 1}
+            title="Quitar valor"
+            type="button"
+            onClick={() => removeValue(index)}
+          >
+            <Trash2 size={14} />
+          </button>
+        </div>
+      ))}
+      <button className="gplan-link-btn" type="button" onClick={addValue}>
+        <Plus size={14} />
+        Agregar valor
+      </button>
+    </div>
+  )
+}
+
 function Field({
   children,
   error,
@@ -838,7 +935,6 @@ function PlanOverviewModal({
       <section className="gplan-preview-modal">
         <header className="gplan-preview-header">
           <div>
-            <span className="gplan-preview-kicker">Mini dashboard</span>
             <h2 id="plan-overview-title">Resumen de identidad</h2>
             <p>{group?.name ?? 'Plan del grupo'} - Identidad estrategica</p>
           </div>

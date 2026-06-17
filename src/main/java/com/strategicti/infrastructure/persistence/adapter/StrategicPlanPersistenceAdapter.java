@@ -23,11 +23,6 @@ public class StrategicPlanPersistenceAdapter implements IStrategicPlanRepository
     }
 
     @Override
-    public Optional<StrategicPlan> findCurrent() {
-        return repository.findFirstByGroupIdIsNullAndCurrentPlanTrueOrderByIdAsc().map(factory::toDomain);
-    }
-
-    @Override
     public Optional<StrategicPlan> findCurrentByGroupId(Long groupId) {
         return repository.findFirstByGroupIdAndCurrentPlanTrueOrderByIdAsc(groupId).map(factory::toDomain);
     }

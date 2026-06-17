@@ -1,6 +1,5 @@
 import { request } from './http'
 import type {
-  CompanyProfile,
   CreatePhaseChangeRequestPayload,
   BcgSummary,
   IdentitySectionSummary,
@@ -12,31 +11,8 @@ import type {
   PlanSummary,
   ReviewPhaseChangeRequestPayload,
   SwotSummary,
-  UpdateBcgPayload,
-  UpdateIdentityPayload,
-  UpdatePestPayload,
-  UpdatePorterPayload,
-  UpdateSwotPayload,
-  UpdateValueChainPayload,
   ValueChainSummary,
 } from '../types'
-
-export function getCurrentPlan() {
-  return request<PlanSummary>('/plans/current')
-}
-
-export function saveCompanyProfile(profile: CompanyProfile) {
-  return request<PlanSummary>('/plans/current/company', {
-    method: 'PUT',
-    body: JSON.stringify(profile),
-  })
-}
-
-export function completePhase(phase: PetiPhase) {
-  return request<PlanSummary>(`/plans/current/phases/${phase}/complete`, {
-    method: 'POST',
-  })
-}
 
 export function createGroupPlan(groupId: number) {
   return request<PlanSummary>(`/groups/${groupId}/plan`, {
@@ -52,13 +28,6 @@ export function getGroupPlanIdentity(groupId: number) {
   return request<IdentitySectionSummary>(`/groups/${groupId}/plan/identity`)
 }
 
-export function saveGroupPlanIdentity(groupId: number, payload: UpdateIdentityPayload) {
-  return request<IdentitySectionSummary>(`/groups/${groupId}/plan/identity`, {
-    method: 'PUT',
-    body: JSON.stringify(payload),
-  })
-}
-
 export function getGroupPlanSwot(groupId: number) {
   return request<SwotSummary>(`/groups/${groupId}/plan/diagnostics/foda`)
 }
@@ -67,51 +36,16 @@ export function getGroupPlanPest(groupId: number) {
   return request<PestSummary>(`/groups/${groupId}/plan/diagnostics/pest`)
 }
 
-export function saveGroupPlanPest(groupId: number, payload: UpdatePestPayload) {
-  return request<PestSummary>(`/groups/${groupId}/plan/diagnostics/pest`, {
-    method: 'PUT',
-    body: JSON.stringify(payload),
-  })
-}
-
 export function getGroupPlanPorter(groupId: number) {
   return request<PorterSummary>(`/groups/${groupId}/plan/diagnostics/porter`)
-}
-
-export function saveGroupPlanPorter(groupId: number, payload: UpdatePorterPayload) {
-  return request<PorterSummary>(`/groups/${groupId}/plan/diagnostics/porter`, {
-    method: 'PUT',
-    body: JSON.stringify(payload),
-  })
-}
-
-export function saveGroupPlanSwot(groupId: number, payload: UpdateSwotPayload) {
-  return request<SwotSummary>(`/groups/${groupId}/plan/diagnostics/foda`, {
-    method: 'PUT',
-    body: JSON.stringify(payload),
-  })
 }
 
 export function getGroupPlanValueChain(groupId: number) {
   return request<ValueChainSummary>(`/groups/${groupId}/plan/diagnostics/value-chain`)
 }
 
-export function saveGroupPlanValueChain(groupId: number, payload: UpdateValueChainPayload) {
-  return request<ValueChainSummary>(`/groups/${groupId}/plan/diagnostics/value-chain`, {
-    method: 'PUT',
-    body: JSON.stringify(payload),
-  })
-}
-
 export function getGroupPlanBcg(groupId: number) {
   return request<BcgSummary>(`/groups/${groupId}/plan/diagnostics/bcg`)
-}
-
-export function saveGroupPlanBcg(groupId: number, payload: UpdateBcgPayload) {
-  return request<BcgSummary>(`/groups/${groupId}/plan/diagnostics/bcg`, {
-    method: 'PUT',
-    body: JSON.stringify(payload),
-  })
 }
 
 export function listPhaseChangeRequests(groupId: number, phase: PetiPhase) {

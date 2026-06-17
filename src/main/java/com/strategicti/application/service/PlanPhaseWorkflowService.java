@@ -112,6 +112,7 @@ public class PlanPhaseWorkflowService {
         WorkflowContext context = contextFor(groupId, viewer);
         PlanChangeRequest request = findRequest(context.plan(), phase, requestId);
         assertCreatorOrLeader(context.group(), request, viewer);
+        progressPolicy.assertPhaseIsUnlocked(context.plan(), phase);
         assertNoPendingRequest(context.plan(), phase);
         return toSummary(workflowRepository.saveChangeRequest(request.submit(viewer.id())));
     }

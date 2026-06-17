@@ -1,0 +1,138 @@
+.formu-grid {
+  align-items: start;
+}
+
+.formu-body {
+  padding: 14px;
+}
+
+.formu-strategy-table th strong,
+.formu-strategy-table th span {
+  display: block;
+}
+
+.formu-strategy-table th span {
+  color: var(--ink-3);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.35;
+  margin-top: 4px;
+  overflow-wrap: anywhere;
+  text-transform: none;
+}
+
+.formu-strategy-table select {
+  background: var(--surface-2);
+  border: 1px solid var(--border-2);
+  border-radius: var(--radius-sm);
+  color: var(--ink);
+  font: inherit;
+  font-size: 13px;
+  min-height: 34px;
+  padding: 6px 8px;
+  width: 100%;
+}
+
+.formu-summary-table tr.selected td,
+.formu-summary-table tr.selected th {
+  background: rgba(59, 130, 246, 0.08);
+}
+
+.formu-summary-table input {
+  accent-color: var(--blue);
+}
+
+.formu-came-panel {
+  overflow: hidden;
+}
+
+.formu-came-grid {
+  display: grid;
+  gap: 14px;
+}
+
+.formu-came-section {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.formu-came-section-head {
+  align-items: center;
+  background: rgba(15, 23, 42, 0.44);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  gap: 12px;
+  padding: 12px;
+}
+
+.formu-came-section-head > span {
+  align-items: center;
+  background: rgba(59, 130, 246, 0.16);
+  border: 1px solid rgba(59, 130, 246, 0.32);
+  border-radius: 999px;
+  color: var(--ink);
+  display: inline-flex;
+  font-size: 14px;
+  font-weight: 800;
+  height: 34px;
+  justify-content: center;
+  width: 34px;
+}
+
+.formu-came-section-head h4 {
+  margin: 0;
+}
+
+.formu-came-section-head p {
+  color: var(--ink-3);
+  font-size: 12px;
+  margin: 2px 0 0;
+}
+
+.formu-came-table input,
+.formu-came-table select,
+.formu-came-table textarea {
+  background: var(--surface-2);
+  border: 1px solid var(--border-2);
+  border-radius: var(--radius-sm);
+  color: var(--ink);
+  font: inherit;
+  font-size: 12px;
+  width: 100%;
+}
+
+.formu-came-table input,
+.formu-came-table select {
+  min-height: 34px;
+  padding: 6px 8px;
+}
+
+.formu-came-table textarea {
+  line-height: 1.35;
+  min-height: 52px;
+  padding: 8px;
+  resize: vertical;
+}
+
+.formu-came-source-item {
+  background: var(--surface-2);
+  border: 1px solid var(--border-2);
+  border-radius: var(--radius-sm);
+  color: var(--ink-2);
+  display: flex;
+  gap: 8px;
+  line-height: 1.35;
+  min-height: 52px;
+  padding: 9px 10px;
+}
+
+.formu-came-source-item strong {
+  color: var(--blue);
+  flex: 0 0 auto;
+  font-size: 12px;
+}
+
+.formu-came-source-item span {
+  overflow-wrap: anywhere;
+}

@@ -12,13 +12,6 @@ public class InMemoryStrategicPlanRepository implements IStrategicPlanRepository
     private long sequence;
 
     @Override
-    public Optional<StrategicPlan> findCurrent() {
-        return plans.values().stream()
-                .filter(plan -> plan.groupId() == null)
-                .findFirst();
-    }
-
-    @Override
     public Optional<StrategicPlan> findCurrentByGroupId(Long groupId) {
         return plans.values().stream()
                 .filter(plan -> groupId.equals(plan.groupId()))

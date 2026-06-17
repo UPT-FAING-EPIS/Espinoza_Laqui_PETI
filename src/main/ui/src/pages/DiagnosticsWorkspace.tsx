@@ -1,6 +1,5 @@
 import {
   BarChart3,
-  CheckCircle2,
   Database,
   FileText,
   GitPullRequest,
@@ -58,6 +57,7 @@ import type {
   ValueChainSummary,
 } from '../types'
 import './DiagnosticsWorkspace.css'
+import { DiagnosticFindingsEditor } from './DiagnosticFindingsEditor'
 import { PestEditor, pestFactorScores } from './PestEditor'
 import { PorterEditor } from './PorterEditor'
 import { porterForceScores, porterOverallPressure } from './porterMetrics'
@@ -344,10 +344,10 @@ const valueChainQuestionCatalog: ValueChainQuestionSummary[] = [
 ]
 
 const emptySwot: UpdateSwotPayload = {
-  strengths: [{ description: '', priority: 'MEDIA' }],
-  opportunities: [{ description: '', priority: 'MEDIA' }],
-  weaknesses: [{ description: '', priority: 'MEDIA' }],
-  threats: [{ description: '', priority: 'MEDIA' }],
+  strengths: [],
+  opportunities: [],
+  weaknesses: [],
+  threats: [],
 }
 
 const emptyValueChain: UpdateValueChainPayload = {
@@ -456,8 +456,13 @@ export function DiagnosticsWorkspace({
     [activeTool, changes, user?.id],
   )
   const swotSuggestions = useMemo(
-    () => swotSuggestionsFromDiagnostics(pest, porter, valueChain, bcg),
-    [bcg, pest, porter, valueChain],
+    () => swotSuggestionsFromDiagnostics(
+      pestSummary ? pestPayloadFromSummary(pestSummary) : emptyPest,
+      porterSummary ? porterPayloadFromSummary(porterSummary) : emptyPorter,
+      valueChainSummary ? valueChainPayloadFromSummary(valueChainSummary) : emptyValueChain,
+      bcgSummary ? bcgPayloadFromSummary(bcgSummary) : emptyBcg,
+    ),
+    [bcgSummary, pestSummary, porterSummary, valueChainSummary],
   )
   const workflowBusy = workflowAction !== null
 
@@ -592,9 +597,9 @@ export function DiagnosticsWorkspace({
       onError('No hay hallazgos seleccionados en PEST, Porter, cadena de valor o BCG para importar al FODA.')
       return
     }
-    setSwot(editorSwotPayload(mergeSwotWithSuggestions(swot, swotSuggestions)))
+    setSwot((current) => editorSwotPayload(swotPayloadFromSuggestions(swotSuggestions, current)))
     onError(null)
-    onNotice('Hallazgos seleccionados importados al FODA. Revise y ajuste los campos antes de enviarlos a revision.')
+    onNotice('FODA actualizado con los hallazgos seleccionados en los diagnosticos previos.')
   }
 
   return (
@@ -964,25 +969,12 @@ function DiagnosticPreviewContent({ payload }: { payload: DiagnosticPreviewPaylo
           <DiagnosticPreviewItem label="Hallazgos" value={String(valueChain.findings.length)} />
         </section>
         <DiagnosticListSection
-          title="Actividades de apoyo"
-          items={valueChain.supportActivities.map((item) => `${activityLabels[item.activity]}: ${item.description} (${item.priority})`)}
-        />
-        <DiagnosticListSection
-          title="Actividades primarias"
-          items={valueChain.primaryActivities.map((item) => `${activityLabels[item.activity]}: ${item.description} (${item.priority})`)}
-        />
-        <DiagnosticListSection
           title="Fortalezas"
           items={valueChain.findings.filter((finding) => finding.category === 'FORTALEZA').map((finding) => finding.description)}
         />
         <DiagnosticListSection
           title="Debilidades"
           items={valueChain.findings.filter((finding) => finding.category === 'DEBILIDAD').map((finding) => finding.description)}
-        />
-        <DiagnosticSynthesisSection
-          observations={valueChain.observations}
-          strengths={valueChain.findings.filter((finding) => finding.category === 'FORTALEZA').map((finding) => finding.description)}
-          weaknesses={valueChain.findings.filter((finding) => finding.category === 'DEBILIDAD').map((finding) => finding.description)}
         />
       </div>
     )
@@ -1014,11 +1006,6 @@ function DiagnosticPreviewContent({ payload }: { payload: DiagnosticPreviewPaylo
         title="Debilidades"
         items={bcgFindings.filter((finding) => finding.category === 'DEBILIDAD').map((finding) => finding.description)}
       />
-      <DiagnosticSynthesisSection
-        observations={bcg.observations}
-        strengths={bcgFindings.filter((finding) => finding.category === 'FORTALEZA').map((finding) => finding.description)}
-        weaknesses={bcgFindings.filter((finding) => finding.category === 'DEBILIDAD').map((finding) => finding.description)}
-      />
     </div>
   )
 }
@@ -1033,25 +1020,6 @@ function DiagnosticListSection({ items, title }: { items: string[]; title: strin
           <strong>{item}</strong>
         </article>
       ))}
-    </section>
-  )
-}
-
-function DiagnosticSynthesisSection({
-  observations,
-  strengths,
-  weaknesses,
-}: {
-  observations: string
-  strengths: string[]
-  weaknesses: string[]
-}) {
-  return (
-    <section>
-      <h3>Sintesis</h3>
-      <DiagnosticPreviewItem label="Observaciones" value={observations || '-'} multiline />
-      <DiagnosticPreviewItem label="Fortalezas" value={strengths.length ? strengths.join('\n') : '-'} multiline />
-      <DiagnosticPreviewItem label="Debilidades" value={weaknesses.length ? weaknesses.join('\n') : '-'} multiline />
     </section>
   )
 }
@@ -1091,20 +1059,11 @@ function SwotEditor({
     { key: 'threats', title: 'Amenazas' },
   ]
 
-  function updateItem(key: SwotKey, index: number, patch: Partial<SwotItemPayload>) {
+  function updatePriority(key: SwotKey, index: number, priority: DiagnosticPriority) {
     onChange({
       ...swot,
-      [key]: swot[key].map((item, i) => (i === index ? { ...item, ...patch } : item)),
+      [key]: swot[key].map((item, i) => (i === index ? { ...item, priority } : item)),
     })
-  }
-
-  function addItem(key: SwotKey) {
-    onChange({ ...swot, [key]: [...swot[key], { description: '', priority: 'MEDIA' }] })
-  }
-
-  function removeItem(key: SwotKey, index: number) {
-    const next = swot[key].filter((_, i) => i !== index)
-    onChange({ ...swot, [key]: next.length > 0 ? next : [{ description: '', priority: 'MEDIA' }] })
   }
 
   return (
@@ -1116,28 +1075,21 @@ function SwotEditor({
           <section className="diag-panel" key={section.key}>
             <div className="diag-panel-head">
               <h3>{section.title}</h3>
-              <button className="gplan-inline-btn" type="button" onClick={() => addItem(section.key)}>
-                <Plus size={14} />
-                Agregar
-              </button>
             </div>
             <div className="diag-list">
+              {swot[section.key].length === 0 && (
+                <p className="gplan-muted">Seleccione hallazgos previos y complete el FODA desde la seccion superior.</p>
+              )}
               {swot[section.key].map((item, index) => (
-                <div className="diag-row" key={index}>
-                  <textarea
-                    rows={2}
-                    value={item.description}
-                    onChange={(event) => updateItem(section.key, index, { description: event.target.value })}
-                    placeholder={`${section.title} ${index + 1}`}
-                  />
+                <div className="diag-row diag-swot-locked-row" key={index}>
+                  <div className="diag-swot-locked-text">
+                    <strong>{item.description}</strong>
+                  </div>
                   <div className="diag-row-actions">
                     <PrioritySelect
                       value={item.priority}
-                      onChange={(priority) => updateItem(section.key, index, { priority })}
+                      onChange={(priority) => updatePriority(section.key, index, priority)}
                     />
-                    <button className="gplan-remove-btn" type="button" onClick={() => removeItem(section.key, index)}>
-                      <Trash2 size={14} />
-                    </button>
                   </div>
                 </div>
               ))}
@@ -1168,12 +1120,12 @@ function SwotSourceFindings({
         <div>
           <h3>Resultados seleccionados para FODA</h3>
           <p className="diag-panel-copy">
-            Hallazgos marcados en PEST, Porter, cadena de valor y BCG. Puede importarlos como base y luego ajustarlos.
+            Hallazgos marcados en PEST, Porter, cadena de valor y BCG. Actualice el FODA desde estos resultados.
           </p>
         </div>
         <button className="gplan-inline-btn" disabled={suggestions.length === 0} type="button" onClick={onImport}>
           <Plus size={14} />
-          Completar FODA
+          Actualizar FODA
         </button>
       </div>
       {suggestions.length === 0 && (
@@ -1220,34 +1172,6 @@ function ValueChainEditor({
   const current = valueChainFormValue(value)
   const questions = valueChainQuestions(summary, current)
 
-  function updateActivity(
-    listKey: 'supportActivities' | 'primaryActivities',
-    index: number,
-    patch: Partial<ValueChainActivityPayload>,
-  ) {
-    onChange({
-      ...current,
-      [listKey]: current[listKey].map((item, i) => (i === index ? { ...item, ...patch } : item)),
-    })
-  }
-
-  function addActivity(listKey: 'supportActivities' | 'primaryActivities') {
-    const activity = listKey === 'supportActivities' ? 'DESARROLLO_TECNOLOGICO' : 'OPERACIONES'
-    onChange({
-      ...current,
-      [listKey]: [...current[listKey], { activity, description: '', priority: 'MEDIA' }],
-    })
-  }
-
-  function removeActivity(listKey: 'supportActivities' | 'primaryActivities', index: number) {
-    const activity = listKey === 'supportActivities' ? 'DESARROLLO_TECNOLOGICO' : 'OPERACIONES'
-    const next = current[listKey].filter((_, i) => i !== index)
-    onChange({
-      ...current,
-      [listKey]: next.length > 0 ? next : [{ activity, description: '', priority: 'MEDIA' }],
-    })
-  }
-
   function updateResponse(question: ValueChainQuestionSummary, score: number) {
     const exists = current.assessments.some((assessment) => assessment.questionNumber === question.questionNumber)
     const nextAssessment: ValueChainAssessmentPayload = {
@@ -1267,28 +1191,6 @@ function ValueChainEditor({
     })
   }
 
-  function updateObservation(observations: string) {
-    onChange({ ...current, observations })
-  }
-
-  function addFinding(category: 'FORTALEZA' | 'DEBILIDAD') {
-    onChange({ ...current, findings: [...current.findings, emptyValueChainFinding(category)] })
-  }
-
-  function updateFinding(index: number, patch: Partial<DiagnosticFindingPayload>) {
-    onChange({
-      ...current,
-      findings: current.findings.map((finding, itemIndex) => itemIndex === index ? { ...finding, ...patch } : finding),
-    })
-  }
-
-  function removeFinding(index: number) {
-    onChange({
-      ...current,
-      findings: current.findings.filter((_, itemIndex) => itemIndex !== index),
-    })
-  }
-
   return (
     <div className="diag-chain-layout">
       <ValueChainChart summary={summary} value={current} />
@@ -1296,9 +1198,6 @@ function ValueChainEditor({
         <div className="diag-panel-head">
           <div>
             <h3>Autodiagnostico interno</h3>
-            <p className="diag-panel-copy">
-              Responda las 25 afirmaciones del Excel. Una puntuacion mayor indica mayor madurez interna y menor potencial de mejora.
-            </p>
           </div>
           <span className="diag-pest-progress">{valueChainAnsweredCount(current)}/25 respondidas</span>
         </div>
@@ -1345,179 +1244,21 @@ function ValueChainEditor({
           })}
         </div>
       </section>
-      <ActivityPanel
-        activities={current.supportActivities}
-        options={supportActivities}
-        title="Actividades de apoyo"
-        onAdd={() => addActivity('supportActivities')}
-        onRemove={(index) => removeActivity('supportActivities', index)}
-        onUpdate={(index, patch) => updateActivity('supportActivities', index, patch)}
+      <DiagnosticFindingsEditor
+        categories={[
+          { category: 'FORTALEZA', buttonLabel: 'Fortaleza', defaultDimension: 'OPERACIONES' },
+          { category: 'DEBILIDAD', buttonLabel: 'Debilidad', defaultDimension: 'OPERACIONES' },
+        ]}
+        copy="Registre todas las fortalezas y debilidades relevantes para llevarlas a la matriz FODA."
+        descriptionPlaceholder="Explique la fortaleza o debilidad identificada"
+        dimensionLabel="Actividad de origen"
+        dimensionOptions={allActivities.map((activity) => ({ value: activity, label: activityLabels[activity] }))}
+        emptyMessage="Todavia no se registraron fortalezas o debilidades de cadena de valor."
+        findings={current.findings}
+        title="Hallazgos del analisis interno"
+        onChange={(findings) => onChange({ ...current, findings })}
       />
-      <ActivityPanel
-        activities={current.primaryActivities}
-        options={primaryActivities}
-        title="Actividades primarias"
-        onAdd={() => addActivity('primaryActivities')}
-        onRemove={(index) => removeActivity('primaryActivities', index)}
-        onUpdate={(index, patch) => updateActivity('primaryActivities', index, patch)}
-      />
-      <section className="diag-panel wide">
-        <div className="diag-panel-head">
-          <div>
-            <h3>Hallazgos del analisis interno</h3>
-            <p className="diag-panel-copy">
-              Registre todas las fortalezas y debilidades relevantes para llevarlas a la matriz FODA.
-            </p>
-          </div>
-          <div className="diag-pest-finding-actions">
-            <button className="gplan-inline-btn" type="button" onClick={() => addFinding('FORTALEZA')}>
-              <Plus size={14} />
-              Fortaleza
-            </button>
-            <button className="gplan-inline-btn" type="button" onClick={() => addFinding('DEBILIDAD')}>
-              <Plus size={14} />
-              Debilidad
-            </button>
-          </div>
-        </div>
-        <label className="field diag-chain-observation">
-          <span className="field-label">Observaciones</span>
-          <textarea
-            rows={3}
-            value={current.observations}
-            onChange={(event) => updateObservation(event.target.value)}
-            placeholder="Lectura general del potencial de mejora de la cadena"
-          />
-        </label>
-        {current.findings.length === 0 && (
-          <p className="gplan-muted">Todavia no se registraron fortalezas o debilidades de cadena de valor.</p>
-        )}
-        <div className="diag-pest-findings">
-          {current.findings.map((finding, index) => (
-            <article className="diag-pest-finding" key={index}>
-              <div className="diag-pest-finding-head">
-                <span className={`diag-pest-kind ${finding.category.toLowerCase()}`}>{finding.category}</span>
-                <button className="gplan-remove-btn" title="Eliminar hallazgo" type="button" onClick={() => removeFinding(index)}>
-                  <Trash2 size={14} />
-                </button>
-              </div>
-              <div className="diag-pest-finding-grid">
-                <label>
-                  <span>Actividad de origen</span>
-                  <select
-                    value={finding.sourceDimension}
-                    onChange={(event) => updateFinding(index, { sourceDimension: event.target.value as ValueChainActivity })}
-                  >
-                    {allActivities.map((activity) => (
-                      <option key={activity} value={activity}>{activityLabels[activity]}</option>
-                    ))}
-                  </select>
-                </label>
-                <label>
-                  <span>Prioridad</span>
-                  <select
-                    value={finding.priority}
-                    onChange={(event) => updateFinding(index, { priority: event.target.value as DiagnosticPriority })}
-                  >
-                    {priorities.map((priority) => <option key={priority} value={priority}>{priority}</option>)}
-                  </select>
-                </label>
-                <label className="wide">
-                  <span>Descripcion</span>
-                  <textarea
-                    rows={2}
-                    value={finding.description}
-                    onChange={(event) => updateFinding(index, { description: event.target.value })}
-                    placeholder="Explique la fortaleza o debilidad identificada"
-                  />
-                </label>
-                <label>
-                  <span>Evidencia</span>
-                  <textarea
-                    rows={2}
-                    value={finding.evidence}
-                    onChange={(event) => updateFinding(index, { evidence: event.target.value })}
-                    placeholder="Dato o respuesta que sustenta el hallazgo"
-                  />
-                </label>
-                <label>
-                  <span>Impacto esperado</span>
-                  <textarea
-                    rows={2}
-                    value={finding.impact}
-                    onChange={(event) => updateFinding(index, { impact: event.target.value })}
-                    placeholder="Como afecta a la organizacion"
-                  />
-                </label>
-              </div>
-              <label className="diag-pest-foda-check">
-                <input
-                  checked={finding.selectedForFoda}
-                  type="checkbox"
-                  onChange={(event) => updateFinding(index, { selectedForFoda: event.target.checked })}
-                />
-                <CheckCircle2 size={15} />
-                Seleccionar para la matriz FODA
-              </label>
-            </article>
-          ))}
-        </div>
-      </section>
     </div>
-  )
-}
-
-function ActivityPanel({
-  activities,
-  onAdd,
-  onRemove,
-  onUpdate,
-  options,
-  title,
-}: {
-  activities: ValueChainActivityPayload[]
-  onAdd: () => void
-  onRemove: (index: number) => void
-  onUpdate: (index: number, patch: Partial<ValueChainActivityPayload>) => void
-  options: ValueChainActivity[]
-  title: string
-}) {
-  return (
-    <section className="diag-panel">
-      <div className="diag-panel-head">
-        <h3>{title}</h3>
-        <button className="gplan-inline-btn" type="button" onClick={onAdd}>
-          <Plus size={14} />
-          Agregar
-        </button>
-      </div>
-      <div className="diag-list">
-        {activities.map((item, index) => (
-          <div className="diag-activity" key={index}>
-            <select
-              value={item.activity}
-              onChange={(event) => onUpdate(index, { activity: event.target.value as ValueChainActivity })}
-            >
-              {options.map((activity) => (
-                <option key={activity} value={activity}>{activityLabels[activity]}</option>
-              ))}
-            </select>
-            <textarea
-              rows={2}
-              value={item.description}
-              onChange={(event) => onUpdate(index, { description: event.target.value })}
-              placeholder="Descripcion de aporte a la cadena"
-            />
-            <div className="diag-row-actions">
-              <PrioritySelect value={item.priority} onChange={(priority) => onUpdate(index, { priority })} />
-              <button className="gplan-remove-btn" type="button" onClick={() => onRemove(index)}>
-                <Trash2 size={14} />
-              </button>
-            </div>
-          </div>
-        ))}
-      </div>
-    </section>
   )
 }
 
@@ -1656,7 +1397,6 @@ function BcgEditor({
         <div className="diag-panel-head">
           <div>
             <h3>Autodiagnostico BCG</h3>
-            <p className="diag-panel-copy">Complete las tablas del formato para calcular TCM, PRM y participacion sobre ventas.</p>
           </div>
           <button
             className="gplan-inline-btn"
@@ -2519,7 +2259,7 @@ function bcgFindingsFromContent(
       evidence: textValue(finding.evidence).trim(),
       impact: textValue(finding.impact).trim(),
       priority: priorityValue(finding.priority),
-      selectedForFoda: finding.selectedForFoda !== false,
+      selectedForFoda: true,
     }))
   if (parsed.length > 0) return parsed
   return [
@@ -2589,193 +2329,34 @@ function BcgFindingsEditor({
   value: UpdateBcgPayload
 }) {
   const current = bcgFormValue(value)
-  const indexedFindings = current.findings.map((finding, index) => ({ finding, index }))
-  const strengthFindings = indexedFindings.filter(({ finding }) => finding.category === 'FORTALEZA')
-  const weaknessFindings = indexedFindings.filter(({ finding }) => finding.category === 'DEBILIDAD')
-
-  function addFinding(category: 'FORTALEZA' | 'DEBILIDAD') {
-    onChange({ ...current, findings: [...current.findings, emptyBcgFinding(category)] })
-  }
-
-  function updateFinding(index: number, patch: Partial<DiagnosticFindingPayload>) {
-    onChange({
-      ...current,
-      findings: current.findings.map((finding, itemIndex) => itemIndex === index ? { ...finding, ...patch } : finding),
-    })
-  }
-
-  function removeFinding(index: number) {
-    onChange({ ...current, findings: current.findings.filter((_, itemIndex) => itemIndex !== index) })
-  }
 
   return (
-    <section className="diag-panel wide">
-      <div className="diag-panel-head">
-        <div>
-          <h3>Hallazgos BCG</h3>
-          <p className="diag-panel-copy">Registre fortalezas y debilidades del portafolio para llevarlas a la matriz FODA.</p>
-        </div>
-        <div className="diag-pest-finding-actions">
-          <button className="gplan-inline-btn" type="button" onClick={() => addFinding('FORTALEZA')}>
-            <Plus size={14} />
-            Fortaleza
-          </button>
-          <button className="gplan-inline-btn" type="button" onClick={() => addFinding('DEBILIDAD')}>
-            <Plus size={14} />
-            Debilidad
-          </button>
-        </div>
-      </div>
-      <div className="diag-bcg-synthesis">
-        <label className="field diag-chain-observation">
-          <span className="field-label">Observaciones</span>
-          <textarea
-            rows={3}
-            value={current.observations}
-            onChange={(event) => onChange({ ...current, observations: event.target.value })}
-            placeholder="Lectura general del diagnostico"
-          />
-        </label>
-        <div className="diag-bcg-finding-columns">
-          <BcgFindingColumn
-            category="FORTALEZA"
-            emptyMessage="Todavia no se registraron fortalezas BCG."
-            entries={strengthFindings}
-            title="Fortalezas"
-            onRemove={removeFinding}
-            onUpdate={updateFinding}
-          />
-          <BcgFindingColumn
-            category="DEBILIDAD"
-            emptyMessage="Todavia no se registraron debilidades BCG."
-            entries={weaknessFindings}
-            title="Debilidades"
-            onRemove={removeFinding}
-            onUpdate={updateFinding}
-          />
-        </div>
-      </div>
-    </section>
-  )
-}
-
-function BcgFindingColumn({
-  category,
-  emptyMessage,
-  entries,
-  onRemove,
-  onUpdate,
-  title,
-}: {
-  category: 'FORTALEZA' | 'DEBILIDAD'
-  emptyMessage: string
-  entries: Array<{ finding: DiagnosticFindingPayload; index: number }>
-  onRemove: (index: number) => void
-  onUpdate: (index: number, patch: Partial<DiagnosticFindingPayload>) => void
-  title: string
-}) {
-  return (
-    <section className="diag-bcg-finding-group">
-      <div className="diag-bcg-finding-group-head">
-        <div className="diag-bcg-finding-group-title">
-          <span className={`diag-pest-kind ${category.toLowerCase()}`}>{title}</span>
-          <small>{entries.length} registradas</small>
-        </div>
-      </div>
-      {entries.length === 0 && <p className="gplan-muted">{emptyMessage}</p>}
-      <div className="diag-pest-findings">
-        {entries.map(({ finding, index }) => (
-          <BcgFindingCard
-            finding={finding}
-            index={index}
-            key={index}
-            onRemove={onRemove}
-            onUpdate={onUpdate}
-          />
-        ))}
-      </div>
-    </section>
-  )
-}
-
-function BcgFindingCard({
-  finding,
-  index,
-  onRemove,
-  onUpdate,
-}: {
-  finding: DiagnosticFindingPayload
-  index: number
-  onRemove: (index: number) => void
-  onUpdate: (index: number, patch: Partial<DiagnosticFindingPayload>) => void
-}) {
-  return (
-    <article className="diag-pest-finding">
-      <div className="diag-pest-finding-head">
-        <span className={`diag-pest-kind ${finding.category.toLowerCase()}`}>{finding.category}</span>
-        <button className="gplan-remove-btn" title="Eliminar hallazgo" type="button" onClick={() => onRemove(index)}>
-          <Trash2 size={14} />
-        </button>
-      </div>
-      <div className="diag-pest-finding-grid">
-        <label>
-          <span>Origen BCG</span>
-          <select
-            value={bcgFindingDimensionValue(finding.sourceDimension)}
-            onChange={(event) => onUpdate(index, { sourceDimension: event.target.value })}
-          >
-            {bcgFindingDimensions.map((dimension) => (
-              <option key={dimension} value={dimension}>{bcgFindingDimensionLabels[dimension]}</option>
-            ))}
-          </select>
-        </label>
-        <label>
-          <span>Prioridad</span>
-          <select
-            value={finding.priority}
-            onChange={(event) => onUpdate(index, { priority: event.target.value as DiagnosticPriority })}
-          >
-            {priorities.map((priority) => <option key={priority} value={priority}>{priority}</option>)}
-          </select>
-        </label>
-        <label className="wide">
-          <span>Descripcion</span>
-          <textarea
-            rows={2}
-            value={finding.description}
-            onChange={(event) => onUpdate(index, { description: event.target.value })}
-            placeholder="Explique la fortaleza o debilidad del portafolio"
-          />
-        </label>
-        <label>
-          <span>Evidencia</span>
-          <textarea
-            rows={2}
-            value={finding.evidence}
-            onChange={(event) => onUpdate(index, { evidence: event.target.value })}
-            placeholder="Dato o cuadrante que sustenta el hallazgo"
-          />
-        </label>
-        <label>
-          <span>Impacto esperado</span>
-          <textarea
-            rows={2}
-            value={finding.impact}
-            onChange={(event) => onUpdate(index, { impact: event.target.value })}
-            placeholder="Como afecta a la organizacion"
-          />
-        </label>
-      </div>
-      <label className="diag-pest-foda-check">
-        <input
-          checked={finding.selectedForFoda}
-          type="checkbox"
-          onChange={(event) => onUpdate(index, { selectedForFoda: event.target.checked })}
-        />
-        <CheckCircle2 size={15} />
-        Seleccionar para la matriz FODA
-      </label>
-    </article>
+    <DiagnosticFindingsEditor
+      grouped
+      categories={[
+        {
+          category: 'FORTALEZA',
+          buttonLabel: 'Fortaleza',
+          defaultDimension: 'ESTRELLA',
+          emptyMessage: 'Todavia no se registraron fortalezas BCG.',
+          title: 'Fortalezas',
+        },
+        {
+          category: 'DEBILIDAD',
+          buttonLabel: 'Debilidad',
+          defaultDimension: 'PERRO',
+          emptyMessage: 'Todavia no se registraron debilidades BCG.',
+          title: 'Debilidades',
+        },
+      ]}
+      copy="Registre fortalezas y debilidades del portafolio para llevarlas a la matriz FODA."
+      descriptionPlaceholder="Explique la fortaleza o debilidad del portafolio"
+      dimensionLabel="Origen BCG"
+      dimensionOptions={bcgFindingDimensions.map((dimension) => ({ value: dimension, label: bcgFindingDimensionLabels[dimension] }))}
+      findings={current.findings}
+      title="Hallazgos BCG"
+      onChange={(findings) => onChange({ ...current, findings })}
+    />
   )
 }
 
@@ -2834,14 +2415,15 @@ function pestPayloadFromSummary(summary: PestSummary): UpdatePestPayload {
       evidence: finding.evidence,
       impact: finding.impact,
       priority: finding.priority,
-      selectedForFoda: finding.selectedForFoda,
+      selectedForFoda: true,
     })),
   }
 }
 
 function swotItems(items: Array<{ description: string; priority: DiagnosticPriority }>) {
-  const next = items.map((item) => ({ description: item.description, priority: item.priority }))
-  return next.length > 0 ? next : [{ description: '', priority: 'MEDIA' as DiagnosticPriority }]
+  return items
+    .map((item) => ({ description: item.description.trim(), priority: item.priority }))
+    .filter((item) => item.description)
 }
 
 function valueChainPayloadFromSummary(summary: ValueChainSummary): UpdateValueChainPayload {
@@ -2880,7 +2462,7 @@ function valueChainPayloadFromSummary(summary: ValueChainSummary): UpdateValueCh
           evidence: finding.evidence,
           impact: finding.impact,
           priority: finding.priority,
-          selectedForFoda: finding.selectedForFoda,
+          selectedForFoda: true,
         }))
       : [
           ...summaryStrengths.map((description) => ({
@@ -2944,7 +2526,7 @@ function bcgPayloadFromSummary(summary: BcgSummary): UpdateBcgPayload {
           evidence: finding.evidence,
           impact: finding.impact,
           priority: finding.priority,
-          selectedForFoda: finding.selectedForFoda,
+          selectedForFoda: true,
         }))
       : bcgFindingsFromContent([], summaryStrengths, summaryWeaknesses),
   }
@@ -2984,7 +2566,6 @@ function swotSuggestionsFromFindings(
   findings: DiagnosticFindingPayload[] | null | undefined,
 ): SwotSourceSuggestion[] {
   return arrayValue(findings)
-    .filter((finding) => finding.selectedForFoda !== false)
     .map((finding) => {
       const key = swotKeyForFindingCategory(finding.category)
       if (!key) return null
@@ -3017,46 +2598,45 @@ function dedupeSwotSuggestions(items: SwotSourceSuggestion[]) {
   })
 }
 
-function swotPayloadFromSuggestions(suggestions: SwotSourceSuggestion[]): UpdateSwotPayload {
+function swotPayloadFromSuggestions(
+  suggestions: SwotSourceSuggestion[],
+  current?: UpdateSwotPayload,
+): UpdateSwotPayload {
+  const prioritiesByItem = currentSwotPriorities(current)
   return {
-    strengths: suggestionsToSwotItems(suggestions, 'strengths'),
-    opportunities: suggestionsToSwotItems(suggestions, 'opportunities'),
-    weaknesses: suggestionsToSwotItems(suggestions, 'weaknesses'),
-    threats: suggestionsToSwotItems(suggestions, 'threats'),
+    strengths: suggestionsToSwotItems(suggestions, 'strengths', prioritiesByItem),
+    opportunities: suggestionsToSwotItems(suggestions, 'opportunities', prioritiesByItem),
+    weaknesses: suggestionsToSwotItems(suggestions, 'weaknesses', prioritiesByItem),
+    threats: suggestionsToSwotItems(suggestions, 'threats', prioritiesByItem),
   }
 }
 
-function suggestionsToSwotItems(suggestions: SwotSourceSuggestion[], key: SwotKey): SwotItemPayload[] {
+function currentSwotPriorities(current?: UpdateSwotPayload) {
+  const prioritiesByItem = new Map<string, DiagnosticPriority>()
+  if (!current) return prioritiesByItem
+  const keys: SwotKey[] = ['strengths', 'opportunities', 'weaknesses', 'threats']
+  for (const key of keys) {
+    for (const item of arrayValue(current[key])) {
+      const description = item.description.trim()
+      if (description) {
+        prioritiesByItem.set(`${key}:${normalizeTextKey(description)}`, item.priority)
+      }
+    }
+  }
+  return prioritiesByItem
+}
+
+function suggestionsToSwotItems(
+  suggestions: SwotSourceSuggestion[],
+  key: SwotKey,
+  prioritiesByItem: Map<string, DiagnosticPriority>,
+): SwotItemPayload[] {
   return suggestions
     .filter((suggestion) => suggestion.key === key)
     .map((suggestion) => ({
       description: suggestion.description,
-      priority: suggestion.priority,
+      priority: prioritiesByItem.get(`${key}:${normalizeTextKey(suggestion.description)}`) ?? suggestion.priority,
     }))
-}
-
-function mergeSwotWithSuggestions(current: UpdateSwotPayload, suggestions: SwotSourceSuggestion[]): UpdateSwotPayload {
-  const cleanCurrent = cleanSwot(current)
-  const suggested = swotPayloadFromSuggestions(suggestions)
-  return {
-    strengths: mergeSwotItems(cleanCurrent.strengths, suggested.strengths),
-    opportunities: mergeSwotItems(cleanCurrent.opportunities, suggested.opportunities),
-    weaknesses: mergeSwotItems(cleanCurrent.weaknesses, suggested.weaknesses),
-    threats: mergeSwotItems(cleanCurrent.threats, suggested.threats),
-  }
-}
-
-function mergeSwotItems(current: SwotItemPayload[], incoming: SwotItemPayload[]) {
-  const seen = new Set<string>()
-  return [...current, ...incoming]
-    .map((item) => ({ description: item.description.trim(), priority: item.priority }))
-    .filter((item) => {
-      if (!item.description) return false
-      const key = normalizeTextKey(item.description)
-      if (seen.has(key)) return false
-      seen.add(key)
-      return true
-    })
 }
 
 function swotHasContent(value: UpdateSwotPayload) {
@@ -3070,8 +2650,8 @@ function swotHasContent(value: UpdateSwotPayload) {
 function cleanValueChain(value: UpdateValueChainPayload): UpdateValueChainPayload {
   const current = valueChainFormValue(value)
   return {
-    supportActivities: cleanActivities(current.supportActivities),
-    primaryActivities: cleanActivities(current.primaryActivities),
+    supportActivities: [],
+    primaryActivities: [],
     assessments: current.assessments
       .map((item) => ({
         questionNumber: item.questionNumber,
@@ -3081,28 +2661,19 @@ function cleanValueChain(value: UpdateValueChainPayload): UpdateValueChainPayloa
         notes: item.notes.trim(),
       }))
       .filter((item) => item.questionNumber !== null || item.statement),
-    observations: current.observations.trim(),
+    observations: '',
     strengths: cleanLines(current.strengths),
     weaknesses: cleanLines(current.weaknesses),
     findings: current.findings
       .map((finding) => ({
         ...finding,
         description: finding.description.trim(),
-        evidence: finding.evidence.trim(),
-        impact: finding.impact.trim(),
+        evidence: '',
+        impact: '',
+        selectedForFoda: true,
       }))
       .filter((finding) => finding.description),
   }
-}
-
-function cleanActivities(items: ValueChainActivityPayload[]) {
-  return arrayValue(items)
-    .map((item) => ({
-      activity: item.activity,
-      description: item.description.trim(),
-      priority: item.priority,
-    }))
-    .filter((item) => item.description)
 }
 
 function cleanBcg(value: UpdateBcgPayload): UpdateBcgPayload {
@@ -3113,10 +2684,10 @@ function cleanBcg(value: UpdateBcgPayload): UpdateBcgPayload {
       sourceDimension: bcgFindingDimensionValue(finding.sourceDimension),
       category: finding.category === 'DEBILIDAD' ? 'DEBILIDAD' as const : 'FORTALEZA' as const,
       description: finding.description.trim(),
-      evidence: finding.evidence.trim(),
-      impact: finding.impact.trim(),
+      evidence: '',
+      impact: '',
       priority: priorityValue(finding.priority),
-      selectedForFoda: finding.selectedForFoda,
+      selectedForFoda: true,
     }))
     .filter((finding) => finding.description)
   const findingStrengths = findings
@@ -3152,7 +2723,7 @@ function cleanBcg(value: UpdateBcgPayload): UpdateBcgPayload {
       .filter((product) => product.name),
     marketGrowthThreshold: current.marketGrowthThreshold,
     relativeMarketShareThreshold: current.relativeMarketShareThreshold,
-    observations: current.observations.trim(),
+    observations: '',
     strengths: findingStrengths.length > 0 ? findingStrengths : cleanLines(current.strengths),
     weaknesses: findingWeaknesses.length > 0 ? findingWeaknesses : cleanLines(current.weaknesses),
     findings,
@@ -3172,8 +2743,9 @@ function cleanPest(value: UpdatePestPayload): UpdatePestPayload {
       .map((finding) => ({
         ...finding,
         description: finding.description.trim(),
-        evidence: finding.evidence.trim(),
-        impact: finding.impact.trim(),
+        evidence: '',
+        impact: '',
+        selectedForFoda: true,
       }))
       .filter((finding) => finding.description),
   }
@@ -3191,7 +2763,7 @@ function porterPayloadFromSummary(summary: PorterSummary): UpdatePorterPayload {
       evidence: finding.evidence,
       impact: finding.impact,
       priority: finding.priority,
-      selectedForFoda: finding.selectedForFoda,
+      selectedForFoda: true,
     })),
   }
 }
@@ -3209,8 +2781,9 @@ function cleanPorter(value: UpdatePorterPayload): UpdatePorterPayload {
       .map((finding) => ({
         ...finding,
         description: finding.description.trim(),
-        evidence: finding.evidence.trim(),
-        impact: finding.impact.trim(),
+        evidence: '',
+        impact: '',
+        selectedForFoda: true,
       }))
       .filter((finding) => finding.description),
   }
@@ -3247,7 +2820,7 @@ function validateActiveTool(
   if (activeTool === 'foda') {
     const payload = cleanSwot(swot)
     if (!payload.strengths.length || !payload.opportunities.length || !payload.weaknesses.length || !payload.threats.length) {
-      return 'Complete al menos un item en fortalezas, oportunidades, debilidades y amenazas.'
+      return 'Seleccione hallazgos previos y actualice el FODA con al menos una fortaleza, oportunidad, debilidad y amenaza.'
     }
   }
   if (activeTool === 'valueChain') {
@@ -3373,11 +2946,8 @@ function diagnosticEntries(
     const current = cleanValueChain(valueChainSummary ? valueChainPayloadFromSummary(valueChainSummary) : emptyValueChain)
     const next = cleanValueChain(valueChain)
     return [
-      diagnosticEntry('supportActivities', current.supportActivities, next.supportActivities),
-      diagnosticEntry('primaryActivities', current.primaryActivities, next.primaryActivities),
       diagnosticEntry('assessments', current.assessments, next.assessments),
       diagnosticEntry('findings', current.findings, next.findings),
-      diagnosticEntry('observations', current.observations, next.observations),
       diagnosticEntry('strengths', current.strengths, next.strengths),
       diagnosticEntry('weaknesses', current.weaknesses, next.weaknesses),
     ].filter((entry) => entry.previousValue !== entry.proposedValue)
@@ -3390,7 +2960,6 @@ function diagnosticEntries(
     diagnosticEntry('marketGrowthThreshold', current.marketGrowthThreshold, next.marketGrowthThreshold),
     diagnosticEntry('relativeMarketShareThreshold', current.relativeMarketShareThreshold, next.relativeMarketShareThreshold),
     diagnosticEntry('findings', current.findings, next.findings),
-    diagnosticEntry('observations', current.observations, next.observations),
     diagnosticEntry('strengths', current.strengths, next.strengths),
     diagnosticEntry('weaknesses', current.weaknesses, next.weaknesses),
   ].filter((entry) => entry.previousValue !== entry.proposedValue)
@@ -3484,13 +3053,7 @@ function userNameById(group: PlanningGroupSummary | null, userId?: number | null
 }
 
 function editorSwotPayload(value: UpdateSwotPayload): UpdateSwotPayload {
-  const cleaned = cleanSwot(value)
-  return {
-    strengths: cleaned.strengths.length > 0 ? cleaned.strengths : [{ description: '', priority: 'MEDIA' }],
-    opportunities: cleaned.opportunities.length > 0 ? cleaned.opportunities : [{ description: '', priority: 'MEDIA' }],
-    weaknesses: cleaned.weaknesses.length > 0 ? cleaned.weaknesses : [{ description: '', priority: 'MEDIA' }],
-    threats: cleaned.threats.length > 0 ? cleaned.threats : [{ description: '', priority: 'MEDIA' }],
-  }
+  return cleanSwot(value)
 }
 
 function editorPestPayload(value: UpdatePestPayload): UpdatePestPayload {
@@ -3504,16 +3067,12 @@ function editorPorterPayload(value: UpdatePorterPayload): UpdatePorterPayload {
 function editorValueChainPayload(value: UpdateValueChainPayload): UpdateValueChainPayload {
   const cleaned = cleanValueChain(value)
   return {
-    supportActivities: cleaned.supportActivities.length > 0
-      ? cleaned.supportActivities
-      : [{ activity: 'DESARROLLO_TECNOLOGICO', description: '', priority: 'MEDIA' }],
-    primaryActivities: cleaned.primaryActivities.length > 0
-      ? cleaned.primaryActivities
-      : [{ activity: 'OPERACIONES', description: '', priority: 'MEDIA' }],
+    supportActivities: [],
+    primaryActivities: [],
     assessments: cleaned.assessments.length > 0
       ? cleaned.assessments
       : [],
-    observations: cleaned.observations,
+    observations: '',
     strengths: cleaned.strengths,
     weaknesses: cleaned.weaknesses,
     findings: cleaned.findings,
@@ -3528,7 +3087,7 @@ function editorBcgPayload(value: UpdateBcgPayload): UpdateBcgPayload {
       : [emptyBcgProduct()],
     marketGrowthThreshold: cleaned.marketGrowthThreshold > 0 ? cleaned.marketGrowthThreshold : 10,
     relativeMarketShareThreshold: cleaned.relativeMarketShareThreshold > 0 ? cleaned.relativeMarketShareThreshold : 1,
-    observations: cleaned.observations,
+    observations: '',
     strengths: cleaned.strengths,
     weaknesses: cleaned.weaknesses,
     findings: cleaned.findings,
@@ -3562,7 +3121,7 @@ function pestPayloadFromContent(value: unknown): UpdatePestPayload {
         evidence: textValue(finding.evidence),
         impact: textValue(finding.impact),
         priority: priorityValue(finding.priority),
-        selectedForFoda: Boolean(finding.selectedForFoda),
+        selectedForFoda: true,
       }))
       .filter((finding) => finding.description),
   }
@@ -3585,7 +3144,7 @@ function porterPayloadFromContent(value: unknown): UpdatePorterPayload {
         evidence: textValue(finding.evidence),
         impact: textValue(finding.impact),
         priority: priorityValue(finding.priority),
-        selectedForFoda: Boolean(finding.selectedForFoda),
+        selectedForFoda: true,
       }))
       .filter((finding) => finding.description),
   }
@@ -3650,7 +3209,7 @@ function valueChainFindingsFromContent(
       evidence: textValue(finding.evidence).trim(),
       impact: textValue(finding.impact).trim(),
       priority: priorityValue(finding.priority),
-      selectedForFoda: Boolean(finding.selectedForFoda),
+      selectedForFoda: true,
     }))
     .filter((finding) => finding.description)
   if (parsed.length > 0) return parsed

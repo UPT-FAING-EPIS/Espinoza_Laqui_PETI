@@ -6,19 +6,11 @@ import com.strategicti.application.usecase.BcgSummary;
 import com.strategicti.application.usecase.PestSummary;
 import com.strategicti.application.usecase.PorterSummary;
 import com.strategicti.application.usecase.SwotSummary;
-import com.strategicti.application.usecase.UpdateBcgCommand;
-import com.strategicti.application.usecase.UpdatePestCommand;
-import com.strategicti.application.usecase.UpdatePorterCommand;
-import com.strategicti.application.usecase.UpdateSwotCommand;
-import com.strategicti.application.usecase.UpdateValueChainCommand;
 import com.strategicti.application.usecase.ValueChainSummary;
-import jakarta.validation.Valid;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -44,40 +36,10 @@ public class GroupDiagnosticsController {
         return service.getPestForGroup(groupId, user);
     }
 
-    @PutMapping("/pest")
-    public PestSummary updatePest(
-            @PathVariable Long groupId,
-            @Valid @RequestBody UpdatePestCommand command,
-            Authentication authentication
-    ) {
-        AuthenticatedUser user = (AuthenticatedUser) authentication.getPrincipal();
-        return service.updatePestForGroup(groupId, command, user);
-    }
-
     @GetMapping("/porter")
     public PorterSummary porter(@PathVariable Long groupId, Authentication authentication) {
         AuthenticatedUser user = (AuthenticatedUser) authentication.getPrincipal();
         return service.getPorterForGroup(groupId, user);
-    }
-
-    @PutMapping("/porter")
-    public PorterSummary updatePorter(
-            @PathVariable Long groupId,
-            @Valid @RequestBody UpdatePorterCommand command,
-            Authentication authentication
-    ) {
-        AuthenticatedUser user = (AuthenticatedUser) authentication.getPrincipal();
-        return service.updatePorterForGroup(groupId, command, user);
-    }
-
-    @PutMapping("/foda")
-    public SwotSummary updateSwot(
-            @PathVariable Long groupId,
-            @Valid @RequestBody UpdateSwotCommand command,
-            Authentication authentication
-    ) {
-        AuthenticatedUser user = (AuthenticatedUser) authentication.getPrincipal();
-        return service.updateSwotForGroup(groupId, command, user);
     }
 
     @GetMapping("/value-chain")
@@ -86,29 +48,9 @@ public class GroupDiagnosticsController {
         return service.getValueChainForGroup(groupId, user);
     }
 
-    @PutMapping("/value-chain")
-    public ValueChainSummary updateValueChain(
-            @PathVariable Long groupId,
-            @Valid @RequestBody UpdateValueChainCommand command,
-            Authentication authentication
-    ) {
-        AuthenticatedUser user = (AuthenticatedUser) authentication.getPrincipal();
-        return service.updateValueChainForGroup(groupId, command, user);
-    }
-
     @GetMapping("/bcg")
     public BcgSummary bcg(@PathVariable Long groupId, Authentication authentication) {
         AuthenticatedUser user = (AuthenticatedUser) authentication.getPrincipal();
         return service.getBcgForGroup(groupId, user);
-    }
-
-    @PutMapping("/bcg")
-    public BcgSummary updateBcg(
-            @PathVariable Long groupId,
-            @Valid @RequestBody UpdateBcgCommand command,
-            Authentication authentication
-    ) {
-        AuthenticatedUser user = (AuthenticatedUser) authentication.getPrincipal();
-        return service.updateBcgForGroup(groupId, command, user);
     }
 }

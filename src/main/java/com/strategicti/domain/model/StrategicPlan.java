@@ -19,10 +19,6 @@ public record StrategicPlan(
         completedPhases = completedPhases == null ? EnumSet.noneOf(PetiPhase.class) : Set.copyOf(completedPhases);
     }
 
-    public static StrategicPlan newPlan() {
-        return newPlan(null);
-    }
-
     public static StrategicPlan newPlanForGroup(Long groupId) {
         return newPlan(groupId);
     }

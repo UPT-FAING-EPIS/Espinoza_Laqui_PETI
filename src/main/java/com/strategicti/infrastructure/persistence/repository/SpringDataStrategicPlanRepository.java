@@ -7,7 +7,5 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.Optional;
 
 public interface SpringDataStrategicPlanRepository extends JpaRepository<StrategicPlanJpaEntity, Long> {
-    Optional<StrategicPlanJpaEntity> findFirstByGroupIdIsNullAndCurrentPlanTrueOrderByIdAsc();
-
     Optional<StrategicPlanJpaEntity> findFirstByGroupIdAndCurrentPlanTrueOrderByIdAsc(Long groupId);
 }

@@ -2,7 +2,6 @@ package com.strategicti.application.service;
 
 import com.strategicti.application.ports.out.IDiagnosticRepositoryPort;
 import com.strategicti.application.usecase.UpdateBcgCommand;
-import com.strategicti.application.usecase.UpdateDiagnosticFindingsCommand;
 import com.strategicti.application.usecase.UpdatePestCommand;
 import com.strategicti.application.usecase.UpdatePorterCommand;
 import com.strategicti.application.usecase.UpdateSwotCommand;
@@ -18,9 +17,7 @@ import org.springframework.stereotype.Component;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.ObjectMapper;
 
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 
 @Component
 public class DiagnosticsPhaseContentApplier implements PhaseContentApplier {
@@ -51,10 +48,9 @@ public class DiagnosticsPhaseContentApplier implements PhaseContentApplier {
                     && content.pest() == null
                     && content.porter() == null
                     && content.valueChain() == null
-                    && content.bcg() == null
-                    && !hasFindings(content.findings())) {
+                    && content.bcg() == null) {
                 throw new IllegalArgumentException(
-                        "El contenido de diagnostico debe incluir una herramienta o un bloque de hallazgos."
+                        "El contenido de diagnostico debe incluir una herramienta."
                 );
             }
             if (content.swot() != null) {
@@ -129,12 +125,6 @@ public class DiagnosticsPhaseContentApplier implements PhaseContentApplier {
                 diagnosticRepository.replaceAssessments(plan.id(), DiagnosticTool.PORTER, assessments);
                 diagnosticRepository.replaceFindings(plan.id(), DiagnosticTool.PORTER, findings);
             }
-            Set<DiagnosticTool> alreadyApplied = new HashSet<>();
-            if (content.pest() != null) alreadyApplied.add(DiagnosticTool.PEST);
-            if (content.porter() != null) alreadyApplied.add(DiagnosticTool.PORTER);
-            if (content.valueChain() != null) alreadyApplied.add(DiagnosticTool.VALUE_CHAIN);
-            if (content.bcg() != null) alreadyApplied.add(DiagnosticTool.BCG);
-            applyFindings(plan.id(), content.findings(), createdByUserId, alreadyApplied);
             return plan;
         } catch (JacksonException exception) {
             throw new IllegalArgumentException("El contenido propuesto para diagnostico no tiene un formato valido.");
@@ -154,48 +144,12 @@ public class DiagnosticsPhaseContentApplier implements PhaseContentApplier {
         return objectMapper.readValue(contentJson, DiagnosticsPhaseContent.class);
     }
 
-    private void applyFindings(
-            Long planId,
-            List<UpdateDiagnosticFindingsCommand> findingUpdates,
-            Long createdByUserId,
-            Set<DiagnosticTool> alreadyApplied
-    ) {
-        if (findingUpdates == null) {
-            return;
-        }
-        Set<DiagnosticTool> processedSources = new HashSet<>();
-        for (UpdateDiagnosticFindingsCommand update : findingUpdates) {
-            if (update == null) {
-                continue;
-            }
-            if (alreadyApplied.contains(update.source())) {
-                throw new IllegalArgumentException(
-                        "Los hallazgos " + update.source().name() + " deben incluirse dentro de su bloque."
-                );
-            }
-            if (update.source() != null && !processedSources.add(update.source())) {
-                throw new IllegalArgumentException("Cada herramienta de origen solo puede incluir un bloque de hallazgos.");
-            }
-            List<DiagnosticFinding> findings = diagnosticContentMapper.normalizeFindings(
-                    planId,
-                    update,
-                    createdByUserId
-            );
-            diagnosticRepository.replaceFindings(planId, update.source(), findings);
-        }
-    }
-
-    private boolean hasFindings(List<UpdateDiagnosticFindingsCommand> findingUpdates) {
-        return findingUpdates != null && findingUpdates.stream().anyMatch(update -> update != null);
-    }
-
     private record DiagnosticsPhaseContent(
             UpdateSwotCommand swot,
             UpdatePestCommand pest,
             UpdatePorterCommand porter,
             UpdateValueChainCommand valueChain,
-            UpdateBcgCommand bcg,
-            List<UpdateDiagnosticFindingsCommand> findings
+            UpdateBcgCommand bcg
     ) {
     }
 }

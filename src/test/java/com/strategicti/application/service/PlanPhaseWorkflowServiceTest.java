@@ -50,7 +50,8 @@ class PlanPhaseWorkflowServiceTest {
             objectMapper,
             List.of(
                     new IdentityPhaseContentApplier(objectMapper, contentMapper),
-                    new DiagnosticsPhaseContentApplier(objectMapper, diagnosticRepository, diagnosticContentMapper)
+                    new DiagnosticsPhaseContentApplier(objectMapper, diagnosticRepository, diagnosticContentMapper),
+                    new FormulationPhaseContentApplier(objectMapper)
             ),
             contentMapper
     );
@@ -153,6 +154,24 @@ class PlanPhaseWorkflowServiceTest {
                 group.id(),
                 PetiPhase.IDENTITY,
                 second.id(),
+                editorUser
+        ));
+    }
+
+    @Test
+    void lockedPhaseCannotBeSubmittedForReview() throws Exception {
+        AuthenticatedUser editorUser = authenticated(editor);
+        PhaseChangeRequestSummary draft = service.createChangeRequest(
+                group.id(),
+                PetiPhase.DIAGNOSTICS,
+                diagnosticsChangeCommand(),
+                editorUser
+        );
+
+        assertThrows(IllegalStateException.class, () -> service.submitChangeRequest(
+                group.id(),
+                PetiPhase.DIAGNOSTICS,
+                draft.id(),
                 editorUser
         ));
     }
@@ -343,7 +362,8 @@ class PlanPhaseWorkflowServiceTest {
         assertTrue(findings.getFirst().selectedForFoda());
 
         List<PhaseVersionSummary> versions = service.listVersions(group.id(), PetiPhase.DIAGNOSTICS, leaderUser);
-        assertEquals("PEST", versions.getFirst().content().get("findings").get(0).get("source").asText());
+        assertEquals("Mayor adopcion de servicios digitales",
+                versions.getFirst().content().get("pest").get("findings").get(0).get("description").asText());
     }
 
     @Test
@@ -445,6 +465,90 @@ class PlanPhaseWorkflowServiceTest {
         assertEquals(25, diagnosticRepository.findAssessments(plan.id(), DiagnosticTool.PORTER).size());
         assertEquals(2, diagnosticRepository.findFindings(plan.id(), DiagnosticTool.PORTER).size());
         assertEquals(editor.id(), diagnosticRepository.findFindings(plan.id(), DiagnosticTool.PORTER).getFirst().createdByUserId());
+    }
+
+    @Test
+    void strategyIdentificationApprovalCreatesVersionWithoutCompletingFormulation() throws Exception {
+        AuthenticatedUser editorUser = authenticated(editor);
+        AuthenticatedUser leaderUser = authenticated(leader);
+        StrategicPlan plan = planRepository.findCurrentByGroupId(group.id()).orElseThrow()
+                .complete(PetiPhase.IDENTITY)
+                .complete(PetiPhase.DIAGNOSTICS);
+        planRepository.save(plan);
+
+        PhaseChangeRequestSummary draft = service.createChangeRequest(
+                group.id(),
+                PetiPhase.FORMULATION,
+                strategyIdentificationChangeCommand(),
+                editorUser
+        );
+        service.submitChangeRequest(group.id(), PetiPhase.FORMULATION, draft.id(), editorUser);
+
+        service.approveChangeRequest(
+                group.id(),
+                PetiPhase.FORMULATION,
+                draft.id(),
+                new ReviewPhaseChangeRequestCommand("Identificacion validada"),
+                leaderUser
+        );
+
+        StrategicPlan saved = planRepository.findCurrentByGroupId(group.id()).orElseThrow();
+        assertEquals(PetiPhase.FORMULATION, saved.activePhase());
+        assertTrue(!saved.isCompleted(PetiPhase.FORMULATION));
+
+        List<PhaseVersionSummary> versions = service.listVersions(group.id(), PetiPhase.FORMULATION, leaderUser);
+        assertEquals(1, versions.size());
+        assertEquals("FO", versions.getFirst().content().get("strategyIdentification").get("selectedStrategy").asText());
+    }
+
+    @Test
+    void cameApprovalCreatesFinalFormulationVersionAndCompletesPhase() throws Exception {
+        AuthenticatedUser editorUser = authenticated(editor);
+        AuthenticatedUser leaderUser = authenticated(leader);
+        StrategicPlan plan = planRepository.findCurrentByGroupId(group.id()).orElseThrow()
+                .complete(PetiPhase.IDENTITY)
+                .complete(PetiPhase.DIAGNOSTICS);
+        planRepository.save(plan);
+
+        PhaseChangeRequestSummary identification = service.createChangeRequest(
+                group.id(),
+                PetiPhase.FORMULATION,
+                strategyIdentificationChangeCommand(),
+                editorUser
+        );
+        service.submitChangeRequest(group.id(), PetiPhase.FORMULATION, identification.id(), editorUser);
+        service.approveChangeRequest(
+                group.id(),
+                PetiPhase.FORMULATION,
+                identification.id(),
+                new ReviewPhaseChangeRequestCommand("Identificacion validada"),
+                leaderUser
+        );
+
+        PhaseChangeRequestSummary came = service.createChangeRequest(
+                group.id(),
+                PetiPhase.FORMULATION,
+                cameChangeCommand(),
+                editorUser
+        );
+        service.submitChangeRequest(group.id(), PetiPhase.FORMULATION, came.id(), editorUser);
+        service.approveChangeRequest(
+                group.id(),
+                PetiPhase.FORMULATION,
+                came.id(),
+                new ReviewPhaseChangeRequestCommand("CAME validado"),
+                leaderUser
+        );
+
+        StrategicPlan saved = planRepository.findCurrentByGroupId(group.id()).orElseThrow();
+        assertTrue(saved.isCompleted(PetiPhase.FORMULATION));
+        assertEquals(PetiPhase.CONSOLIDATION, saved.activePhase());
+
+        List<PhaseVersionSummary> versions = service.listVersions(group.id(), PetiPhase.FORMULATION, leaderUser);
+        assertEquals(2, versions.size());
+        assertEquals("FO", versions.getFirst().content().get("strategyIdentification").get("selectedStrategy").asText());
+        assertEquals("Estandarizar la documentacion critica",
+                versions.getFirst().content().get("came").get("correctWeaknesses").get(0).get("action").asText());
     }
 
     private CreatePhaseChangeRequestCommand identityChangeCommand(String mission) throws Exception {
@@ -613,39 +717,40 @@ class PlanPhaseWorkflowServiceTest {
     }
 
     private CreatePhaseChangeRequestCommand findingsChangeCommand() throws Exception {
+        String responses = java.util.stream.IntStream.rangeClosed(1, 25)
+                .mapToObj(number -> "{\"questionNumber\":" + number + ",\"score\":3}")
+                .collect(java.util.stream.Collectors.joining(","));
         return new CreatePhaseChangeRequestCommand(
                 "Aprobar hallazgos PEST",
                 "Resultados consolidados del analisis externo.",
                 objectMapper.readTree("""
                         {
-                          "findings": [
-                            {
-                              "source": "PEST",
-                              "findings": [
-                                {
-                                  "sourceDimension": "TECHNOLOGICAL",
-                                  "category": "OPORTUNIDAD",
-                                  "description": "Mayor adopcion de servicios digitales",
-                                  "evidence": "Reporte sectorial 2026",
-                                  "impact": "Incremento de demanda",
-                                  "priority": "ALTA",
-                                  "selectedForFoda": true
-                                },
-                                {
-                                  "sourceDimension": "POLITICAL",
-                                  "category": "AMENAZA",
-                                  "description": "Nuevas exigencias regulatorias",
-                                  "evidence": "Proyecto normativo",
-                                  "impact": "Mayor costo de cumplimiento",
-                                  "priority": "MEDIA",
-                                  "selectedForFoda": false
-                                }
-                              ]
-                            }
-                          ]
+                          "pest": {
+                            "responses": [%s],
+                            "findings": [
+                              {
+                                "sourceDimension": "TECHNOLOGICAL",
+                                "category": "OPORTUNIDAD",
+                                "description": "Mayor adopcion de servicios digitales",
+                                "evidence": "Reporte sectorial 2026",
+                                "impact": "Incremento de demanda",
+                                "priority": "ALTA",
+                                "selectedForFoda": true
+                              },
+                              {
+                                "sourceDimension": "POLITICAL",
+                                "category": "AMENAZA",
+                                "description": "Nuevas exigencias regulatorias",
+                                "evidence": "Proyecto normativo",
+                                "impact": "Mayor costo de cumplimiento",
+                                "priority": "MEDIA",
+                                "selectedForFoda": false
+                              }
+                            ]
+                          }
                         }
-                        """),
-                List.of(new PhaseChangeEntryCommand("findings.PEST", "", "2 hallazgos externos"))
+                        """.formatted(responses)),
+                List.of(new PhaseChangeEntryCommand("pest.findings", "", "2 hallazgos externos"))
         );
     }
 
@@ -722,6 +827,98 @@ class PlanPhaseWorkflowServiceTest {
                         }
                         """.formatted(responses)),
                 List.of(new PhaseChangeEntryCommand("porter.responses", "", "25 respuestas"))
+        );
+    }
+
+    private CreatePhaseChangeRequestCommand strategyIdentificationChangeCommand() throws Exception {
+        return new CreatePhaseChangeRequestCommand(
+                "Aprobar identificacion de estrategias",
+                "Cruce FODA para seleccionar estrategia principal.",
+                objectMapper.readTree("""
+                        {
+                          "strategyIdentification": {
+                            "strengths": [
+                              {"description": "Equipo tecnico con experiencia", "priority": "ALTA"}
+                            ],
+                            "opportunities": [
+                              {"description": "Automatizacion de procesos", "priority": "MEDIA"}
+                            ],
+                            "weaknesses": [
+                              {"description": "Documentacion incompleta", "priority": "MEDIA"}
+                            ],
+                            "threats": [
+                              {"description": "Cambios regulatorios", "priority": "BAJA"}
+                            ],
+                            "scores": {
+                              "FO": [[4]],
+                              "AF": [[2]],
+                              "OD": [[1]],
+                              "AD": [[3]]
+                            },
+                            "selectedStrategy": "FO"
+                          }
+                        }
+                        """),
+                List.of(new PhaseChangeEntryCommand("strategyIdentification", "", "FO"))
+        );
+    }
+
+    private CreatePhaseChangeRequestCommand cameChangeCommand() throws Exception {
+        return new CreatePhaseChangeRequestCommand(
+                "Aprobar matriz CAME",
+                "Acciones para cerrar formulacion.",
+                objectMapper.readTree("""
+                        {
+                          "strategyIdentification": {
+                            "strengths": [
+                              {"description": "Equipo tecnico con experiencia", "priority": "ALTA"}
+                            ],
+                            "opportunities": [
+                              {"description": "Automatizacion de procesos", "priority": "MEDIA"}
+                            ],
+                            "weaknesses": [
+                              {"description": "Documentacion incompleta", "priority": "MEDIA"}
+                            ],
+                            "threats": [
+                              {"description": "Cambios regulatorios", "priority": "BAJA"}
+                            ],
+                            "scores": {
+                              "FO": [[4]],
+                              "AF": [[2]],
+                              "OD": [[1]],
+                              "AD": [[3]]
+                            },
+                            "selectedStrategy": "FO"
+                          },
+                          "came": {
+                            "correctWeaknesses": [
+                              {
+                                "relatedItem": "Documentacion incompleta",
+                                "action": "Estandarizar la documentacion critica"
+                              }
+                            ],
+                            "faceThreats": [
+                              {
+                                "relatedItem": "Cambios regulatorios",
+                                "action": "Monitorear cambios normativos y ajustar procedimientos"
+                              }
+                            ],
+                            "maintainStrengths": [
+                              {
+                                "relatedItem": "Equipo tecnico con experiencia",
+                                "action": "Formalizar transferencia de conocimiento tecnico"
+                              }
+                            ],
+                            "exploitOpportunities": [
+                              {
+                                "relatedItem": "Automatizacion de procesos",
+                                "action": "Priorizar automatizaciones con impacto operativo"
+                              }
+                            ]
+                          }
+                        }
+                        """),
+                List.of(new PhaseChangeEntryCommand("came", "", "CAME validado"))
         );
     }
 

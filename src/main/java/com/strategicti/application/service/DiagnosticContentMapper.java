@@ -1103,15 +1103,6 @@ public class DiagnosticContentMapper {
         }
     }
 
-    private void assertHasValueChainType(List<DiagnosticItem> items, ValueChainActivityType type) {
-        boolean hasType = items.stream()
-                .map(item -> valueChainActivity(item.category()))
-                .anyMatch(activity -> activity != null && activity.type() == type);
-        if (!hasType) {
-            throw new IllegalArgumentException("La cadena de valor debe incluir al menos una actividad " + type.name().toLowerCase() + ".");
-        }
-    }
-
     private void assertFindingSource(DiagnosticTool source) {
         if (source != DiagnosticTool.PEST
                 && source != DiagnosticTool.PORTER

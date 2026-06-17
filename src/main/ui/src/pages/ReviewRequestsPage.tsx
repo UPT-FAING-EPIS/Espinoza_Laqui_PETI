@@ -55,22 +55,35 @@ const statusLabels: Record<PhaseChangeStatus, string> = {
 const fieldLabels: Record<string, string> = {
   assessments: 'Valoraciones',
   bcg: 'BCG',
+  'bcg.findings': 'Hallazgos BCG',
+  'bcg.products': 'Productos BCG',
   businessLine: 'Rubro',
+  category: 'Categoria',
   companyName: 'Empresa',
   description: 'Descripcion',
+  findings: 'Hallazgos',
   marketGrowthThreshold: 'Umbral crecimiento',
   mission: 'Mision',
   objectives: 'Objetivos',
   observations: 'Observaciones',
   opportunities: 'Oportunidades',
+  'pest.findings': 'Hallazgos PEST',
+  'pest.responses': 'Cuestionario PEST',
   primaryActivities: 'Actividades primarias',
   products: 'Productos',
+  'porter.findings': 'Hallazgos Porter',
+  'porter.responses': 'Cuestionario Porter',
+  priority: 'Prioridad',
   relativeMarketShareThreshold: 'Umbral participacion',
   strengths: 'Fortalezas',
   supportActivities: 'Actividades de apoyo',
   threats: 'Amenazas',
   valuesText: 'Valores',
   valueChain: 'Cadena de valor',
+  'valueChain.assessments': 'Cuestionario Cadena de valor',
+  'valueChain.findings': 'Hallazgos Cadena de valor',
+  'valueChain.primaryActivities': 'Actividades primarias',
+  'valueChain.supportActivities': 'Actividades de apoyo',
   vision: 'Vision',
   weaknesses: 'Debilidades',
 }
@@ -397,9 +410,10 @@ function FormattedDiffValue({ fieldKey, value }: { fieldKey: string; value: stri
   }
 
   if (Array.isArray(parsed)) {
+    const compact = compactArraySummary(fieldKey, parsed)
     return (
       <ul className="request-structured-list">
-        {parsed.map((item, index) => (
+        {compact.map((item, index) => (
           <li key={index}>{summaryText(item)}</li>
         ))}
       </ul>
@@ -461,7 +475,8 @@ function changedFieldLabels(request: PhaseChangeRequestSummary) {
 }
 
 function fieldLabel(key: string) {
-  return fieldLabels[key] ?? key
+  const lastKey = key.split('.').pop() ?? key
+  return fieldLabels[key] ?? fieldLabels[lastKey] ?? key
     .replace(/([A-Z])/g, ' $1')
     .replace(/[_-]+/g, ' ')
     .trim()
@@ -502,15 +517,67 @@ function textValue(value: unknown) {
   return typeof value === 'string' ? value : ''
 }
 
+function compactArraySummary(fieldKey: string, value: unknown[]) {
+  if (isQuestionnaireField(fieldKey)) {
+    const answered = value.filter((item) => isRecord(item) && item.score !== null && item.score !== undefined).length
+    return [answered > 0 ? `${answered} respuestas registradas` : 'Sin respuestas registradas.']
+  }
+  if (fieldKey.endsWith('findings')) {
+    return value.map(findingSummary).filter(Boolean)
+  }
+  if (fieldKey.endsWith('products')) {
+    return value.map(productSummary).filter(Boolean)
+  }
+  return value
+}
+
+function isQuestionnaireField(fieldKey: string) {
+  return fieldKey.endsWith('responses') || fieldKey.endsWith('assessments')
+}
+
+function findingSummary(value: unknown) {
+  if (!isRecord(value)) return summaryText(value)
+  const category = textValue(value.category)
+  const description = textValue(value.description)
+  const priority = textValue(value.priority)
+  return [categoryLabel(category), description, priority ? `(${categoryLabel(priority)})` : '']
+    .filter(Boolean)
+    .join(' ')
+}
+
+function productSummary(value: unknown) {
+  if (!isRecord(value)) return summaryText(value)
+  const name = textValue(value.name) || 'Producto'
+  const quadrant = textValue(value.quadrant)
+  const annualSales = value.annualSales === undefined ? '' : `Ventas: ${value.annualSales}`
+  return [name, quadrant && `(${categoryLabel(quadrant)})`, annualSales].filter(Boolean).join(' - ')
+}
+
+function categoryLabel(value: string) {
+  return value
+    .toLowerCase()
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, (letter) => letter.toUpperCase())
+}
+
 function summaryText(value: unknown): string {
   if (Array.isArray(value)) {
     return value.map(summaryText).filter(Boolean).join(', ')
   }
   if (isRecord(value)) {
+    if ('category' in value && 'description' in value) return findingSummary(value)
+    if ('description' in value && 'priority' in value) {
+      const description = textValue(value.description)
+      const priority = textValue(value.priority)
+      return [description, priority ? `(${categoryLabel(priority)})` : ''].filter(Boolean).join(' ')
+    }
+    if ('questionNumber' in value && 'score' in value) return `Pregunta ${value.questionNumber}: ${value.score}`
     return Object.entries(value)
-      .filter(([key, item]) => key !== 'complete' && item !== undefined && item !== null && item !== '')
+      .filter(([key, item]) => !hiddenSummaryKeys.has(key) && item !== undefined && item !== null && item !== '')
       .map(([key, item]) => `${fieldLabel(key)}: ${summaryText(item)}`)
       .join(' | ')
   }
   return value === undefined || value === null ? '-' : String(value)
 }
+
+const hiddenSummaryKeys = new Set(['complete', 'evidence', 'impact', 'notes', 'selectedForFoda', 'sourceDimension'])

@@ -10,11 +10,24 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Lob;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 
 import java.time.Instant;
 
 @Entity
-@Table(name = "plan_phase_versions")
+@Table(
+        name = "plan_phase_versions",
+        uniqueConstraints = {
+                @UniqueConstraint(
+                        name = "uk_plan_phase_version_number",
+                        columnNames = {"plan_id", "phase", "version_number"}
+                ),
+                @UniqueConstraint(
+                        name = "uk_plan_phase_version_request",
+                        columnNames = {"source_change_request_id"}
+                )
+        }
+)
 public class PlanPhaseVersionJpaEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

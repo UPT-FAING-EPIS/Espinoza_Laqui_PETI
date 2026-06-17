@@ -1,11 +1,11 @@
-import { BarChart3, CheckCircle2, Plus, Trash2 } from 'lucide-react'
+import { BarChart3 } from 'lucide-react'
 import type {
-  DiagnosticFindingPayload,
-  DiagnosticPriority,
   PestFactor,
   PestSummary,
   UpdatePestPayload,
 } from '../types'
+import { AssessmentToolEditor } from './AssessmentToolEditor'
+import { DiagnosticFindingsEditor } from './DiagnosticFindingsEditor'
 
 const factorOrder: PestFactor[] = [
   'SOCIAL_DEMOGRAPHIC',
@@ -31,8 +31,6 @@ const scoreLabels = [
   'En total acuerdo',
 ]
 
-const priorities: DiagnosticPriority[] = ['BAJA', 'MEDIA', 'ALTA']
-
 export function PestEditor({
   onChange,
   summary,
@@ -43,196 +41,39 @@ export function PestEditor({
   value: UpdatePestPayload
 }) {
   const current = pestFormValue(value)
-  const questions = arrayValue(summary?.questions)
+  const questions = arrayValue(summary?.questions).map((question) => ({
+    questionNumber: question.questionNumber,
+    dimension: question.factor,
+    statement: question.statement,
+  }))
   const factorScores = pestFactorScores(current)
 
-  function updateResponse(questionNumber: number, score: number) {
-    const exists = current.responses.some((response) => response.questionNumber === questionNumber)
-    onChange({
-      ...current,
-      responses: exists
-        ? current.responses.map((response) => response.questionNumber === questionNumber ? { ...response, score } : response)
-        : [...current.responses, { questionNumber, score }].sort((a, b) => a.questionNumber - b.questionNumber),
-    })
-  }
-
-  function addFinding(category: 'OPORTUNIDAD' | 'AMENAZA') {
-    onChange({
-      ...current,
-      findings: [...current.findings, emptyFinding(category)],
-    })
-  }
-
-  function updateFinding(index: number, patch: Partial<DiagnosticFindingPayload>) {
-    onChange({
-      ...current,
-      findings: current.findings.map((finding, itemIndex) => itemIndex === index ? { ...finding, ...patch } : finding),
-    })
-  }
-
-  function removeFinding(index: number) {
-    onChange({
-      ...current,
-      findings: current.findings.filter((_, itemIndex) => itemIndex !== index),
-    })
-  }
-
   return (
-    <div className="diag-pest-layout">
-      <PestImpactChart scores={factorScores} />
-
-      <section className="diag-panel wide">
-        <div className="diag-panel-head">
-          <div>
-            <h3>Autodiagnostico del macroentorno</h3>
-            <p className="diag-panel-copy">
-              Valore las 25 afirmaciones. El nivel de impacto orienta el analisis, pero la clasificacion final
-              como oportunidad o amenaza depende de su efecto sobre la organizacion.
-            </p>
-          </div>
-          <span className="diag-pest-progress">{answeredCount(current)}/25 respondidas</span>
-        </div>
-
-        <div className="diag-pest-questionnaire">
-          {questionnaireOrder().map((factor) => (
-            <article className="diag-pest-factor" key={factor}>
-              <header>
-                <strong>{factorLabels[factor]}</strong>
-                <span>{factorScores[factor].answered}/5</span>
-              </header>
-              <div className="diag-pest-questions">
-                {questions.filter((question) => question.factor === factor).map((question) => {
-                  const selected = responseScore(current, question.questionNumber)
-                  return (
-                    <div className="diag-pest-question" key={question.questionNumber}>
-                      <div className="diag-pest-question-copy">
-                        <span>{question.questionNumber}</span>
-                        <p>{question.statement}</p>
-                      </div>
-                      <div className="diag-pest-scale" role="group" aria-label={`Valoracion de pregunta ${question.questionNumber}`}>
-                        {scoreLabels.map((label, score) => (
-                          <button
-                            aria-label={`${score}: ${label}`}
-                            aria-pressed={selected === score}
-                            className={selected === score ? 'active' : ''}
-                            key={score}
-                            title={label}
-                            type="button"
-                            onClick={() => updateResponse(question.questionNumber, score)}
-                          >
-                            {score}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            </article>
-          ))}
-        </div>
-      </section>
-
-      <section className="diag-panel wide">
-        <div className="diag-panel-head">
-          <div>
-            <h3>Hallazgos del analisis externo</h3>
-            <p className="diag-panel-copy">
-              Registre las oportunidades y amenazas relevantes. Puede crear todas las que necesite.
-            </p>
-          </div>
-          <div className="diag-pest-finding-actions">
-            <button className="gplan-inline-btn" type="button" onClick={() => addFinding('OPORTUNIDAD')}>
-              <Plus size={14} />
-              Oportunidad
-            </button>
-            <button className="gplan-inline-btn" type="button" onClick={() => addFinding('AMENAZA')}>
-              <Plus size={14} />
-              Amenaza
-            </button>
-          </div>
-        </div>
-
-        {current.findings.length === 0 && (
-          <p className="gplan-muted">Todavia no se registraron oportunidades o amenazas PEST.</p>
-        )}
-        <div className="diag-pest-findings">
-          {current.findings.map((finding, index) => (
-            <article className="diag-pest-finding" key={index}>
-              <div className="diag-pest-finding-head">
-                <span className={`diag-pest-kind ${finding.category.toLowerCase()}`}>{finding.category}</span>
-                <button
-                  className="gplan-remove-btn"
-                  title="Eliminar hallazgo"
-                  type="button"
-                  onClick={() => removeFinding(index)}
-                >
-                  <Trash2 size={14} />
-                </button>
-              </div>
-              <div className="diag-pest-finding-grid">
-                <label>
-                  <span>Factor de origen</span>
-                  <select
-                    value={finding.sourceDimension}
-                    onChange={(event) => updateFinding(index, { sourceDimension: event.target.value as PestFactor })}
-                  >
-                    {factorOrder.map((factor) => (
-                      <option key={factor} value={factor}>{factorLabels[factor]}</option>
-                    ))}
-                  </select>
-                </label>
-                <label>
-                  <span>Prioridad</span>
-                  <select
-                    value={finding.priority}
-                    onChange={(event) => updateFinding(index, { priority: event.target.value as DiagnosticPriority })}
-                  >
-                    {priorities.map((priority) => <option key={priority} value={priority}>{priority}</option>)}
-                  </select>
-                </label>
-                <label className="wide">
-                  <span>Descripcion</span>
-                  <textarea
-                    rows={2}
-                    value={finding.description}
-                    onChange={(event) => updateFinding(index, { description: event.target.value })}
-                    placeholder="Explique la oportunidad o amenaza identificada"
-                  />
-                </label>
-                <label>
-                  <span>Evidencia</span>
-                  <textarea
-                    rows={2}
-                    value={finding.evidence}
-                    onChange={(event) => updateFinding(index, { evidence: event.target.value })}
-                    placeholder="Dato, fuente o resultado que la sustenta"
-                  />
-                </label>
-                <label>
-                  <span>Impacto esperado</span>
-                  <textarea
-                    rows={2}
-                    value={finding.impact}
-                    onChange={(event) => updateFinding(index, { impact: event.target.value })}
-                    placeholder="Como afecta a la organizacion"
-                  />
-                </label>
-              </div>
-              <label className="diag-pest-foda-check">
-                <input
-                  checked={finding.selectedForFoda}
-                  type="checkbox"
-                  onChange={(event) => updateFinding(index, { selectedForFoda: event.target.checked })}
-                />
-                <CheckCircle2 size={15} />
-                Seleccionar para la matriz FODA
-              </label>
-            </article>
-          ))}
-        </div>
-      </section>
-    </div>
+    <AssessmentToolEditor
+      chart={<PestImpactChart scores={factorScores} />}
+      dimensions={questionnaireOrder().map((factor) => ({ value: factor, label: factorLabels[factor], questionCount: 5 }))}
+      questions={questions}
+      responses={current.responses}
+      scaleAriaLabel={(questionNumber) => `Valoracion de pregunta ${questionNumber}`}
+      scoreLabels={scoreLabels}
+      title="Autodiagnostico del macroentorno"
+      onResponsesChange={(responses) => onChange({ ...current, responses })}
+    >
+      <DiagnosticFindingsEditor
+        categories={[
+          { category: 'OPORTUNIDAD', buttonLabel: 'Oportunidad', defaultDimension: 'SOCIAL_DEMOGRAPHIC' },
+          { category: 'AMENAZA', buttonLabel: 'Amenaza', defaultDimension: 'SOCIAL_DEMOGRAPHIC' },
+        ]}
+        copy="Registre las oportunidades y amenazas relevantes. Puede crear todas las que necesite."
+        descriptionPlaceholder="Explique la oportunidad o amenaza identificada"
+        dimensionLabel="Factor de origen"
+        dimensionOptions={factorOrder.map((factor) => ({ value: factor, label: factorLabels[factor] }))}
+        emptyMessage="Todavia no se registraron oportunidades o amenazas PEST."
+        findings={current.findings}
+        title="Hallazgos del analisis externo"
+        onChange={(findings) => onChange({ ...current, findings })}
+      />
+    </AssessmentToolEditor>
   )
 }
 
@@ -312,14 +153,6 @@ function factorForQuestion(questionNumber: number): PestFactor {
   return 'ENVIRONMENTAL'
 }
 
-function responseScore(value: UpdatePestPayload, questionNumber: number) {
-  return arrayValue(value.responses).find((response) => response.questionNumber === questionNumber)?.score ?? null
-}
-
-function answeredCount(value: UpdatePestPayload) {
-  return arrayValue(value.responses).filter((response) => response.score !== null).length
-}
-
 function pestFormValue(value: UpdatePestPayload): UpdatePestPayload {
   return {
     responses: arrayValue(value?.responses),
@@ -329,16 +162,4 @@ function pestFormValue(value: UpdatePestPayload): UpdatePestPayload {
 
 function arrayValue<T>(value: T[] | readonly T[] | null | undefined): T[] {
   return Array.isArray(value) ? [...value] : []
-}
-
-function emptyFinding(category: 'OPORTUNIDAD' | 'AMENAZA'): DiagnosticFindingPayload {
-  return {
-    sourceDimension: 'SOCIAL_DEMOGRAPHIC',
-    category,
-    description: '',
-    evidence: '',
-    impact: '',
-    priority: 'MEDIA',
-    selectedForFoda: true,
-  }
 }
