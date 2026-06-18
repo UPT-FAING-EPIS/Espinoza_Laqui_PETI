@@ -21,6 +21,7 @@ import {
   updatePhaseChangeRequest,
 } from '../api/planApi'
 import { useAuth } from '../context/AuthContext'
+import { recordValue, trimmedTextValue as textValue } from '../utils/normalizers'
 import type {
   BcgSummary,
   CamePayload,
@@ -571,14 +572,6 @@ function actionsFromUnknown(value: unknown) {
 
 function relationValue(value: unknown): StrategyRelation | '' {
   return value === 'FO' || value === 'AF' || value === 'AD' || value === 'OD' ? value : ''
-}
-
-function recordValue(value: unknown): Record<string, unknown> | null {
-  return Boolean(value) && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : null
-}
-
-function textValue(value: unknown) {
-  return typeof value === 'string' ? value.trim() : ''
 }
 
 function stringify(value: unknown) {

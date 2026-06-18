@@ -17,6 +17,7 @@ import {
   rejectPhaseChangeRequest,
 } from '../api/planApi'
 import { useAuth } from '../context/AuthContext'
+import { textValue } from '../utils/normalizers'
 import '../App.css'
 import './ReviewRequestsPage.css'
 import type {
@@ -511,10 +512,6 @@ function parseJsonValue(value: string) {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value)
-}
-
-function textValue(value: unknown) {
-  return typeof value === 'string' ? value : ''
 }
 
 function compactArraySummary(fieldKey: string, value: unknown[]) {

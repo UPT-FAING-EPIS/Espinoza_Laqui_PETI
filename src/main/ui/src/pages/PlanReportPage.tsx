@@ -22,6 +22,7 @@ import {
   listPhaseVersions,
 } from '../api/planApi'
 import { setActivePetiGroupId } from '../session'
+import { recordValue, trimmedTextValue as textValue } from '../utils/normalizers'
 import type {
   BcgSummary,
   CamePayload,
@@ -726,14 +727,6 @@ function relationValue(value: unknown): StrategyRelation | '' {
 
 function priorityValue(value: unknown): DiagnosticPriority {
   return value === 'ALTA' || value === 'MEDIA' || value === 'BAJA' ? value : 'MEDIA'
-}
-
-function recordValue(value: unknown): Record<string, unknown> | null {
-  return Boolean(value) && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : null
-}
-
-function textValue(value: unknown) {
-  return typeof value === 'string' ? value.trim() : ''
 }
 
 function chartCoordinate(value: number, threshold: number) {

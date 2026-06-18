@@ -4,6 +4,7 @@ import type {
   PorterSummary,
   UpdatePorterPayload,
 } from '../types'
+import { arrayValue } from '../utils/normalizers'
 import { AssessmentToolEditor } from './AssessmentToolEditor'
 import { DiagnosticFindingsEditor } from './DiagnosticFindingsEditor'
 import { porterForceScores, porterOverallPressure } from './porterMetrics'
@@ -183,8 +184,4 @@ function porterFormValue(value: UpdatePorterPayload): UpdatePorterPayload {
     responses: arrayValue(value?.responses),
     findings: arrayValue(value?.findings),
   }
-}
-
-function arrayValue<T>(value: T[] | readonly T[] | null | undefined): T[] {
-  return Array.isArray(value) ? [...value] : []
 }

@@ -28,6 +28,15 @@ import {
   updatePhaseChangeRequest,
 } from '../api/planApi'
 import { useAuth } from '../context/AuthContext'
+import {
+  arrayValue,
+  normalizeTextKey,
+  numberFromValue,
+  recordValueOrEmpty as recordValue,
+  recordsFromValue,
+  stringListFromValue,
+  textValue,
+} from '../utils/normalizers'
 import type {
   BcgPortfolioItemPayload,
   BcgQuadrant,
@@ -3230,33 +3239,6 @@ function bcgPayloadFromContent(value: unknown): UpdateBcgPayload {
   }
 }
 
-function recordValue(value: unknown): Record<string, unknown> {
-  return value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : {}
-}
-
-function recordsFromValue(value: unknown): Array<Record<string, unknown>> {
-  return Array.isArray(value)
-    ? value
-        .filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === 'object' && !Array.isArray(item))
-    : []
-}
-
-function arrayValue<T>(value: T[] | readonly T[] | null | undefined): T[] {
-  return Array.isArray(value) ? [...value] : []
-}
-
-function textValue(value: unknown) {
-  return typeof value === 'string' ? value : ''
-}
-
-function normalizeTextKey(value: string) {
-  return value.trim().toLowerCase().replace(/\s+/g, ' ')
-}
-
-function stringListFromValue(value: unknown) {
-  return Array.isArray(value) ? value.map(textValue).map((item) => item.trim()).filter(Boolean) : []
-}
-
 function priorityValue(value: unknown): DiagnosticPriority {
   return priorities.includes(value as DiagnosticPriority) ? value as DiagnosticPriority : 'MEDIA'
 }
@@ -3273,11 +3255,6 @@ function pestFactorValue(value: unknown) {
 function porterForceValue(value: unknown) {
   const forces = ['INDUSTRY_RIVALRY', 'NEW_ENTRANTS', 'BUYER_POWER', 'SUPPLIER_POWER', 'SUBSTITUTES'] as const
   return forces.includes(value as typeof forces[number]) ? value as typeof forces[number] : 'INDUSTRY_RIVALRY'
-}
-
-function numberFromValue(value: unknown, fallback = 0) {
-  const parsed = typeof value === 'number' ? value : Number(value)
-  return Number.isFinite(parsed) ? parsed : fallback
 }
 
 function contentHasTool(content: unknown, tool: DiagnosticToolKey) {

@@ -18,7 +18,7 @@ import {
   Trash2,
   XCircle,
 } from 'lucide-react'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { z } from 'zod'
@@ -35,9 +35,7 @@ import {
 } from '../api/planApi'
 import { useAuth } from '../context/AuthContext'
 import { setActivePetiGroupId } from '../session'
-import { ConsolidationWorkspace } from './ConsolidationWorkspace'
-import { DiagnosticsWorkspace } from './DiagnosticsWorkspace'
-import { FormulationWorkspace } from './FormulationWorkspace'
+import { textValue } from '../utils/normalizers'
 import '../App.css'
 import './GroupPlanPage.css'
 import type { CSSProperties, ReactNode } from 'react'
@@ -53,6 +51,10 @@ import type {
   StrategicObjective,
   UpdateIdentityPayload,
 } from '../types'
+
+const DiagnosticsWorkspace = lazy(() => import('./DiagnosticsWorkspace').then((module) => ({ default: module.DiagnosticsWorkspace })))
+const FormulationWorkspace = lazy(() => import('./FormulationWorkspace').then((module) => ({ default: module.FormulationWorkspace })))
+const ConsolidationWorkspace = lazy(() => import('./ConsolidationWorkspace').then((module) => ({ default: module.ConsolidationWorkspace })))
 
 const identitySchema = z.object({
   companyName: z.string().max(160, 'Maximo 160 caracteres.'),
@@ -447,35 +449,37 @@ export default function GroupPlanPage() {
           </section>
         )}
 
-        {showDiagnosticsWorkspace && plan && (
-          <DiagnosticsWorkspace
-            group={group}
-            groupId={numericGroupId}
-            onError={setError}
-            onNotice={setNotice}
-            plan={plan}
-          />
-        )}
+        <Suspense fallback={null}>
+          {showDiagnosticsWorkspace && plan && (
+            <DiagnosticsWorkspace
+              group={group}
+              groupId={numericGroupId}
+              onError={setError}
+              onNotice={setNotice}
+              plan={plan}
+            />
+          )}
 
-        {showFormulationWorkspace && plan && (
-          <FormulationWorkspace
-            group={group}
-            groupId={numericGroupId}
-            onError={setError}
-            onNotice={setNotice}
-            plan={plan}
-          />
-        )}
+          {showFormulationWorkspace && plan && (
+            <FormulationWorkspace
+              group={group}
+              groupId={numericGroupId}
+              onError={setError}
+              onNotice={setNotice}
+              plan={plan}
+            />
+          )}
 
-        {showConsolidationWorkspace && plan && (
-          <ConsolidationWorkspace
-            group={group}
-            groupId={numericGroupId}
-            onError={setError}
-            onNotice={setNotice}
-            plan={plan}
-          />
-        )}
+          {showConsolidationWorkspace && plan && (
+            <ConsolidationWorkspace
+              group={group}
+              groupId={numericGroupId}
+              onError={setError}
+              onNotice={setNotice}
+              plan={plan}
+            />
+          )}
+        </Suspense>
 
         {showIdentityWorkspace && (
           <div className="content-grid">
@@ -843,10 +847,6 @@ function identityPayloadFromCurrent(
     valuesText: identity?.valuesText ?? plan.profile.valuesText,
     objectives: identity?.objectives ?? plan.objectives,
   }
-}
-
-function textValue(value: unknown) {
-  return typeof value === 'string' ? value : ''
 }
 
 function objectiveValues(value: unknown): StrategicObjective[] {

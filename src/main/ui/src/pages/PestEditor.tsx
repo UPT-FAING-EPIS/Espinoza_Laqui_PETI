@@ -4,6 +4,7 @@ import type {
   PestSummary,
   UpdatePestPayload,
 } from '../types'
+import { arrayValue } from '../utils/normalizers'
 import { AssessmentToolEditor } from './AssessmentToolEditor'
 import { DiagnosticFindingsEditor } from './DiagnosticFindingsEditor'
 
@@ -158,8 +159,4 @@ function pestFormValue(value: UpdatePestPayload): UpdatePestPayload {
     responses: arrayValue(value?.responses),
     findings: arrayValue(value?.findings),
   }
-}
-
-function arrayValue<T>(value: T[] | readonly T[] | null | undefined): T[] {
-  return Array.isArray(value) ? [...value] : []
 }

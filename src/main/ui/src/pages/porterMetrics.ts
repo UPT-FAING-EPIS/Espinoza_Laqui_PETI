@@ -1,4 +1,5 @@
 import type { PorterForce, UpdatePorterPayload } from '../types'
+import { arrayValue } from '../utils/normalizers'
 
 const forceOrder: PorterForce[] = [
   'INDUSTRY_RIVALRY',
@@ -33,10 +34,6 @@ export function porterForceScores(value: UpdatePorterPayload): Record<PorterForc
 export function porterOverallPressure(value: UpdatePorterPayload) {
   const score = arrayValue(value.responses).reduce((total, response) => total + (response.score ?? 0), 0)
   return Math.round(score)
-}
-
-function arrayValue<T>(value: T[] | readonly T[] | null | undefined): T[] {
-  return Array.isArray(value) ? [...value] : []
 }
 
 function forceForQuestion(questionNumber: number): PorterForce {

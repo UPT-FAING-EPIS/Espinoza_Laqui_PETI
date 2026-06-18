@@ -1,22 +1,23 @@
-import { StrictMode } from 'react'
+import { lazy, StrictMode, Suspense } from 'react'
 import { createRoot } from 'react-dom/client'
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import './index.css'
 import AppShell from './layout/AppShell'
-import DashboardPage from './pages/DashboardPage'
-import GroupsPage from './pages/GroupsPage'
-import GroupPlanPage from './pages/GroupPlanPage'
 import LoginPage from './pages/LoginPage'
-import MyGroupsPage from './pages/MyGroupsPage'
-import PlanGatewayPage from './pages/PlanGatewayPage'
-import PlanReportPage from './pages/PlanReportPage'
-import ProfilePage from './pages/ProfilePage'
-import ReviewRequestsPage from './pages/ReviewRequestsPage'
-import UsersPage from './pages/UsersPage'
 import type { ReactNode } from 'react'
 
 import type { DefaultView, UserSummary } from './types'
+
+const DashboardPage = lazy(() => import('./pages/DashboardPage'))
+const GroupsPage = lazy(() => import('./pages/GroupsPage'))
+const GroupPlanPage = lazy(() => import('./pages/GroupPlanPage'))
+const MyGroupsPage = lazy(() => import('./pages/MyGroupsPage'))
+const PlanGatewayPage = lazy(() => import('./pages/PlanGatewayPage'))
+const PlanReportPage = lazy(() => import('./pages/PlanReportPage'))
+const ProfilePage = lazy(() => import('./pages/ProfilePage'))
+const ReviewRequestsPage = lazy(() => import('./pages/ReviewRequestsPage'))
+const UsersPage = lazy(() => import('./pages/UsersPage'))
 
 const defaultViewRoutes: Record<DefaultView, string> = {
   CURRENT_PLAN: '/plan',
@@ -71,6 +72,7 @@ createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <BrowserRouter>
       <AuthProvider>
+        <Suspense fallback={null}>
         <Routes>
           <Route
             path="/login"
@@ -106,6 +108,7 @@ createRoot(document.getElementById('root')!).render(
             <Route path="*" element={<Navigate to="/" replace />} />
           </Route>
         </Routes>
+        </Suspense>
       </AuthProvider>
     </BrowserRouter>
   </StrictMode>,

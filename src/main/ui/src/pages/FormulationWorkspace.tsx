@@ -16,6 +16,12 @@ import {
   updatePhaseChangeRequest,
 } from '../api/planApi'
 import { useAuth } from '../context/AuthContext'
+import {
+  arrayValue,
+  normalizeTextKey,
+  recordValue,
+  textValue,
+} from '../utils/normalizers'
 import type {
   CreatePhaseChangeRequestPayload,
   CameActionPayload,
@@ -1119,22 +1125,6 @@ function hasCameContent(content: Record<string, unknown>) {
 
 function priorityValue(value: unknown): DiagnosticPriority {
   return priorities.includes(value as DiagnosticPriority) ? value as DiagnosticPriority : 'MEDIA'
-}
-
-function recordValue(value: unknown): Record<string, unknown> | null {
-  return Boolean(value) && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : null
-}
-
-function textValue(value: unknown) {
-  return typeof value === 'string' ? value : ''
-}
-
-function normalizeTextKey(value: string) {
-  return value.trim().toLowerCase().replace(/\s+/g, ' ')
-}
-
-function arrayValue<T>(value: T[] | readonly T[] | null | undefined): T[] {
-  return Array.isArray(value) ? [...value] : []
 }
 
 function stringify(value: unknown) {
