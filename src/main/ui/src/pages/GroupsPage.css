@@ -351,8 +351,11 @@
   cursor: pointer;
   font: inherit;
   font-size: 13px;
+  flex: 0 0 150px;
+  max-width: 150px;
   padding: 6px 30px 6px 12px;
   transition: all 0.2s ease;
+  width: 150px;
 }
 
 .gpage-role-select:focus {
@@ -395,5 +398,11 @@
   .gpage-member-row {
     flex-wrap: wrap;
     gap: 8px;
+  }
+
+  .gpage-role-select {
+    flex: 1 1 160px;
+    max-width: none;
+    width: auto;
   }
 }
