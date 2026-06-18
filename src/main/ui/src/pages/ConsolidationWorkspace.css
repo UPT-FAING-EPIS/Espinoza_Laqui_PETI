@@ -1,0 +1,161 @@
+.cons-sheet {
+  gap: 14px;
+}
+
+.cons-sheet h3 {
+  color: var(--ink);
+  font-size: 18px;
+  font-weight: 900;
+  letter-spacing: 0;
+  text-align: center;
+}
+
+.cons-meta-row {
+  align-items: baseline;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: 230px minmax(0, 1fr);
+}
+
+.cons-meta-row strong,
+.cons-label {
+  color: #60a5fa;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.cons-meta-row span {
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
+.cons-block {
+  align-items: stretch;
+  display: grid;
+  gap: 0;
+  grid-template-columns: 245px minmax(0, 1fr);
+}
+
+.cons-label {
+  align-items: center;
+  background: #0b78bd;
+  color: #fff;
+  display: flex;
+  justify-content: center;
+  min-height: 34px;
+  padding: 8px;
+  text-align: center;
+}
+
+.cons-box,
+.cons-table,
+.cons-actions,
+.cons-swot,
+.cons-block textarea {
+  border: 1px solid #2563eb;
+}
+
+.cons-box {
+  color: var(--ink);
+  min-height: 92px;
+  overflow-wrap: anywhere;
+  padding: 10px;
+  white-space: pre-line;
+}
+
+.cons-block.tall .cons-box {
+  min-height: 150px;
+}
+
+.cons-table,
+.cons-actions {
+  border-collapse: collapse;
+  color: var(--ink);
+  width: 100%;
+}
+
+.cons-table th,
+.cons-table td,
+.cons-actions th,
+.cons-actions td {
+  border: 1px solid #2563eb;
+  padding: 8px;
+  text-align: left;
+  vertical-align: top;
+}
+
+.cons-table thead th {
+  background: rgba(224, 242, 199, 0.18);
+  color: var(--ink);
+  text-align: center;
+}
+
+.cons-table tbody tr:nth-child(3n + 1) td {
+  background: rgba(191, 219, 254, 0.12);
+}
+
+.cons-table tbody tr:nth-child(3n + 2) td {
+  background: rgba(254, 215, 170, 0.12);
+}
+
+.cons-table tbody tr:nth-child(3n) td {
+  background: rgba(220, 252, 231, 0.12);
+}
+
+.cons-swot {
+  display: grid;
+}
+
+.cons-swot-row {
+  display: grid;
+  grid-template-columns: 120px minmax(0, 1fr);
+  min-height: 78px;
+}
+
+.cons-swot-row strong {
+  align-items: center;
+  border-right: 1px dotted rgba(37, 99, 235, 0.8);
+  display: flex;
+  font-size: 12px;
+  justify-content: center;
+}
+
+.cons-swot-row div {
+  display: grid;
+}
+
+.cons-swot-row span {
+  border-bottom: 1px dotted rgba(148, 163, 184, 0.45);
+  padding: 5px 9px;
+}
+
+.cons-swot-row span:last-child {
+  border-bottom: 0;
+}
+
+.cons-swot-row.weakness { background: rgba(217, 249, 157, 0.12); }
+.cons-swot-row.threat { background: rgba(186, 230, 253, 0.12); }
+.cons-swot-row.strength { background: rgba(254, 240, 138, 0.12); }
+.cons-swot-row.opportunity { background: rgba(254, 215, 170, 0.16); }
+
+.cons-actions th {
+  color: #60a5fa;
+  text-align: right;
+  width: 58px;
+}
+
+.cons-block textarea {
+  border-radius: 0;
+  min-height: 130px;
+}
+
+@media (max-width: 760px) {
+  .cons-meta-row,
+  .cons-block {
+    grid-template-columns: 1fr;
+  }
+
+  .cons-swot-row {
+    grid-template-columns: 1fr;
+  }
+}

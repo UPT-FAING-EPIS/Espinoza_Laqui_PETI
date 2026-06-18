@@ -1442,10 +1442,6 @@
   min-width: 980px;
 }
 
-.diag-bcg-table.competitors {
-  min-width: 1040px;
-}
-
 .diag-bcg-table th,
 .diag-bcg-table td {
   border-bottom: 1px solid var(--border);
@@ -1664,6 +1660,22 @@
   justify-content: flex-end;
 }
 
+.diag-bcg-year-cell {
+  min-width: 96px;
+}
+
+.diag-bcg-year-cell select {
+  background: var(--surface-2);
+  border: 1px solid var(--border-2);
+  border-radius: var(--radius-sm);
+  color: var(--ink);
+  font: inherit;
+  font-size: 12px;
+  min-height: 38px;
+  padding: 8px 10px;
+  width: 100%;
+}
+
 .diag-bcg-mini-grid {
   display: grid;
   gap: 8px;
@@ -1695,6 +1707,31 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
+}
+
+.diag-bcg-competitor-scroll {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  display: grid;
+  gap: 10px;
+  max-height: 420px;
+  overflow-y: auto;
+  padding: 10px;
+}
+
+.diag-bcg-competitor-card {
+  background: rgba(15, 23, 42, 0.34);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 10px;
+}
+
+.diag-bcg-competitor-card .diag-bcg-product-group {
+  margin-bottom: 8px;
+}
+
+.diag-bcg-competitor-card .diag-bcg-table {
+  min-width: 0;
 }
 
 .diag-bcg-competitor-row {

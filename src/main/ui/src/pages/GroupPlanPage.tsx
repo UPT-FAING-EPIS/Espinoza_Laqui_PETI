@@ -32,6 +32,7 @@ import {
 } from '../api/planApi'
 import { useAuth } from '../context/AuthContext'
 import { setActivePetiGroupId } from '../session'
+import { ConsolidationWorkspace } from './ConsolidationWorkspace'
 import { DiagnosticsWorkspace } from './DiagnosticsWorkspace'
 import { FormulationWorkspace } from './FormulationWorkspace'
 import '../App.css'
@@ -356,6 +357,8 @@ export default function GroupPlanPage() {
   const showIdentityWorkspace = Boolean(!loading && plan && selectedPhaseKey === 'IDENTITY')
   const showDiagnosticsWorkspace = Boolean(!loading && plan && identityCompleted && selectedPhaseKey === 'DIAGNOSTICS')
   const showFormulationWorkspace = Boolean(!loading && plan && diagnosticsCompleted && selectedPhaseKey === 'FORMULATION')
+  const formulationCompleted = plan?.phases.find((phase) => phase.phase === 'FORMULATION')?.completed ?? false
+  const showConsolidationWorkspace = Boolean(!loading && plan && formulationCompleted && selectedPhaseKey === 'CONSOLIDATION')
   const showUnavailablePhase = Boolean(
     !loading
       && plan
@@ -363,6 +366,7 @@ export default function GroupPlanPage() {
       && !showIdentityWorkspace
       && !showDiagnosticsWorkspace
       && !showFormulationWorkspace
+      && !showConsolidationWorkspace
   )
 
   return (
@@ -442,6 +446,16 @@ export default function GroupPlanPage() {
 
         {showFormulationWorkspace && plan && (
           <FormulationWorkspace
+            group={group}
+            groupId={numericGroupId}
+            onError={setError}
+            onNotice={setNotice}
+            plan={plan}
+          />
+        )}
+
+        {showConsolidationWorkspace && plan && (
+          <ConsolidationWorkspace
             group={group}
             groupId={numericGroupId}
             onError={setError}

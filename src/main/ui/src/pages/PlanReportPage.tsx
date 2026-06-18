@@ -5,8 +5,6 @@ import {
   CircleAlert,
   Download,
   FileText,
-  GitBranch,
-  Layers3,
   Network,
   ShieldCheck,
 } from 'lucide-react'
@@ -44,15 +42,6 @@ import type {
 import type { ReactNode } from 'react'
 import './PlanReportPage.css'
 
-const phases: PetiPhase[] = ['IDENTITY', 'DIAGNOSTICS', 'FORMULATION', 'CONSOLIDATION']
-
-const phaseLabels: Record<PetiPhase, string> = {
-  IDENTITY: 'Identidad estrategica',
-  DIAGNOSTICS: 'Diagnostico estrategico',
-  FORMULATION: 'Formulacion estrategica',
-  CONSOLIDATION: 'Consolidacion',
-}
-
 const relationLabels: Record<StrategyRelation, string> = {
   FO: 'Estrategia ofensiva',
   AF: 'Estrategia defensiva',
@@ -71,6 +60,10 @@ type ReportState = {
   swot: SwotSummary | null
   versions: Record<PetiPhase, PhaseVersionSummary[]>
   warnings: string[]
+}
+
+type ConsolidationPayload = {
+  conclusions: string
 }
 
 const emptyVersions: Record<PetiPhase, PhaseVersionSummary[]> = {
@@ -154,10 +147,10 @@ export default function PlanReportPage() {
       bcg: valueOrNull(bcgResult, 'BCG', warnings),
       swot: valueOrNull(swotResult, 'FODA', warnings),
       versions: {
-        IDENTITY: valueOrNull(identityVersions, 'versiones de identidad', warnings) ?? [],
-        DIAGNOSTICS: valueOrNull(diagnosticsVersions, 'versiones de diagnostico', warnings) ?? [],
-        FORMULATION: valueOrNull(formulationVersions, 'versiones de formulacion', warnings) ?? [],
-        CONSOLIDATION: valueOrNull(consolidationVersions, 'versiones de consolidacion', warnings) ?? [],
+        IDENTITY: valueOrNull(identityVersions, 'contenido aprobado de identidad', warnings) ?? [],
+        DIAGNOSTICS: valueOrNull(diagnosticsVersions, 'contenido aprobado de diagnostico', warnings) ?? [],
+        FORMULATION: valueOrNull(formulationVersions, 'contenido aprobado de formulacion', warnings) ?? [],
+        CONSOLIDATION: valueOrNull(consolidationVersions, 'contenido aprobado de consolidacion', warnings) ?? [],
       },
       warnings,
     })
@@ -169,22 +162,11 @@ export default function PlanReportPage() {
   }, [load])
 
   const formulation = useMemo(() => formulationSnapshot(state.versions.FORMULATION), [state.versions.FORMULATION])
-  const progress = state.plan?.totalProgress ?? 0
+  const consolidation = useMemo(() => consolidationSnapshot(state.versions.CONSOLIDATION), [state.versions.CONSOLIDATION])
 
   return (
     <div className="report-page">
       <header className="page-header report-header">
-        <div className="page-header-left">
-          <div className="breadcrumb report-screen-only">
-            <Link to={`/groups/${numericGroupId}/plan`}>Plan PETI</Link>
-            <span>/</span>
-            <span>Informe</span>
-          </div>
-          <h1>Informe PETI</h1>
-          <p className="page-subtitle">
-            {state.group?.name ?? 'Grupo PETI'} - exportacion acumulativa del plan estrategico de TI.
-          </p>
-        </div>
         <div className="page-header-right report-actions">
           <Link className="btn btn-secondary" to={`/groups/${numericGroupId}/plan`}>
             <ArrowLeft size={16} />
@@ -208,19 +190,6 @@ export default function PlanReportPage() {
 
       {!loading && (
         <article className="report-document">
-          <section className="report-cover">
-            <div>
-              <span>Plan estrategico de TI</span>
-              <h2>{state.plan?.profile.companyName || state.group?.name || 'Informe PETI'}</h2>
-              <p>{state.plan?.profile.description || state.group?.description || 'Informe generado con la informacion disponible del plan.'}</p>
-            </div>
-            <div className="report-cover-metrics">
-              <ReportMetric label="Avance" value={`${progress}%`} />
-              <ReportMetric label="Fase activa" value={phaseLabels[state.plan?.activePhase ?? 'IDENTITY']} />
-              <ReportMetric label="Actualizado" value={formatDate(state.plan?.updatedAt)} />
-            </div>
-          </section>
-
           {state.warnings.length > 0 && (
             <section className="report-card report-warning">
               <div className="report-section-title">
@@ -233,22 +202,6 @@ export default function PlanReportPage() {
             </section>
           )}
 
-          <section className="report-card">
-            <div className="report-section-title">
-              <Layers3 size={18} />
-              <h2>Estado general del PETI</h2>
-            </div>
-            <div className="report-phase-grid">
-              {state.plan?.phases.map((phase) => (
-                <div className="report-phase" key={phase.phase}>
-                  <strong>{phase.title}</strong>
-                  <span>{phase.completed ? 'Completada' : phase.locked ? 'Bloqueada' : 'En progreso'}</span>
-                  <div><i style={{ width: `${phase.progress}%` }} /></div>
-                </div>
-              )) ?? <PendingBlock label="Sin plan PETI activo." />}
-            </div>
-          </section>
-
           <IdentitySection plan={state.plan} identity={state.identity} />
           <DiagnosticsSection
             bcg={state.bcg}
@@ -258,14 +211,15 @@ export default function PlanReportPage() {
             valueChain={state.valueChain}
           />
           <FormulationSection formulation={formulation} />
-          <VersionSection versions={state.versions} />
 
           <section className="report-card">
             <div className="report-section-title">
               <FileText size={18} />
               <h2>Consolidacion</h2>
             </div>
-            <PendingBlock label="Resumen ejecutivo final pendiente. Este informe ya puede exportarse con la informacion disponible." />
+            {consolidation.conclusions
+              ? <Info label="Conclusiones" value={consolidation.conclusions} wide />
+              : <PendingBlock label="Resumen ejecutivo final pendiente. Este informe ya puede exportarse con la informacion disponible." />}
           </section>
         </article>
       )}
@@ -341,12 +295,20 @@ function DiagnosticsSection({
               <ReportMetric label="Preguntas respondidas" value={`${pest.answeredQuestions}/25`} />
               <ReportMetric label="Estado" value={pest.complete ? 'Completo' : 'En progreso'} />
             </div>
+            <ReportBarChart
+              items={pest.factors.map((factor) => ({
+                label: factor.label,
+                max: factor.maxScore,
+                text: `${factor.score}/${factor.maxScore}`,
+                value: factor.score,
+              }))}
+            />
             <SimpleTable
-              columns={['Factor', 'Puntaje', 'Impacto']}
+              columns={['Factor', 'Puntaje', 'Lectura']}
               rows={pest.factors.map((factor) => [
                 factor.label,
                 `${factor.score}/${factor.maxScore}`,
-                `${round(factor.impactPercentage)}%`,
+                factor.notableImpact ? 'Impacto notable' : 'Impacto moderado',
               ])}
             />
             <FindingsList items={pest.findings} />
@@ -359,16 +321,23 @@ function DiagnosticsSection({
           <>
             <div className="report-metrics">
               <ReportMetric label="Preguntas respondidas" value={`${porter.answeredQuestions}/25`} />
-              <ReportMetric label="Presion competitiva" value={`${round(porter.pressurePercentage)}%`} />
               <ReportMetric label="Estado" value={porter.complete ? 'Completo' : 'En progreso'} />
             </div>
             <p className="report-text">{porter.conclusion || 'Sin conclusion registrada.'}</p>
+            <ReportBarChart
+              items={porter.forces.map((force) => ({
+                label: force.label,
+                max: force.maxScore,
+                text: `${force.score}/${force.maxScore}`,
+                value: force.score,
+              }))}
+            />
             <SimpleTable
-              columns={['Fuerza', 'Puntaje', 'Presion']}
+              columns={['Fuerza', 'Puntaje', 'Lectura']}
               rows={porter.forces.map((force) => [
                 force.label,
                 `${force.score}/${force.maxScore}`,
-                `${round(force.pressurePercentage)}%`,
+                force.highPressure ? 'Presion alta' : 'Presion controlada',
               ])}
             />
             <FindingsList items={porter.findings} />
@@ -382,15 +351,22 @@ function DiagnosticsSection({
             <div className="report-metrics">
               <ReportMetric label="Preguntas respondidas" value={`${valueChain.answeredQuestions}/25`} />
               <ReportMetric label="Puntaje" value={`${valueChain.totalScore}/${valueChain.maxScore}`} />
-              <ReportMetric label="Potencial de mejora" value={`${round(valueChain.improvementPercentage)}%`} />
             </div>
             <p className="report-text">{valueChain.conclusion || 'Sin conclusion registrada.'}</p>
+            <ReportBarChart
+              items={valueChain.dimensions.map((dimension) => ({
+                label: dimension.label,
+                max: dimension.maxScore,
+                text: `${dimension.score}/${dimension.maxScore}`,
+                value: dimension.score,
+              }))}
+            />
             <SimpleTable
-              columns={['Dimension', 'Madurez', 'Mejora']}
+              columns={['Dimension', 'Puntaje', 'Preguntas']}
               rows={valueChain.dimensions.map((dimension) => [
                 dimension.label,
-                `${round(dimension.maturityPercentage)}%`,
-                `${round(dimension.improvementPercentage)}%`,
+                `${dimension.score}/${dimension.maxScore}`,
+                String(dimension.answeredQuestions),
               ])}
             />
             <FindingsList items={valueChain.findings} />
@@ -408,12 +384,13 @@ function DiagnosticsSection({
               <ReportMetric label="Vacas" value={String(bcg.cashCows)} />
               <ReportMetric label="Perros" value={String(bcg.dogs)} />
             </div>
+            <ReportBcgChart bcg={bcg} />
             <SimpleTable
-              columns={['Producto', 'Ventas', 'Crecimiento', 'Participacion', 'Cuadrante', 'Decision']}
+              columns={['Producto', 'Ventas', 'TCM', 'PRM', 'Cuadrante', 'Decision']}
               rows={bcg.products.map((product) => [
                 product.name,
                 money(product.annualSales),
-                `${round(product.marketGrowthRate)}%`,
+                String(round(product.marketGrowthRate)),
                 String(round(product.relativeMarketShare)),
                 product.quadrant,
                 product.strategicDecisionLabel,
@@ -425,7 +402,19 @@ function DiagnosticsSection({
       </ReportSubsection>
 
       <ReportSubsection title="Matriz FODA final">
-        {swot ? <SwotBlock swot={swot} /> : <PendingBlock label="FODA pendiente o sin datos." />}
+        {swot ? (
+          <>
+            <ReportBarChart
+              items={[
+                { label: 'Fortalezas', value: swot.strengths.length, max: maxSwotCount(swot), text: String(swot.strengths.length) },
+                { label: 'Oportunidades', value: swot.opportunities.length, max: maxSwotCount(swot), text: String(swot.opportunities.length) },
+                { label: 'Debilidades', value: swot.weaknesses.length, max: maxSwotCount(swot), text: String(swot.weaknesses.length) },
+                { label: 'Amenazas', value: swot.threats.length, max: maxSwotCount(swot), text: String(swot.threats.length) },
+              ]}
+            />
+            <SwotBlock swot={swot} />
+          </>
+        ) : <PendingBlock label="FODA pendiente o sin datos." />}
       </ReportSubsection>
     </section>
   )
@@ -467,32 +456,6 @@ function FormulationSection({ formulation }: { formulation: FormulationSnapshot 
       <ReportSubsection title="Matriz CAME">
         {formulation.came ? <CameBlock came={formulation.came} /> : <PendingBlock label="Matriz CAME pendiente." />}
       </ReportSubsection>
-    </section>
-  )
-}
-
-function VersionSection({ versions }: { versions: Record<PetiPhase, PhaseVersionSummary[]> }) {
-  return (
-    <section className="report-card">
-      <div className="report-section-title">
-        <GitBranch size={18} />
-        <h2>Control de versiones aprobado</h2>
-      </div>
-      <SimpleTable
-        columns={['Fase', 'Version', 'Fecha aprobacion', 'Contenido']}
-        rows={phases.flatMap((phase) => {
-          const phaseVersions = versions[phase]
-          if (phaseVersions.length === 0) {
-            return [[phaseLabels[phase], 'Pendiente', '-', 'Sin versiones aprobadas']]
-          }
-          return phaseVersions.map((version) => [
-            phaseLabels[phase],
-            `v${version.versionNumber}`,
-            formatDate(version.approvedAt),
-            Object.keys(version.content).join(', ') || 'Contenido aprobado',
-          ])
-        })}
-      />
     </section>
   )
 }
@@ -602,6 +565,57 @@ function ReportMetric({ label, value }: { label: string; value: string }) {
   )
 }
 
+function ReportBarChart({ items }: { items: Array<{ label: string; max: number; text: string; value: number }> }) {
+  return (
+    <div className="report-chart">
+      {items.map((item) => {
+        const width = item.max > 0 ? Math.max(2, Math.min(100, (item.value / item.max) * 100)) : 0
+        return (
+          <div className="report-chart-row" key={item.label}>
+            <span>{item.label}</span>
+            <svg aria-hidden="true" viewBox="0 0 100 8" preserveAspectRatio="none">
+              <rect className="track" width="100" height="8" rx="4" />
+              <rect className="fill" width={width} height="8" rx="4" />
+            </svg>
+            <strong>{item.text}</strong>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+function ReportBcgChart({ bcg }: { bcg: BcgSummary }) {
+  const thresholdGrowth = bcg.marketGrowthThreshold || 10
+  const thresholdShare = bcg.relativeMarketShareThreshold || 1
+  return (
+    <div className="report-bcg-chart">
+      <svg viewBox="0 0 100 100" role="img" aria-label="Grafico BCG">
+        <rect className="quadrant q1" x="0" y="0" width="50" height="50" />
+        <rect className="quadrant q2" x="50" y="0" width="50" height="50" />
+        <rect className="quadrant q3" x="0" y="50" width="50" height="50" />
+        <rect className="quadrant q4" x="50" y="50" width="50" height="50" />
+        <line x1="50" y1="0" x2="50" y2="100" />
+        <line x1="0" y1="50" x2="100" y2="50" />
+        <text x="8" y="12">Incognita</text>
+        <text x="65" y="12">Estrella</text>
+        <text x="8" y="92">Perro</text>
+        <text x="70" y="92">Vaca</text>
+        {bcg.products.map((product, index) => {
+          const x = chartCoordinate(product.relativeMarketShare, thresholdShare)
+          const y = 100 - chartCoordinate(product.marketGrowthRate, thresholdGrowth)
+          return (
+            <g key={`${product.name}-${index}`}>
+              <circle cx={x} cy={y} r="3.2" />
+              <text className="point-label" x={Math.min(94, x + 4)} y={Math.max(6, y - 2)}>{product.name || `P${index + 1}`}</text>
+            </g>
+          )
+        })}
+      </svg>
+    </div>
+  )
+}
+
 function Info({ label, value, wide }: { label: string; value?: string; wide?: boolean }) {
   return (
     <div className={`report-info ${wide ? 'wide' : ''}`}>
@@ -624,6 +638,15 @@ function valueOrNull<T>(result: PromiseSettledResult<T>, label: string, warnings
   if (result.status === 'fulfilled') return result.value
   warnings.push(`No se pudo cargar ${label}. El informe continuara con las demas secciones.`)
   return null
+}
+
+function maxSwotCount(swot: SwotSummary) {
+  return Math.max(1, swot.strengths.length, swot.opportunities.length, swot.weaknesses.length, swot.threats.length)
+}
+
+function consolidationSnapshot(versions: PhaseVersionSummary[]): ConsolidationPayload {
+  const source = recordValue(versions[0]?.content.consolidation)
+  return { conclusions: textValue(source?.conclusions) }
 }
 
 type FormulationSnapshot = {
@@ -713,8 +736,10 @@ function textValue(value: unknown) {
   return typeof value === 'string' ? value.trim() : ''
 }
 
-function formatDate(value?: string | null) {
-  return value ? new Date(value).toLocaleDateString() : '-'
+function chartCoordinate(value: number, threshold: number) {
+  const safeThreshold = threshold > 0 ? threshold : 1
+  if (value >= safeThreshold) return Math.min(94, 55 + ((value - safeThreshold) / safeThreshold) * 40)
+  return Math.max(6, 6 + (value / safeThreshold) * 39)
 }
 
 function money(value: number) {

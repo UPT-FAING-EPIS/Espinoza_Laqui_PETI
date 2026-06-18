@@ -180,7 +180,7 @@ public record BcgPortfolioItem(
             return fallback;
         }
         double average = cleanRates.stream().mapToDouble(Double::doubleValue).average().orElse(fallback);
-        return round(Math.min(20, average));
+        return round(average);
     }
 
     public static double relativeMarketShareFromCompetitors(
@@ -192,7 +192,7 @@ public record BcgPortfolioItem(
         if (largestCompetitorSales <= 0) {
             return fallback;
         }
-        return round(Math.min(2, annualSales / largestCompetitorSales));
+        return round(annualSales / largestCompetitorSales);
     }
 
     public static double largestCompetitorSales(List<BcgCompetitorSale> competitors) {

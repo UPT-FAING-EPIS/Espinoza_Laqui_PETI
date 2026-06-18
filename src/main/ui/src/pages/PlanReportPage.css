@@ -25,7 +25,6 @@
   gap: 18px;
 }
 
-.report-cover,
 .report-card {
   background: var(--surface);
   border: 1px solid var(--border);
@@ -33,33 +32,6 @@
   overflow: hidden;
 }
 
-.report-cover {
-  align-items: stretch;
-  display: grid;
-  gap: 18px;
-  grid-template-columns: minmax(0, 1fr) 360px;
-  padding: 26px;
-}
-
-.report-cover span {
-  color: var(--blue);
-  display: block;
-  font-size: 11px;
-  font-weight: 900;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-}
-
-.report-cover h2 {
-  color: var(--ink);
-  font-family: 'Plus Jakarta Sans', sans-serif;
-  font-size: 26px;
-  font-weight: 800;
-  line-height: 1.15;
-  margin-top: 6px;
-}
-
-.report-cover p,
 .report-text {
   color: var(--ink-2);
   font-size: 13px;
@@ -67,7 +39,6 @@
   margin-top: 8px;
 }
 
-.report-cover-metrics,
 .report-metrics {
   display: grid;
   gap: 10px;
@@ -126,7 +97,6 @@
 
 .report-metric,
 .report-info,
-.report-phase,
 .report-item,
 .report-swot-column,
 .report-came-column,
@@ -200,7 +170,6 @@
   padding-left: 18px;
 }
 
-.report-phase-grid,
 .report-swot-grid,
 .report-came-grid {
   display: grid;
@@ -208,7 +177,6 @@
   grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
-.report-phase strong,
 .report-swot-column > strong,
 .report-came-column > strong {
   color: var(--ink);
@@ -216,26 +184,6 @@
   font-size: 12px;
   font-weight: 900;
   margin-bottom: 6px;
-}
-
-.report-phase span {
-  color: var(--ink-3);
-  font-size: 11px;
-  font-weight: 800;
-}
-
-.report-phase div {
-  background: var(--surface-3);
-  border-radius: 999px;
-  height: 8px;
-  margin-top: 8px;
-  overflow: hidden;
-}
-
-.report-phase i {
-  background: linear-gradient(135deg, var(--blue), var(--indigo));
-  display: block;
-  height: 100%;
 }
 
 .report-swot-column p,
@@ -253,6 +201,93 @@
   font-weight: 900;
   margin-top: 4px;
   text-transform: uppercase;
+}
+
+.report-chart {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+  padding: 10px;
+}
+
+.report-chart-row {
+  align-items: center;
+  display: grid;
+  gap: 8px;
+  grid-template-columns: minmax(120px, 1fr) minmax(160px, 2fr) 64px;
+}
+
+.report-chart-row span,
+.report-chart-row strong {
+  color: var(--ink-2);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.report-chart-row strong {
+  color: var(--ink);
+  text-align: right;
+}
+
+.report-chart svg {
+  height: 12px;
+  width: 100%;
+}
+
+.report-chart .track {
+  fill: var(--surface-3);
+}
+
+.report-chart .fill {
+  fill: var(--blue);
+}
+
+.report-bcg-chart {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  margin-top: 10px;
+  padding: 10px;
+}
+
+.report-bcg-chart svg {
+  aspect-ratio: 1 / 1;
+  display: block;
+  max-height: 360px;
+  width: 100%;
+}
+
+.report-bcg-chart .quadrant {
+  stroke: var(--border);
+  stroke-width: 0.5;
+}
+
+.report-bcg-chart .q1 { fill: rgba(59, 130, 246, 0.12); }
+.report-bcg-chart .q2 { fill: rgba(34, 197, 94, 0.12); }
+.report-bcg-chart .q3 { fill: rgba(239, 68, 68, 0.1); }
+.report-bcg-chart .q4 { fill: rgba(245, 158, 11, 0.12); }
+
+.report-bcg-chart line {
+  stroke: var(--border-2);
+  stroke-width: 0.8;
+}
+
+.report-bcg-chart circle {
+  fill: var(--blue);
+  stroke: var(--ink);
+  stroke-width: 0.5;
+}
+
+.report-bcg-chart text {
+  fill: var(--ink-2);
+  font-size: 4px;
+  font-weight: 800;
+}
+
+.report-bcg-chart .point-label {
+  fill: var(--ink);
+  font-size: 3.4px;
 }
 
 .report-table-wrap {
@@ -319,9 +354,7 @@
 }
 
 @media (max-width: 920px) {
-  .report-cover,
   .report-info-grid,
-  .report-phase-grid,
   .report-swot-grid,
   .report-came-grid {
     grid-template-columns: 1fr;
@@ -368,13 +401,14 @@
     gap: 12px;
   }
 
-  .report-cover,
   .report-card {
     break-inside: avoid;
     box-shadow: none;
   }
 
   .report-subsection,
+  .report-chart,
+  .report-bcg-chart,
   .report-table-wrap,
   .report-swot-column,
   .report-came-column {
@@ -391,11 +425,6 @@
     padding: 5px;
   }
 
-  .report-cover {
-    grid-template-columns: 1fr;
-  }
-
-  .report-phase-grid,
   .report-swot-grid,
   .report-came-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
