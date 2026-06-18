@@ -2,7 +2,7 @@
    GROUP PLAN PAGE
    ============================================ */
 .gplan-page {
-  max-width: 1240px;
+  max-width: 1360px;
 }
 
 .gplan-page .page-header {
@@ -11,6 +11,360 @@
 
 .gplan-page .page-header-right a {
   text-decoration: none;
+}
+
+.gplan-command-center {
+  background:
+    linear-gradient(135deg, rgba(59, 130, 246, 0.14), rgba(20, 184, 166, 0.05)),
+    rgba(15, 23, 42, 0.34);
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-card);
+  display: grid;
+  gap: 14px;
+  margin-bottom: 22px;
+  overflow: hidden;
+  padding: 16px;
+}
+
+.gplan-command-hero {
+  align-items: center;
+  display: grid;
+  gap: 18px;
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.gplan-command-copy span {
+  color: var(--blue-2);
+  display: block;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.gplan-command-copy h2 {
+  color: var(--ink);
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 22px;
+  font-weight: 900;
+  line-height: 1.15;
+  margin-top: 4px;
+  overflow-wrap: anywhere;
+}
+
+.gplan-command-copy p {
+  color: var(--ink-2);
+  font-size: 13px;
+  line-height: 1.55;
+  margin-top: 7px;
+  max-width: 780px;
+}
+
+.gplan-progress-ring {
+  --progress: 0;
+  align-items: center;
+  background:
+    radial-gradient(circle at center, var(--surface) 0 57%, transparent 58%),
+    conic-gradient(var(--blue) calc(var(--progress) * 1%), rgba(148, 163, 184, 0.16) 0);
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.05), 0 18px 36px rgba(59, 130, 246, 0.14);
+  display: flex;
+  flex-direction: column;
+  height: 116px;
+  justify-content: center;
+  width: 116px;
+}
+
+.gplan-progress-ring strong {
+  color: var(--ink);
+  font-size: 24px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.gplan-progress-ring span {
+  color: var(--ink-3);
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  margin-top: 4px;
+  text-transform: uppercase;
+}
+
+.gplan-command-metrics {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.gplan-visual-metric {
+  align-items: center;
+  background: rgba(15, 23, 42, 0.42);
+  border: 1px solid rgba(148, 163, 184, 0.12);
+  border-radius: var(--radius);
+  display: grid;
+  gap: 10px;
+  grid-template-columns: auto minmax(0, 1fr);
+  min-width: 0;
+  padding: 12px;
+}
+
+.gplan-visual-metric svg {
+  color: var(--blue-2);
+}
+
+.gplan-visual-metric small {
+  color: var(--ink-3);
+  display: block;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.gplan-visual-metric strong {
+  color: var(--ink);
+  display: block;
+  font-size: 13px;
+  font-weight: 900;
+  margin-top: 3px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gplan-phase-visual {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.gplan-phase-card {
+  background: rgba(15, 23, 42, 0.38);
+  border: 1px solid rgba(148, 163, 184, 0.12);
+  border-radius: var(--radius);
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  padding: 12px;
+  transition:
+    border-color var(--duration-fast) ease,
+    transform var(--duration-fast) var(--ease-out),
+    box-shadow var(--duration-fast) ease;
+}
+
+.gplan-phase-card.selected,
+.gplan-phase-card.active {
+  border-color: rgba(96, 165, 250, 0.36);
+  box-shadow: inset 0 0 0 1px rgba(59, 130, 246, 0.08), 0 14px 34px rgba(59, 130, 246, 0.08);
+}
+
+.gplan-phase-card.completed {
+  border-color: rgba(34, 197, 94, 0.22);
+}
+
+.gplan-phase-card.locked {
+  opacity: 0.58;
+}
+
+.gplan-phase-card-head {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+  min-width: 0;
+}
+
+.gplan-phase-card-head > span {
+  align-items: center;
+  background: rgba(59, 130, 246, 0.12);
+  border: 1px solid rgba(59, 130, 246, 0.18);
+  border-radius: 999px;
+  color: var(--blue-2);
+  display: inline-flex;
+  flex-shrink: 0;
+  height: 28px;
+  justify-content: center;
+  width: 28px;
+}
+
+.gplan-phase-card.completed .gplan-phase-card-head > span {
+  background: rgba(34, 197, 94, 0.12);
+  border-color: rgba(34, 197, 94, 0.18);
+  color: var(--green);
+}
+
+.gplan-phase-card-head strong {
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 900;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gplan-phase-bar {
+  background: rgba(148, 163, 184, 0.13);
+  border-radius: 999px;
+  height: 7px;
+  overflow: hidden;
+}
+
+.gplan-phase-bar i {
+  background: linear-gradient(90deg, var(--blue), var(--teal));
+  border-radius: inherit;
+  display: block;
+  height: 100%;
+  min-width: 4px;
+}
+
+.gplan-phase-card.completed .gplan-phase-bar i {
+  background: linear-gradient(90deg, var(--green), var(--teal));
+}
+
+.gplan-phase-card small {
+  color: var(--ink-3);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.gplan-page .peti-stepper-panel {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0.01)),
+    rgba(15, 23, 42, 0.48);
+  border-color: rgba(148, 163, 184, 0.14);
+  box-shadow: var(--shadow-card);
+  padding: 16px;
+}
+
+.gplan-page .peti-phase-label {
+  color: var(--blue-2);
+  letter-spacing: 0.1em;
+  margin-bottom: 14px;
+}
+
+.gplan-page .stepper {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.gplan-page .step {
+  background: rgba(15, 23, 42, 0.38);
+  border-color: rgba(148, 163, 184, 0.12);
+  border-radius: var(--radius);
+  min-width: 0;
+  overflow: hidden;
+  padding: 13px 14px;
+  position: relative;
+}
+
+.gplan-page .step::after {
+  background: linear-gradient(90deg, var(--blue), var(--teal));
+  bottom: 0;
+  content: '';
+  height: 3px;
+  left: 0;
+  opacity: 0;
+  position: absolute;
+  transition: opacity var(--duration-fast) ease;
+  width: 100%;
+}
+
+.gplan-page .step:hover,
+.gplan-page .step.selected {
+  background: rgba(59, 130, 246, 0.1);
+  border-color: rgba(96, 165, 250, 0.34);
+  transform: translateY(-1px);
+}
+
+.gplan-page .step.selected::after,
+.gplan-page .step.active::after {
+  opacity: 1;
+}
+
+.gplan-page .step-dot {
+  background: rgba(15, 23, 42, 0.64);
+  border-color: rgba(148, 163, 184, 0.22);
+  height: 34px;
+  width: 34px;
+}
+
+.gplan-page .step.completed .step-dot {
+  box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.08);
+}
+
+.gplan-page .step-content strong {
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.gplan-page .content-grid {
+  gap: 28px;
+  grid-template-columns: minmax(0, 1fr) minmax(310px, 360px);
+}
+
+.gplan-page .form-area,
+.gplan-page .diag-workspace,
+.gplan-page .tools-panel {
+  min-width: 0;
+}
+
+.gplan-page .card,
+.gplan-page .tools-panel,
+.gplan-page .diag-workspace {
+  border-radius: var(--radius-xl);
+}
+
+.gplan-page .card-header {
+  min-height: 62px;
+}
+
+.gplan-page .card-header h2 {
+  font-size: 15px;
+  font-weight: 900;
+}
+
+.gplan-plan-summary-grid {
+  gap: 12px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.gplan-dashboard-metric {
+  background:
+    linear-gradient(135deg, rgba(59, 130, 246, 0.09), rgba(20, 184, 166, 0.03)),
+    rgba(15, 23, 42, 0.36);
+  border-color: rgba(148, 163, 184, 0.14);
+  border-radius: var(--radius);
+  padding: 14px;
+}
+
+.gplan-dashboard-metric strong {
+  font-size: 16px;
+}
+
+.gplan-objective {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.008)),
+    rgba(15, 23, 42, 0.38);
+  border-color: rgba(148, 163, 184, 0.14);
+  border-radius: var(--radius);
+  padding: 16px;
+}
+
+.gplan-side-body {
+  gap: 14px;
+}
+
+.gplan-workflow-summary,
+.gplan-history-block {
+  border-top-color: rgba(148, 163, 184, 0.12);
+}
+
+.gplan-request-card,
+.gplan-overview-card {
+  background: rgba(15, 23, 42, 0.42);
+  border-color: rgba(148, 163, 184, 0.14);
 }
 
 .gplan-back-btn {
@@ -726,6 +1080,26 @@
 }
 
 @media (max-width: 640px) {
+  .gplan-command-hero,
+  .gplan-command-metrics,
+  .gplan-phase-visual,
+  .gplan-page .stepper,
+  .gplan-page .content-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .gplan-command-hero {
+    justify-items: stretch;
+  }
+
+  .gplan-progress-ring {
+    justify-self: center;
+  }
+
+  .gplan-page .step {
+    width: 100%;
+  }
+
   .gplan-plan-summary-grid {
     grid-template-columns: 1fr;
   }
@@ -772,5 +1146,21 @@
 
   .gplan-preview-actions {
     flex-direction: column-reverse;
+  }
+}
+
+@media (min-width: 641px) and (max-width: 1040px) {
+  .gplan-command-metrics,
+  .gplan-phase-visual,
+  .gplan-page .stepper {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .gplan-page .content-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .gplan-page .tools-panel {
+    position: static;
   }
 }

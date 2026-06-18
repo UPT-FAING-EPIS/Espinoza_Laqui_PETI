@@ -15,6 +15,7 @@ import { useEffect, useState } from 'react'
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import type { SystemRole } from '../types'
+import '../App.css'
 import './AppShell.css'
 
 type NavItem = {
@@ -108,7 +109,9 @@ export default function AppShell() {
 
       {/* ---- MAIN ---- */}
       <main className="shell-main">
-        <Outlet />
+        <div className="shell-route" key={location.pathname}>
+          <Outlet />
+        </div>
       </main>
     </div>
   )

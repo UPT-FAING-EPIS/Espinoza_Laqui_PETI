@@ -249,7 +249,7 @@
   font-family: 'Plus Jakarta Sans', sans-serif;
   font-size: 28px;
   font-weight: 800;
-  letter-spacing: -0.02em;
+  letter-spacing: 0;
   line-height: 1.15;
 }
 
@@ -386,8 +386,9 @@
   text-transform: uppercase;
 }
 
-input,
-textarea {
+.shell input,
+.shell textarea,
+.shell select {
   background: var(--surface-2);
   border: 1px solid var(--border-2);
   border-radius: var(--radius-sm);
@@ -401,18 +402,28 @@ textarea {
   width: 100%;
 }
 
-input::placeholder,
-textarea::placeholder {
+.shell select {
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='13' height='13' viewBox='0 0 24 24' fill='none' stroke='%23a0a8b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-position: right 12px center;
+  background-repeat: no-repeat;
+  padding-right: 34px;
+}
+
+.shell input::placeholder,
+.shell textarea::placeholder {
   color: var(--ink-3);
 }
 
-input:hover,
-textarea:hover {
+.shell input:hover,
+.shell textarea:hover,
+.shell select:hover {
   border-color: rgba(255, 255, 255, 0.15);
 }
 
-input:focus,
-textarea:focus {
+.shell input:focus,
+.shell textarea:focus,
+.shell select:focus {
   background: var(--surface-3);
   border-color: var(--blue);
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
@@ -574,6 +585,612 @@ textarea:focus {
 .tool-card:hover .tool-arrow {
   opacity: 1;
   transform: translateX(0);
+}
+
+/* ============================================
+   UNIFIED AUTHENTICATED APP SKIN
+   ============================================ */
+.shell :where(
+  .dash,
+  .upage,
+  .gpage,
+  .mygroups,
+  .profile,
+  .plan-gateway,
+  .requests-page,
+  .peti-page,
+  .report-page
+) {
+  width: 100%;
+}
+
+.shell :where(
+  .dash-header,
+  .upage-header,
+  .gpage-header,
+  .gpage-detail-header,
+  .mygroups-header,
+  .profile-header,
+  .requests-header,
+  .page-header,
+  .report-header
+) {
+  align-items: flex-start;
+  background:
+    linear-gradient(135deg, rgba(96, 165, 250, 0.12), rgba(20, 184, 166, 0.04)),
+    rgba(15, 23, 42, 0.22);
+  border: 1px solid rgba(148, 163, 184, 0.1);
+  border-radius: var(--radius-xl);
+  box-shadow: 0 18px 42px rgba(2, 6, 23, 0.16);
+  display: flex;
+  gap: 16px;
+  justify-content: space-between;
+  margin-bottom: 22px;
+  overflow: hidden;
+  padding: 20px 22px;
+  position: relative;
+}
+
+.shell :where(
+  .dash-header,
+  .upage-header,
+  .gpage-header,
+  .gpage-detail-header,
+  .mygroups-header,
+  .profile-header,
+  .requests-header,
+  .page-header,
+  .report-header
+)::before {
+  background: linear-gradient(90deg, var(--blue), var(--teal));
+  content: '';
+  height: 3px;
+  inset: 0 0 auto;
+  opacity: 0.8;
+  position: absolute;
+}
+
+.shell :where(
+  .dash-header h1,
+  .upage-header h1,
+  .gpage-header h1,
+  .gpage-detail-title h1,
+  .mygroups-header h1,
+  .profile-header h1,
+  .requests-header h1,
+  .page-header h1,
+  .report-header h1
+) {
+  background: linear-gradient(135deg, #f8fafc 0%, #c7d2fe 55%, #93c5fd 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: var(--ink);
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 30px;
+  font-weight: 900;
+  letter-spacing: 0;
+  line-height: 1.12;
+}
+
+.shell :where(
+  .dash-subtitle,
+  .upage-subtitle,
+  .gpage-subtitle,
+  .mygroups-subtitle,
+  .profile-subtitle,
+  .requests-header p,
+  .page-subtitle
+) {
+  color: var(--ink-2);
+  font-size: 14px;
+  margin-top: 6px;
+}
+
+.shell :where(
+  .card,
+  .tools-panel,
+  .peti-stepper-panel,
+  .dash-action-card,
+  .dash-group-card,
+  .gpage-card,
+  .gpage-members-wrap,
+  .mygroups-card,
+  .profile-card,
+  .plan-gateway-card,
+  .requests-summary,
+  .requests-list-card,
+  .request-detail-card,
+  .upage-table-wrap,
+  .report-card,
+  .diag-panel,
+  .diag-chart-card,
+  .diag-bcg-table-block,
+  .diag-bcg-product,
+  .formu-came-section,
+  .cons-sheet,
+  .gplan-empty-card
+) {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0.012)),
+    var(--surface-glass);
+  border-color: rgba(148, 163, 184, 0.12);
+  box-shadow: var(--shadow-card);
+}
+
+.shell :where(
+  .card,
+  .tools-panel,
+  .dash-action-card,
+  .dash-group-card,
+  .gpage-card,
+  .mygroups-card,
+  .profile-card,
+  .plan-gateway-card,
+  .requests-list-card,
+  .request-detail-card,
+  .upage-table-wrap,
+  .diag-panel,
+  .diag-chart-card,
+  .diag-bcg-table-block,
+  .formu-came-section,
+  .cons-sheet
+) {
+  transition:
+    border-color var(--duration) ease,
+    box-shadow var(--duration) ease,
+    transform var(--duration) var(--ease-out),
+    background var(--duration) ease;
+}
+
+.shell :where(
+  .dash-action-card,
+  .dash-group-card,
+  .gpage-card,
+  .mygroups-card,
+  .plan-gateway-card,
+  .request-row,
+  .gplan-overview-card,
+  .tool-card,
+  .profile-view-option,
+  .diag-tab,
+  .diag-subtab,
+  .formu-came-section
+):hover {
+  border-color: rgba(96, 165, 250, 0.34);
+  box-shadow: var(--shadow-glow);
+  transform: translateY(-2px);
+}
+
+.shell :where(
+  .card-header,
+  .gpage-members-header,
+  .profile-card-header,
+  .modal-header,
+  .gplan-preview-header,
+  .request-detail-header
+) {
+  background: rgba(15, 23, 42, 0.26);
+  border-bottom-color: rgba(148, 163, 184, 0.12);
+}
+
+.shell :where(
+  .btn,
+  .upage-add-btn,
+  .gpage-add-btn,
+  .gpage-plan-btn,
+  .profile-save-btn,
+  .mygroups-plan-link,
+  .plan-gateway-action,
+  .modal-btn,
+  .gplan-inline-btn,
+  .gplan-link-btn,
+  .gplan-review-btn,
+  .requests-filters button
+) {
+  border-radius: var(--radius);
+  transition:
+    transform var(--duration-fast) var(--ease-out),
+    box-shadow var(--duration-fast) ease,
+    border-color var(--duration-fast) ease,
+    background var(--duration-fast) ease,
+    color var(--duration-fast) ease;
+}
+
+.shell :where(
+  .btn-primary,
+  .upage-add-btn,
+  .gpage-add-btn,
+  .profile-save-btn,
+  .mygroups-plan-link,
+  .modal-btn--primary
+) {
+  background: linear-gradient(135deg, var(--blue), var(--indigo));
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 14px 28px rgba(59, 130, 246, 0.2);
+}
+
+.shell :where(
+  .btn-primary,
+  .upage-add-btn,
+  .gpage-add-btn,
+  .profile-save-btn,
+  .mygroups-plan-link,
+  .modal-btn--primary
+):hover:not(:disabled) {
+  box-shadow: 0 18px 38px rgba(59, 130, 246, 0.3);
+  transform: translateY(-2px);
+}
+
+.shell :where(
+  .btn-secondary,
+  .gpage-plan-btn,
+  .modal-btn--secondary,
+  .gplan-inline-btn,
+  .gplan-link-btn,
+  .requests-filters button
+) {
+  background: rgba(30, 41, 59, 0.72);
+  border-color: rgba(148, 163, 184, 0.16);
+}
+
+.shell :where(
+  .btn-secondary,
+  .gpage-plan-btn,
+  .modal-btn--secondary,
+  .gplan-inline-btn,
+  .gplan-link-btn,
+  .requests-filters button
+):hover:not(:disabled) {
+  background: rgba(59, 130, 246, 0.12);
+  border-color: rgba(96, 165, 250, 0.32);
+  color: var(--blue-2);
+}
+
+.shell :where(button, a, input, textarea, select):focus-visible {
+  outline: 2px solid rgba(96, 165, 250, 0.72);
+  outline-offset: 2px;
+}
+
+.shell :where(
+  .upage-table-wrap,
+  .report-table-wrap,
+  .diag-bcg-table-wrap,
+  .request-diff-value,
+  .cons-table,
+  .cons-actions,
+  .cons-swot
+) {
+  border-color: rgba(148, 163, 184, 0.14);
+}
+
+.shell :where(
+  .upage-table th,
+  .report-table thead th,
+  .diag-bcg-table thead th,
+  .cons-table thead th
+) {
+  background: linear-gradient(180deg, rgba(59, 130, 246, 0.16), rgba(30, 41, 59, 0.72));
+  color: var(--ink);
+  letter-spacing: 0.04em;
+}
+
+.shell :where(
+  .upage-table tbody tr,
+  .gpage-member-row,
+  .request-row,
+  .diag-row,
+  .diag-assessment,
+  .mygroups-member
+) {
+  transition:
+    background var(--duration-fast) ease,
+    border-color var(--duration-fast) ease,
+    transform var(--duration-fast) var(--ease-out);
+}
+
+.shell :where(
+  .upage-table tbody tr:hover,
+  .gpage-member-row:hover,
+  .diag-row:hover,
+  .diag-assessment:hover
+) {
+  background: rgba(59, 130, 246, 0.06);
+}
+
+.shell :where(
+  .upage-badge,
+  .upage-status,
+  .dash-role-badge,
+  .mygroups-role,
+  .profile-status,
+  .gplan-status,
+  .diag-bcg-pill,
+  .diag-pest-kind,
+  .request-field-tags small,
+  .gplan-phase-pill
+) {
+  border: 1px solid currentColor;
+  border-color: color-mix(in srgb, currentColor 26%, transparent);
+}
+
+.shell :where(
+  .modal-overlay,
+  .gplan-preview-overlay
+) {
+  backdrop-filter: blur(14px);
+  background: rgba(2, 6, 23, 0.72);
+}
+
+.shell :where(
+  .modal-content,
+  .gplan-preview-modal
+) {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0.012)),
+    var(--surface);
+  border-color: rgba(148, 163, 184, 0.16);
+  box-shadow: 0 34px 90px rgba(0, 0, 0, 0.48);
+}
+
+.shell :where(
+  .alert,
+  .upage-alert,
+  .gpage-alert,
+  .profile-alert,
+  .gplan-notice,
+  .request-reviewed,
+  .requests-empty,
+  .report-pending
+) {
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.12);
+}
+
+.shell :where(
+  .dash-action-icon,
+  .dash-group-icon,
+  .gpage-card-icon,
+  .mygroups-card-icon,
+  .plan-gateway-icon,
+  .gplan-empty-icon,
+  .dash-empty-icon,
+  .gpage-empty-icon,
+  .mygroups-empty-icon
+) {
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04);
+}
+
+.shell :where(
+  .dash-empty,
+  .gpage-empty,
+  .mygroups-empty,
+  .gplan-empty-card,
+  .requests-empty
+) {
+  background:
+    linear-gradient(135deg, rgba(59, 130, 246, 0.08), rgba(20, 184, 166, 0.03)),
+    rgba(15, 23, 42, 0.22);
+  border: 1px dashed rgba(148, 163, 184, 0.2);
+  border-radius: var(--radius-xl);
+}
+
+.shell :where(
+  .dash-empty-icon,
+  .gpage-empty-icon,
+  .mygroups-empty-icon,
+  .gplan-empty-icon
+) {
+  background: rgba(59, 130, 246, 0.08);
+  border-color: rgba(96, 165, 250, 0.2);
+  color: var(--blue-2);
+}
+
+.shell :where(
+  .gplan-dashboard-metric,
+  .diag-metric,
+  .report-metric,
+  .report-info,
+  .requests-summary-main > svg,
+  .cons-stat,
+  .gplan-side-item,
+  .request-diff-card,
+  .request-objective-item,
+  .request-structured-object div,
+  .diag-synthesis-list,
+  .diag-bcg-product-metrics span,
+  .diag-swot-source-group
+) {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.008)),
+    rgba(15, 23, 42, 0.36);
+  border-color: rgba(148, 163, 184, 0.12);
+}
+
+.shell :where(
+  .gplan-dashboard-metric,
+  .diag-metric,
+  .report-metric,
+  .report-info,
+  .cons-stat,
+  .gplan-side-item
+) strong {
+  letter-spacing: 0;
+}
+
+.shell :where(
+  .diag-bar-fill,
+  .progress-ring-fill,
+  .report-chart .fill
+) {
+  filter: drop-shadow(0 0 8px rgba(59, 130, 246, 0.26));
+}
+
+.shell :where(
+  .diag-bcg-bubble,
+  .diag-swot-quadrant-head > span,
+  .shell-avatar,
+  .profile-avatar,
+  .upage-mini-avatar,
+  .gpage-member-avatar
+) {
+  box-shadow: 0 10px 24px rgba(2, 6, 23, 0.28);
+}
+
+.shell :where(
+  .modal-field input,
+  .modal-field select,
+  .field input,
+  .field textarea,
+  .profile-view-option,
+  .diag-bcg-table input,
+  .diag-bcg-table textarea,
+  .diag-bcg-table select,
+  .formu-came-table input,
+  .formu-came-table textarea,
+  .formu-came-table select
+) {
+  background: rgba(15, 23, 42, 0.42);
+}
+
+.shell :where(
+  .requests-filters button.active,
+  .profile-view-option.active,
+  .diag-tab.active,
+  .diag-subtab.active,
+  .request-row.active
+) {
+  border-color: rgba(96, 165, 250, 0.38);
+  box-shadow: inset 0 0 0 1px rgba(59, 130, 246, 0.08), 0 12px 32px rgba(59, 130, 246, 0.08);
+}
+
+.shell :where(
+  .upage-act-btn,
+  .gpage-act-btn,
+  .gpage-remove-btn,
+  .gplan-remove-btn,
+  .modal-close,
+  .btn-icon
+) {
+  transition:
+    transform var(--duration-fast) var(--ease-out),
+    border-color var(--duration-fast) ease,
+    background var(--duration-fast) ease,
+    color var(--duration-fast) ease;
+}
+
+.shell :where(
+  .upage-act-btn,
+  .gpage-act-btn,
+  .gpage-remove-btn,
+  .gplan-remove-btn,
+  .modal-close,
+  .btn-icon
+):hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+
+.shell :where(
+  .diag-pest-chart,
+  .diag-porter-summary,
+  .diag-bcg-matrix,
+  .diag-swot-map,
+  .report-chart,
+  .report-bcg-chart
+) {
+  background-color: rgba(15, 23, 42, 0.26);
+  border-color: rgba(148, 163, 184, 0.12);
+}
+
+.shell :where(
+  .breadcrumb,
+  .plan-gateway-kicker,
+  .request-kicker,
+  .gplan-preview-kicker,
+  .diag-chart-head span,
+  .cons-hero span
+) {
+  color: var(--blue-2);
+}
+
+.shell :where(
+  .dash-cards,
+  .dash-group-list,
+  .gpage-grid,
+  .mygroups-list,
+  .profile-grid,
+  .diag-body,
+  .formu-came-grid,
+  .diag-bcg-table-stack
+) {
+  gap: 16px;
+}
+
+.shell :where(.upage-table, .report-table, .diag-bcg-table) {
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.shell :where(.upage-table td, .upage-table th) {
+  border-bottom-color: rgba(148, 163, 184, 0.1);
+}
+
+.shell :where(.upage-table tbody tr:last-child td) {
+  border-bottom: 0;
+}
+
+.shell :where(.gplan-preview-overlay, .modal-overlay) {
+  animation: overlayIn var(--duration) ease both;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .shell :where(
+    .card,
+    .tools-panel,
+    .peti-stepper-panel,
+    .dash-action-card,
+    .dash-group-card,
+    .gpage-card,
+    .mygroups-card,
+    .profile-card,
+    .plan-gateway-card,
+    .requests-summary,
+    .requests-list-card,
+    .request-detail-card,
+    .upage-table-wrap,
+    .diag-panel,
+    .diag-chart-card,
+    .formu-came-section,
+    .cons-sheet,
+    .gplan-empty-card
+  ) {
+    animation: panelIn var(--duration-slow) var(--ease-spring) both;
+  }
+
+  .shell :where(
+    .dash-action-card,
+    .gpage-card,
+    .mygroups-card,
+    .diag-tab,
+    .diag-subtab,
+    .request-row
+  ):active {
+    transform: scale(0.99);
+  }
+
+  @keyframes panelIn {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes overlayIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
 }
 
 /* ============================================

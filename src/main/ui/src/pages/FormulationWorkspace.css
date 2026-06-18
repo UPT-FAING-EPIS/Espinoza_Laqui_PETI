@@ -136,3 +136,81 @@
 .formu-came-source-item span {
   overflow-wrap: anywhere;
 }
+
+.gplan-page .formu-body {
+  gap: 16px;
+  padding: 16px;
+}
+
+.gplan-page .formu-strategy-table,
+.gplan-page .formu-summary-table,
+.gplan-page .formu-came-table {
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.gplan-page .formu-strategy-table th,
+.gplan-page .formu-summary-table th,
+.gplan-page .formu-came-table th {
+  background: linear-gradient(180deg, rgba(59, 130, 246, 0.17), rgba(30, 41, 59, 0.84));
+  color: var(--ink);
+}
+
+.gplan-page .formu-strategy-table td,
+.gplan-page .formu-summary-table td,
+.gplan-page .formu-came-table td {
+  border-color: rgba(148, 163, 184, 0.1);
+}
+
+.gplan-page .formu-summary-table tr.selected td,
+.gplan-page .formu-summary-table tr.selected th {
+  background: rgba(59, 130, 246, 0.14);
+  box-shadow: inset 3px 0 0 var(--blue);
+}
+
+.gplan-page .formu-strategy-table select,
+.gplan-page .formu-came-table input,
+.gplan-page .formu-came-table select,
+.gplan-page .formu-came-table textarea {
+  background: rgba(15, 23, 42, 0.48);
+  border-color: rgba(148, 163, 184, 0.14);
+}
+
+.gplan-page .formu-came-section {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.006)),
+    rgba(15, 23, 42, 0.42);
+  border-color: rgba(148, 163, 184, 0.14);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-card);
+}
+
+.gplan-page .formu-came-section-head {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.13), rgba(20, 184, 166, 0.04));
+  min-height: 72px;
+  padding: 14px 16px;
+}
+
+.gplan-page .formu-came-section-head > span {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.26), rgba(20, 184, 166, 0.12));
+  border-color: rgba(96, 165, 250, 0.32);
+  box-shadow: 0 12px 24px rgba(59, 130, 246, 0.12);
+  height: 42px;
+  width: 42px;
+}
+
+.gplan-page .formu-came-section-head h4 {
+  color: var(--ink);
+  font-size: 15px;
+  font-weight: 900;
+}
+
+.gplan-page .formu-came-section-head p {
+  color: var(--ink-2);
+}
+
+.gplan-page .formu-came-source-item {
+  background: rgba(15, 23, 42, 0.48);
+  border-color: rgba(148, 163, 184, 0.14);
+  border-radius: var(--radius);
+}

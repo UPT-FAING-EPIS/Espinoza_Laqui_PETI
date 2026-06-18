@@ -1770,6 +1770,198 @@
   font-weight: 800;
 }
 
+.gplan-page .diag-tabs {
+  background: rgba(15, 23, 42, 0.22);
+  gap: 10px;
+  padding: 14px;
+}
+
+.gplan-page .diag-tab {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0.01)),
+    rgba(15, 23, 42, 0.42);
+  border-color: rgba(148, 163, 184, 0.13);
+  min-height: 68px;
+  padding: 14px;
+}
+
+.gplan-page .diag-tab svg {
+  background: rgba(59, 130, 246, 0.11);
+  border: 1px solid rgba(59, 130, 246, 0.18);
+  border-radius: 999px;
+  box-sizing: content-box;
+  padding: 8px;
+}
+
+.gplan-page .diag-tab.active {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.17), rgba(20, 184, 166, 0.05));
+  box-shadow: inset 0 -3px 0 var(--blue), 0 16px 34px rgba(59, 130, 246, 0.08);
+}
+
+.gplan-page .diag-subtabs {
+  gap: 10px;
+}
+
+.gplan-page .diag-subtab {
+  background: rgba(15, 23, 42, 0.34);
+  border-color: rgba(148, 163, 184, 0.12);
+  border-radius: var(--radius);
+  min-height: 58px;
+  padding: 12px;
+}
+
+.gplan-page .diag-subtab.active {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.15), rgba(99, 102, 241, 0.05));
+  box-shadow: inset 0 0 0 1px rgba(59, 130, 246, 0.06);
+}
+
+.gplan-page .diag-panel,
+.gplan-page .diag-chart-card,
+.gplan-page .diag-bcg-table-block,
+.gplan-page .diag-bcg-product,
+.gplan-page .diag-pest-factor,
+.gplan-page .diag-pest-finding,
+.gplan-page .diag-row,
+.gplan-page .diag-assessment,
+.gplan-page .diag-synthesis-list {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.028), rgba(255, 255, 255, 0.006)),
+    rgba(15, 23, 42, 0.42);
+  border-color: rgba(148, 163, 184, 0.12);
+  border-radius: var(--radius);
+}
+
+.gplan-page .diag-chart-head {
+  align-items: center;
+}
+
+.gplan-page .diag-chart-head span,
+.gplan-page .diag-panel-head h3,
+.gplan-page .diag-bcg-subhead strong {
+  letter-spacing: 0;
+}
+
+.gplan-page .diag-pest-plot,
+.gplan-page .diag-bcg-matrix {
+  background:
+    linear-gradient(to right, transparent calc(50% - 1px), rgba(148, 163, 184, 0.16) calc(50% - 1px), rgba(148, 163, 184, 0.16) calc(50% + 1px), transparent calc(50% + 1px)),
+    linear-gradient(to bottom, transparent calc(50% - 1px), rgba(148, 163, 184, 0.16) calc(50% - 1px), rgba(148, 163, 184, 0.16) calc(50% + 1px), transparent calc(50% + 1px)),
+    rgba(2, 6, 23, 0.28);
+  border-color: rgba(148, 163, 184, 0.16);
+}
+
+.gplan-page .diag-pest-plot {
+  background:
+    repeating-linear-gradient(to bottom, transparent 0, transparent calc(20% - 1px), rgba(148, 163, 184, 0.12) 20%),
+    rgba(2, 6, 23, 0.28);
+}
+
+.gplan-page .diag-pest-bar {
+  background: linear-gradient(180deg, var(--blue-2), var(--blue));
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 0 18px rgba(59, 130, 246, 0.22);
+}
+
+.gplan-page .diag-pest-bar.notable {
+  background: linear-gradient(180deg, #fbbf24, var(--amber));
+}
+
+.gplan-page .diag-porter-radar {
+  filter: drop-shadow(0 18px 28px rgba(59, 130, 246, 0.12));
+}
+
+.gplan-page .diag-porter-area {
+  fill: rgba(59, 130, 246, 0.26);
+}
+
+.gplan-page .diag-swot-quadrant {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0.006)),
+    rgba(15, 23, 42, 0.42);
+  border-color: rgba(148, 163, 184, 0.14);
+  box-shadow: 0 14px 32px rgba(2, 6, 23, 0.16);
+}
+
+.gplan-page .diag-swot-dial {
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.04), 0 14px 26px rgba(2, 6, 23, 0.24);
+}
+
+.gplan-page .diag-bcg-matrix {
+  min-height: 320px;
+}
+
+.gplan-page .diag-bcg-quadrant {
+  background: rgba(15, 23, 42, 0.62);
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  border-radius: 999px;
+  padding: 6px 9px;
+}
+
+.gplan-page .diag-bcg-bubble {
+  transition:
+    transform var(--duration-fast) var(--ease-out),
+    box-shadow var(--duration-fast) ease;
+}
+
+.gplan-page .diag-bcg-bubble:hover {
+  box-shadow: 0 16px 34px rgba(2, 6, 23, 0.42);
+  transform: translate(-50%, -50%) scale(1.06);
+}
+
+.gplan-page .diag-bcg-table-wrap {
+  background: rgba(2, 6, 23, 0.22);
+  border-color: rgba(148, 163, 184, 0.14);
+  border-radius: var(--radius);
+}
+
+.gplan-page .diag-bcg-table thead th {
+  background: linear-gradient(180deg, rgba(59, 130, 246, 0.17), rgba(30, 41, 59, 0.84));
+  color: var(--ink);
+}
+
+.gplan-page .diag-bcg-table tbody th,
+.gplan-page .diag-bcg-table td {
+  border-color: rgba(148, 163, 184, 0.1);
+}
+
+.gplan-page .diag-bcg-table tbody tr:hover td,
+.gplan-page .diag-bcg-table tbody tr:hover th {
+  background: rgba(59, 130, 246, 0.045);
+}
+
+.gplan-page .diag-bcg-total-row th,
+.gplan-page .diag-bcg-total-row td {
+  background: rgba(59, 130, 246, 0.12);
+}
+
+.gplan-page .diag-bcg-product-metrics span,
+.gplan-page .diag-metric,
+.gplan-page .diag-swot-source-group {
+  background: rgba(15, 23, 42, 0.46);
+  border: 1px solid rgba(148, 163, 184, 0.12);
+  border-radius: var(--radius-sm);
+}
+
+.gplan-page .diag-pest-question-copy span {
+  background: rgba(59, 130, 246, 0.12);
+  border-color: rgba(59, 130, 246, 0.2);
+}
+
+.gplan-page .diag-pest-scale button {
+  border-color: rgba(148, 163, 184, 0.14);
+  transition:
+    background var(--duration-fast) ease,
+    border-color var(--duration-fast) ease,
+    color var(--duration-fast) ease,
+    transform var(--duration-fast) var(--ease-out);
+}
+
+.gplan-page .diag-pest-scale button:hover,
+.gplan-page .diag-pest-scale button.active {
+  box-shadow: 0 10px 22px rgba(59, 130, 246, 0.1);
+  transform: translateY(-1px);
+}
+
 @media (max-width: 920px) {
   .diag-tabs,
   .diag-subtabs,

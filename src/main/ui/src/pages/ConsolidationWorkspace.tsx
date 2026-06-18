@@ -1,10 +1,15 @@
 import {
   BarChart3,
+  CheckCircle2,
+  ClipboardList,
   FileText,
   GitPullRequest,
+  Layers3,
   Send,
+  Target,
 } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import type { ReactNode } from 'react'
 import {
   createPhaseChangeRequest,
   getGroupPlanBcg,
@@ -270,31 +275,111 @@ function ExecutiveSummarySheet({
   plan: PlanSummary
   swot: SwotSummary | null
 }) {
+  const actions = cameActions(formulation.came)
+  const objectiveCount = identity?.objectives.length ?? 0
+  const productCount = bcg?.products.length ?? 0
+  const swotCount = swotItemCount(swot)
+  const companyName = plan.profile.companyName || group?.name || 'Plan PETI'
+
   return (
     <section className="diag-panel wide cons-sheet">
-      <h3>RESUMEN EJECUTIVO DEL PLAN ESTRATEGICO</h3>
-      <MetaRow label="Nombre de la empresa / proyecto:" value={plan.profile.companyName || group?.name} />
-      <MetaRow label="Fecha de elaboracion:" value={formatDate(plan.updatedAt)} />
-      <MetaRow label="Emprendedores / promotores:" value={promotersText(group)} />
-      <SheetBlock label="MISION" value={identity?.mission} tall />
-      <SheetBlock label="VISION" value={identity?.vision} tall />
-      <SheetBlock label="VALORES" value={identity?.valuesText} />
-      <SheetBlock label="UNIDADES ESTRATEGICAS" value={strategicUnitsText(plan, bcg)} tall />
-      <ObjectivesTable identity={identity} />
-      <SwotSheet swot={swot} />
-      <SheetBlock label="IDENTIFICACION DE ESTRATEGIA" value={strategyText(formulation.identification)} />
-      <ActionsTable actions={cameActions(formulation.came)} />
-      <div className="cons-block">
-        <div className="cons-label">CONCLUSIONES</div>
-        <textarea
-          disabled={completed}
-          placeholder="Anote las conclusiones mas relevantes de su Plan."
-          rows={5}
-          value={conclusions}
-          onChange={(event) => onConclusionsChange(event.target.value)}
-        />
+      <header className="cons-hero">
+        <div>
+          <span>Consolidacion final</span>
+          <h3>Resumen ejecutivo del plan estrategico</h3>
+          <p>{companyName}</p>
+        </div>
+        <strong className={completed ? 'closed' : ''}>
+          <CheckCircle2 size={18} />
+          {completed ? 'Cerrada' : 'En elaboracion'}
+        </strong>
+      </header>
+
+      <div className="cons-stat-grid">
+        <SummaryStat icon={<Target size={18} />} label="Objetivos" value={String(objectiveCount)} />
+        <SummaryStat icon={<Layers3 size={18} />} label="Hallazgos FODA" value={String(swotCount)} />
+        <SummaryStat icon={<BarChart3 size={18} />} label="Productos BCG" value={String(productCount)} />
+        <SummaryStat icon={<ClipboardList size={18} />} label="Acciones" value={String(actions.length)} />
       </div>
+
+      <section className="cons-section">
+        <SectionTitle icon={<FileText size={18} />} title="Datos generales" />
+        <div className="cons-meta-grid">
+          <MetaRow label="Empresa / proyecto" value={companyName} />
+          <MetaRow label="Fecha de elaboracion" value={formatDate(plan.updatedAt)} />
+          <MetaRow label="Promotores" value={promotersText(group)} />
+        </div>
+      </section>
+
+      <section className="cons-section">
+        <SectionTitle icon={<Target size={18} />} title="Identidad estrategica" />
+        <div className="cons-two-col">
+          <SheetBlock label="MISION" value={identity?.mission} tall />
+          <SheetBlock label="VISION" value={identity?.vision} tall />
+        </div>
+        <SheetBlock label="VALORES" value={identity?.valuesText} />
+        <SheetBlock label="UNIDADES ESTRATEGICAS" value={strategicUnitsText(plan, bcg)} tall />
+      </section>
+
+      <section className="cons-section">
+        <SectionTitle icon={<ClipboardList size={18} />} title="Objetivos estrategicos" />
+        <ObjectivesTable identity={identity} />
+      </section>
+
+      <section className="cons-section">
+        <SectionTitle icon={<Layers3 size={18} />} title="Analisis FODA" />
+        <SwotSheet swot={swot} />
+      </section>
+
+      <section className="cons-section">
+        <SectionTitle icon={<GitPullRequest size={18} />} title="Estrategia y acciones" />
+        <SheetBlock label="IDENTIFICACION DE ESTRATEGIA" value={strategyText(formulation.identification)} />
+        <ActionsTable actions={actions} />
+      </section>
+
+      <section className="cons-section">
+        <SectionTitle icon={<CheckCircle2 size={18} />} title="Conclusiones" />
+        <div className="cons-conclusions">
+          <textarea
+            disabled={completed}
+            placeholder="Anote las conclusiones mas relevantes de su Plan."
+            rows={5}
+            value={conclusions}
+            onChange={(event) => onConclusionsChange(event.target.value)}
+          />
+        </div>
+      </section>
     </section>
+  )
+}
+
+function SectionTitle({ icon, title }: { icon: ReactNode; title: string }) {
+  return (
+    <div className="cons-section-title">
+      {icon}
+      <h4>{title}</h4>
+    </div>
+  )
+}
+
+function SummaryStat({ icon, label, value }: { icon: ReactNode; label: string; value: string }) {
+  return (
+    <div className="cons-stat">
+      {icon}
+      <span>
+        <small>{label}</small>
+        <strong>{value}</strong>
+      </span>
+    </div>
+  )
+}
+
+function swotItemCount(swot: SwotSummary | null) {
+  return (
+    (swot?.strengths.length ?? 0)
+    + (swot?.weaknesses.length ?? 0)
+    + (swot?.opportunities.length ?? 0)
+    + (swot?.threats.length ?? 0)
   )
 }
 
@@ -376,6 +461,11 @@ function ActionsTable({ actions }: { actions: string[] }) {
       <div className="cons-label">ACCIONES COMPETITIVAS</div>
       <table className="cons-actions">
         <tbody>
+          {actions.length === 0 && (
+            <tr>
+              <td colSpan={2}>Sin acciones competitivas registradas.</td>
+            </tr>
+          )}
           {actions.map((action, index) => (
             <tr key={index}>
               <th>{index + 1}</th>

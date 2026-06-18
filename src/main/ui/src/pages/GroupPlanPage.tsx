@@ -1,13 +1,16 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import {
+  BarChart3,
   Building2,
   CheckCircle2,
   CircleAlert,
   FileDown,
   FileText,
   Flag,
+  Gauge,
   GitPullRequest,
   History,
+  Layers3,
   ListChecks,
   PencilLine,
   Plus,
@@ -37,7 +40,7 @@ import { DiagnosticsWorkspace } from './DiagnosticsWorkspace'
 import { FormulationWorkspace } from './FormulationWorkspace'
 import '../App.css'
 import './GroupPlanPage.css'
-import type { ReactNode } from 'react'
+import type { CSSProperties, ReactNode } from 'react'
 import type {
   IdentitySectionSummary,
   PetiPhase,
@@ -368,6 +371,7 @@ export default function GroupPlanPage() {
       && !showFormulationWorkspace
       && !showConsolidationWorkspace
   )
+  const completedPhases = plan?.phases.filter((phase) => phase.completed).length ?? 0
 
   return (
     <div className="peti-page gplan-page">
@@ -406,6 +410,15 @@ export default function GroupPlanPage() {
             </Link>
           </div>
         </header>
+
+        {!loading && plan && (
+          <PlanCommandCenter
+            activePhase={activePhase}
+            completedPhases={completedPhases}
+            plan={plan}
+            selectedPhaseKey={selectedPhaseKey}
+          />
+        )}
 
         {error && (
           <div className="alert" role="alert">
@@ -1005,6 +1018,91 @@ function DashboardMetric({ label, value }: { label: string; value: string }) {
       <strong>{value}</strong>
     </div>
   )
+}
+
+function PlanCommandCenter({
+  activePhase,
+  completedPhases,
+  plan,
+  selectedPhaseKey,
+}: {
+  activePhase?: PhaseSnapshot
+  completedPhases: number
+  plan: PlanSummary
+  selectedPhaseKey: PetiPhase
+}) {
+  const progress = clampProgress(plan.totalProgress)
+  const phaseCount = plan.phases.length || 1
+  const pendingPhases = Math.max(0, phaseCount - completedPhases)
+
+  return (
+    <section className="gplan-command-center" aria-label="Resumen visual del Plan PETI">
+      <div className="gplan-command-hero">
+        <div className="gplan-command-copy">
+          <span>Plan estrategico de TI</span>
+          <h2>{plan.profile.companyName || 'Plan PETI del grupo'}</h2>
+          <p>{plan.profile.description || activePhase?.description || 'Seguimiento por fases del plan PETI.'}</p>
+        </div>
+        <div className="gplan-progress-ring" style={{ '--progress': progress } as CSSProperties}>
+          <strong>{progress}%</strong>
+          <span>avance</span>
+        </div>
+      </div>
+
+      <div className="gplan-command-metrics">
+        <VisualMetric icon={<Gauge size={18} />} label="Fase activa" value={activePhase?.title ?? '-'} />
+        <VisualMetric icon={<CheckCircle2 size={18} />} label="Fases cerradas" value={`${completedPhases}/${phaseCount}`} />
+        <VisualMetric icon={<Layers3 size={18} />} label="Pendientes" value={String(pendingPhases)} />
+        <VisualMetric icon={<BarChart3 size={18} />} label="Actualizado" value={formatDate(plan.updatedAt)} />
+      </div>
+
+      <div className="gplan-phase-visual">
+        {plan.phases.map((phase) => (
+          <div
+            className={[
+              'gplan-phase-card',
+              phase.completed ? 'completed' : '',
+              phase.locked ? 'locked' : '',
+              phase.phase === plan.activePhase ? 'active' : '',
+              phase.phase === selectedPhaseKey ? 'selected' : '',
+            ].filter(Boolean).join(' ')}
+            key={phase.phase}
+          >
+            <div className="gplan-phase-card-head">
+              <span>{phase.completed ? <CheckCircle2 size={15} /> : <FileText size={15} />}</span>
+              <strong>{phase.title}</strong>
+            </div>
+            <div className="gplan-phase-bar" aria-hidden="true">
+              <i style={{ width: `${clampProgress(phase.progress)}%` }} />
+            </div>
+            <small>{phaseStatusText(phase)}</small>
+          </div>
+        ))}
+      </div>
+    </section>
+  )
+}
+
+function VisualMetric({ icon, label, value }: { icon: ReactNode; label: string; value: string }) {
+  return (
+    <div className="gplan-visual-metric">
+      {icon}
+      <span>
+        <small>{label}</small>
+        <strong>{value}</strong>
+      </span>
+    </div>
+  )
+}
+
+function clampProgress(value: number) {
+  return Math.max(0, Math.min(100, Math.round(Number.isFinite(value) ? value : 0)))
+}
+
+function phaseStatusText(phase: PhaseSnapshot) {
+  if (phase.completed) return 'Completada'
+  if (phase.locked) return 'Bloqueada'
+  return phase.progress > 0 ? `${clampProgress(phase.progress)}% avanzado` : 'Pendiente'
 }
 
 function userNameById(group: PlanningGroupSummary | null, userId?: number | null) {
